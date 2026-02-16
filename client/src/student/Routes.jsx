@@ -1,12 +1,13 @@
-import Dashboard from "./dashboard/Dashboard"
+import Dashboard from "./dashboard/Dashboard";
+import LogoutButton from "../../src/components/LogoutButton";
 
 function App() {
-
   return (
-  <div>
-    <Dashboard/>
-  </div>
-  )
+    <div>
+      <Dashboard />
+      <LogoutButton />
+    </div>
+  );
 }
 
-export default App
+export default App;

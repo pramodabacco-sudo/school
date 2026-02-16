@@ -1,19 +1,48 @@
-import './App.css'
-import Route1 from '../src/admin/Routes'
-import Route2 from '../src/student/Routes'
-import Route3 from '../src/superAdmin/Routes'
-import Route4 from '../src/teacher/Routes'
+import "./App.css";
+import { getAuth } from "./auth/storage";
+import Login from "./auth/Login";
+
+import AdminRoutes from "./admin/Routes";
+import StudentRoutes from "./student/Routes";
+import SuperAdminRoutes from "./superAdmin/Routes";
+import TeacherRoutes from "./teacher/Routes";
+import ParentRoutes from "./parent/Routes";
 
 function App() {
-  return (
-    <>
-      <Route1 />
-      <Route2 />
-      <Route3 />
-      <Route4 />
-      
-    </>
-  )
+  const auth = getAuth();
+
+  // not logged in
+  if (!auth) {
+    return <Login />;
+  }
+
+  // student login
+  if (auth.accountType === "student") {
+    return <StudentRoutes />;
+  }
+
+  // parent login
+  if (auth.accountType === "parent") {
+    return <ParentRoutes />;
+  }
+
+  // staff login → check role
+  if (auth.accountType === "staff") {
+    if (auth.role === "ADMIN") {
+      return <AdminRoutes />;
+    }
+
+    if (auth.role === "TEACHER") {
+      return <TeacherRoutes />;
+    }
+
+    if (auth.role === "SUPER_ADMIN") {
+      return <SuperAdminRoutes />;
+    }
+  }
+
+  // fallback
+  return <Login />;
 }
 
-export default App
+export default App;
