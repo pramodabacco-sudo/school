@@ -1,5 +1,6 @@
 import React from 'react';
 import { Search, Bell, Menu, Mail, ChevronDown } from 'lucide-react';
+import LogoutButton from '../../components/LogoutButton';
 
 function Navbar({ onMenuClick }) {
   return (
@@ -56,6 +57,7 @@ function Navbar({ onMenuClick }) {
                 AU
               </div>
               <ChevronDown className="w-4 h-4 text-gray-600 hidden md:block" />
+              <LogoutButton/>
             </button>
           </div>
         </div>
