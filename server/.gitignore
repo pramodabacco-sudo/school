@@ -92,3 +92,5 @@ docker-compose.override.yml
 # Optional: TypeScript Build Info
 # ============================
 *.tsbuildinfo
+
+/generated/prisma
