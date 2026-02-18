@@ -3,7 +3,7 @@
 
 import express from "express";
 import multer from "multer";
-import { protect } from "../middleware/authMiddleware.js"; // your existing JWT guard
+// import { protect } from "../middleware/authMiddleware.js"; // your existing JWT guard
 
 import {
   // Auth
@@ -36,7 +36,9 @@ const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
   const allowed = [
-    "image/jpeg", "image/png", "image/webp",
+    "image/jpeg",
+    "image/png",
+    "image/webp",
     "application/pdf",
     "application/msword",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -44,7 +46,10 @@ const fileFilter = (req, file, cb) => {
   if (allowed.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error("Unsupported file type. Allowed: JPG, PNG, PDF, DOC, DOCX"), false);
+    cb(
+      new Error("Unsupported file type. Allowed: JPG, PNG, PDF, DOC, DOCX"),
+      false,
+    );
   }
 };
 
@@ -56,7 +61,10 @@ const upload = multer({
 
 // ─── Multer error handler ─────────────────────────────────────────────────────
 const handleMulterError = (err, req, res, next) => {
-  if (err instanceof multer.MulterError || err.message.startsWith("Unsupported")) {
+  if (
+    err instanceof multer.MulterError ||
+    err.message.startsWith("Unsupported")
+  ) {
     return res.status(400).json({ message: err.message });
   }
   next(err);
@@ -100,7 +108,7 @@ router.post(
   protect,
   upload.single("profileImage"),
   handleMulterError,
-  createPersonalInfo
+  createPersonalInfo,
 );
 
 // PUT    /api/students/:id/personal-info   — update
@@ -110,7 +118,7 @@ router.put(
   protect,
   upload.single("profileImage"),
   handleMulterError,
-  updatePersonalInfo
+  updatePersonalInfo,
 );
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -127,7 +135,7 @@ router.post(
   protect,
   upload.single("file"),
   handleMulterError,
-  uploadDocument
+  uploadDocument,
 );
 
 // POST   /api/students/:id/documents/bulk    — upload multiple docs at once
@@ -135,9 +143,9 @@ router.post(
 router.post(
   "/:id/documents/bulk",
   protect,
-  upload.array("files", 10),   // max 10 files per request
+  upload.array("files", 10), // max 10 files per request
   handleMulterError,
-  uploadDocumentsBulk
+  uploadDocumentsBulk,
 );
 
 // GET    /api/students/:id/documents/:docId/signed-url  — pre-signed R2 URL

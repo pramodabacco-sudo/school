@@ -8,7 +8,7 @@ import {
 import Dashboard from "./dashboard/Dashboard";
 import StudentsList from "./pages/students/StudentsList";
 import AddStudents from "./pages/students/AddStudents";
-import TeachersList from "./pages/teachers/TeachersList";
+import TeachersPage from "./pages/teachers/TeachersPage";
 import ClassesList from "./pages/classes/ClassesList";
 import AttendanceList from "./pages/attendances/AttendanceList";
 import ExamsList from "./pages/Exams/ExamsList";
@@ -28,7 +28,7 @@ function App() {
         <Route path="/students/add" element={<AddStudents />} />
 
         {/* Teachers routes */}
-        <Route path="/teachers" element={<TeachersList />} />
+        <Route path="/teachers" element={<TeachersPage />} />
         {/* Classes Realted routes*/}
         <Route path="/classes" element={<ClassesList />} />
         {/* Attendance Realted routes*/}
