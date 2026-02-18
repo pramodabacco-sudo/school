@@ -2,7 +2,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-// import studentsRoutes from "./staffRoutes/studentsRoutes.js";
+import studentsRoutes from "./staffRoutes/studentsRoutes.js";
 import teachersRoutes from "./staffRoutes/teachersRoutes.js";
 
 dotenv.config();
@@ -20,7 +20,7 @@ staff.use(
 staff.use(express.json());
 
 // Routes
-// staff.use("/api/students", studentsRoutes);
+staff.use("/api/students", studentsRoutes);
 staff.use("/api/teachers", teachersRoutes);
 
 export default staff;

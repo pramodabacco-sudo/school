@@ -26,6 +26,8 @@ function App() {
         {/* Students Routes */}
         <Route path="/students" element={<StudentsList />} />
         <Route path="/students/add" element={<AddStudents />} />
+        <Route path="/students/:id"      element={<StudentView />} />
+        <Route path="/students/:id/edit" element={<AddStudents />} />
 
         {/* Teachers routes */}
         <Route path="/teachers" element={<TeachersPage />} />
