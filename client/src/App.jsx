@@ -10,6 +10,7 @@ import StudentRoutes from "./student/Routes";
 import SuperAdminRoutes from "./superAdmin/Routes";
 import TeacherRoutes from "./teacher/Routes";
 import ParentRoutes from "./parent/Routes";
+import FinanceRoutes from "./finance/Routes";
 
 function App() {
   const [view, setView] = useState("login"); // "login" | "register"
@@ -34,9 +35,10 @@ function App() {
   if (auth.accountType === "staff") {
     if (auth.role === "ADMIN") return <AdminRoutes />;
     if (auth.role === "TEACHER") return <TeacherRoutes />;
-    // SUPER_ADMIN role inside staff (legacy fallback)
+    if (auth.role === "FINANCE") return <FinanceRoutes />;
     if (auth.role === "SUPER_ADMIN") return <SuperAdminRoutes />;
   }
+
 
   // fallback — clear bad auth and show login
   return <Login onSwitchToRegister={() => setView("register")} />;

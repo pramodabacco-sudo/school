@@ -49,7 +49,7 @@ export default function Login({ onSwitchToRegister }) {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#BDDDFC] p-4">
-      <div className="w-full max-w-sm bg-white rounded-xl shadow-2xl p-10 border border-[#88BDF2]/30">
+      <div className="w-full max-w-lg bg-white rounded-xl shadow-2xl p-10 border border-[#88BDF2]/30">
         {/* Heading - 700 Weight */}
         <h1 className="text-xl font-bold text-center text-[#384959] mb-8">
           University Portal Login

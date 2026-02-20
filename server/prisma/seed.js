@@ -1195,6 +1195,50 @@ async function main() {
   console.log("✅ Timetable Config, Slots, and Entries created");
 
   // ─────────────────────────────────────────────────────────────
+// 4B. FINANCE ADMINS
+// ─────────────────────────────────────────────────────────────
+
+const highSchoolFinance = await prisma.user.create({
+  data: {
+    name: "Finance Manager HS",
+    email: "finance1@school.com",
+    password,
+    role: "FINANCE",
+    schoolId: highSchool.id,
+    financeProfile: {
+      create: {
+        schoolId: highSchool.id,
+        employeeCode: "HS-FIN-001",
+        designation: "Finance Manager",
+        phone: "+91 98765 88881",
+        salary: 50000,
+      },
+    },
+  },
+});
+
+const degreeFinance = await prisma.user.create({
+  data: {
+    name: "Finance Manager DC",
+    email: "finance2@school.com",
+    password,
+    role: "FINANCE",
+    schoolId: degreeCollege.id,
+    financeProfile: {
+      create: {
+        schoolId: degreeCollege.id,
+        employeeCode: "DC-FIN-001",
+        designation: "Accounts Officer",
+        phone: "+91 98765 88882",
+        salary: 60000,
+      },
+    },
+  },
+});
+
+console.log("✅ Finance Admins created");
+
+  // ─────────────────────────────────────────────────────────────
   // SUMMARY
   // ─────────────────────────────────────────────────────────────
   console.log(`
@@ -1224,6 +1268,13 @@ async function main() {
 ║    student5@school.com  (TY-BBA-A)                       ║
 ║    parent3@school.com                                    ║
 ╚══════════════════════════════════════════════════════════╝
+║  HIGH SCHOOL  →  school code: CHRIST_HIGH
+║    finance1@school.com
+║
+║  DEGREE COLLEGE  →  school code: CHRIST_DEGREE
+║    finance2@school.com
+
+
   `);
 }
 

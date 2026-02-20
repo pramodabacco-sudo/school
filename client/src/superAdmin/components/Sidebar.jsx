@@ -65,7 +65,7 @@ export default function Sidebar({ isOpen, onClose, user }) {
         </div>
 
         {/* ── Nav ──────────────────────────────────────────────────────────── */}
-        <nav className="flex-1 overflow-y-auto px-2.5 py-3 space-y-0.5">
+        <nav className="flex-1 overflow-y-auto px-3.5 py-6 space-y-0.5">
           {NAV.map(({ icon: Icon, label, to }, i) => {
             const active = isActive(to);
             return (
@@ -97,7 +97,7 @@ export default function Sidebar({ isOpen, onClose, user }) {
 
                   {/* Label */}
                   <span
-                    className={`text-[15px] ${
+                    className={`text-[13px] ${
                       active
                         ? "font-semibold text-[#BDDDFC]"
                         : "text-[#ffff] group-hover:text-[#BDDDFC]"

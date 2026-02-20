@@ -21,6 +21,7 @@ enum StaffRole {
   SUPER_ADMIN
   ADMIN
   TEACHER
+  FINANCE
 }
 
 enum Gender {
@@ -213,6 +214,7 @@ model School {
   timetableEntries TimetableEntry[]
   assessmentTerms  AssessmentTerm[]
   assessmentGroups AssessmentGroup[]
+  FinanceProfile   FinanceProfile[]
 
   @@index([universityId])
   @@index([type])
@@ -304,6 +306,7 @@ model User {
   school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   teacherProfile TeacherProfile?
+  financeProfile FinanceProfile?
 
   @@unique([email, schoolId])
   @@index([role])
@@ -927,4 +930,21 @@ model ResultSummary {
   @@index([studentId])
   @@index([academicYearId])
   @@map("result_summaries")
+}
+
+//  Finance 
+model FinanceProfile {
+  id           String  @id @default(uuid())
+  userId       String  @unique
+  schoolId     String
+  employeeCode String?
+  designation  String?
+  phone        String?
+  salary       Float?
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

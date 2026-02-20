@@ -26,7 +26,7 @@ export async function getSchoolAdmins(req, res) {
 
     const admins = await prisma.user.findMany({
       where: {
-        role: "ADMIN",
+        role: { in: ["ADMIN", "FINANCE"] },
         school: { universityId },
       },
       orderBy: { createdAt: "desc" },
@@ -64,7 +64,7 @@ export async function getSchoolAdmins(req, res) {
  */
 export async function createSchoolAdmin(req, res) {
   try {
-    const { name, email, password, schoolId } = req.body;
+    const { name, email, password, schoolId, role } = req.body;
     const universityId = req.user.universityId;
 
     if (!name || !email || !password || !schoolId) {
@@ -102,7 +102,7 @@ export async function createSchoolAdmin(req, res) {
         name,
         email,
         password: hashedPassword,
-        role: "ADMIN",
+        role: role || "ADMIN",
         schoolId,
       },
       select: {
