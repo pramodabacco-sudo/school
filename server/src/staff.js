@@ -8,6 +8,7 @@ import schoolRoutes from "./superAdmin/routes/school.Routes.js";
 import schoolAdminRoutes from "./superAdmin/routes/schoolAdmin.Routes.js";
 import userRoutes from "./superAdmin/routes/users.Routes.js";               // ← ADD
 import analyticsRouter from "./superAdmin/routes/analytics.Routes.js";
+import financeProfileRoutes from "./superAdmin/routes/financeProfile.routes.js";
 
 import classSectionRoutes from "./staffRoutes/classSectionRoutes.js";
 import academicYearRoutes from "./staffRoutes/academicYearRoutes.js";
@@ -30,7 +31,7 @@ staff.use("/api/schools", schoolRoutes);
 staff.use("/api/school-admins", schoolAdminRoutes);
 staff.use("/api/users",         userRoutes);           // ← ADD
 staff.use("/api/superadmin/analytics", analyticsRouter);
-
+staff.use("/api/finance-profiles", financeProfileRoutes);
 
 // Routes
 // NOTE: All /api/class-sections/* routes (including timetable config + entries)

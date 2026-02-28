@@ -1197,44 +1197,71 @@ async function main() {
   // ─────────────────────────────────────────────────────────────
 // 4B. FINANCE ADMINS
 // ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// 4B. FINANCE ADMINS
+// ─────────────────────────────────────────────────────────────
 
-const highSchoolFinance = await prisma.user.create({
-  data: {
+// High School Finance
+const highSchoolFinance = await prisma.user.upsert({
+  where: {
+    email_schoolId: {
+      email: "finance1@school.com",
+      schoolId: highSchool.id,
+    },
+  },
+  update: {},
+  create: {
     name: "Finance Manager HS",
     email: "finance1@school.com",
     password,
     role: "FINANCE",
     schoolId: highSchool.id,
+    isActive: true,
     financeProfile: {
       create: {
+        name: "Finance Manager HS",
+        email: "finance1@school.com",
+        password,
         schoolId: highSchool.id,
         employeeCode: "HS-FIN-001",
         designation: "Finance Manager",
         phone: "+91 98765 88881",
-        salary: 50000,
       },
     },
   },
 });
 
-const degreeFinance = await prisma.user.create({
-  data: {
+// Degree College Finance
+const degreeFinance = await prisma.user.upsert({
+  where: {
+    email_schoolId: {
+      email: "finance2@school.com",
+      schoolId: degreeCollege.id,
+    },
+  },
+  update: {},
+  create: {
     name: "Finance Manager DC",
     email: "finance2@school.com",
     password,
     role: "FINANCE",
     schoolId: degreeCollege.id,
+    isActive: true,
     financeProfile: {
       create: {
+        name: "Finance Manager DC",
+        email: "finance2@school.com",
+        password,
         schoolId: degreeCollege.id,
         employeeCode: "DC-FIN-001",
         designation: "Accounts Officer",
         phone: "+91 98765 88882",
-        salary: 60000,
       },
     },
   },
 });
+
+console.log("✅ Finance Admins created");
 
 console.log("✅ Finance Admins created");
 
