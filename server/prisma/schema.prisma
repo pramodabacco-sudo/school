@@ -21,6 +21,7 @@ enum StaffRole {
   SUPER_ADMIN
   ADMIN
   TEACHER
+  FINANCE
 }
 
 enum Gender {
@@ -535,6 +536,8 @@ model User {
   meetingParticipations    MeetingParticipant[]
   markedAttendances        AttendanceRecord[]   @relation("AttendanceMarkedBy")
   markedTeacherAttendances TeacherAttendance[]  @relation("TeacherAttendanceMarkedBy")
+  teacherProfile TeacherProfile?
+  financeProfile FinanceProfile?
 
   @@unique([email, schoolId])
   @@index([role])
@@ -1360,4 +1363,19 @@ model StreamCombination {
   @@unique([name, streamId])
   @@index([streamId])
   @@map("stream_combinations")
+//  Finance 
+model FinanceProfile {
+  id           String  @id @default(uuid())
+  userId       String  @unique
+  schoolId     String
+  employeeCode String?
+  designation  String?
+  phone        String?
+  salary       Float?
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

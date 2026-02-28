@@ -649,14 +649,14 @@ export const getProfileImage = async (req, res) => {
   try {
     if (!req.user?.role)
       return res.status(401).json({ message: "Unauthorized" });
-
+ 
     const { id: studentId } = req.params;
-
+ 
     const student = await prisma.student.findUnique({
       where: { id: studentId },
       select: { personalInfo: { select: { profileImage: true } } },
     });
-
+ 
     if (!student?.personalInfo?.profileImage)
       return res.status(404).json({ message: "Profile image not found" });
 

@@ -1732,6 +1732,11 @@ async function main() {
 ╠══════════════════════════════════════════════════════════════════════════╣
 ║  GRAND TOTAL STUDENTS  :  ${String(dEnd).padEnd(6)}                                      ║
 ╚══════════════════════════════════════════════════════════════════════════╝
+║  HIGH SCHOOL  →  school code: CHRIST_HIGH
+║    finance1@school.com
+║
+║  DEGREE COLLEGE  →  school code: CHRIST_DEGREE
+║    finance2@school.com
 `);
 }
 
