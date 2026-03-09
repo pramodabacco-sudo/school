@@ -4,6 +4,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import studentsRoutes from "./staffRoutes/studentsRoutes.js";
 import teachersRoutes from "./staffRoutes/teachersRoutes.js";
+import admindashboardRoutes from "./staffRoutes/admindashboardRoutes.js";
 import schoolRoutes from "./superAdmin/routes/school.Routes.js";
 import schoolAdminRoutes from "./superAdmin/routes/schoolAdmin.Routes.js";
 import userRoutes from "./superAdmin/routes/users.Routes.js"; // ← ADD
@@ -23,6 +24,8 @@ import meetingRoutes from "./staffRoutes/meetingRoutes.js";
 import attendanceRoutes from "./staffRoutes/attendanceRoutes.js";
 import adminAttendanceRoute from "./staffRoutes/adminAttendanceRoute.js";
 import examsRoutes from "./staffRoutes/ExamsRoutes.js";
+import teacherCurriculumRoutes from "./staffRoutes/teacherCurriculumRoutes.js";
+import adminCurriculumRoutes from "./staffRoutes/adminCurriculumRoutes.js";
 
 dotenv.config();
 
@@ -51,6 +54,7 @@ staff.use("/api/finance-profiles", financeProfileRoutes);
 // as an :id param - which was causing timetable data to vanish on page refresh.
 staff.use("/api/students", studentsRoutes);
 staff.use("/api/teachers", teachersRoutes);
+staff.use("/api/admindashboard", admindashboardRoutes);
 staff.use("/api/class-sections", classSectionRoutes);
 staff.use("/api/academic-years", academicYearRoutes);
 staff.use("/api/subjects", subjectRoutes);
@@ -61,5 +65,7 @@ staff.use("/api/streams", streamsRouter);
 staff.use("/api/courses", coursesRouter);
 staff.use("/api/promotion", promotionRouter);
 staff.use("/api/exams", examsRoutes);
+staff.use("/api/teacher/curriculum", teacherCurriculumRoutes);
+staff.use("/api/admin/curriculum", adminCurriculumRoutes);
 
 export default staff;
