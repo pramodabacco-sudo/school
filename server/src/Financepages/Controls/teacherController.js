@@ -51,8 +51,6 @@ const teachers = await prisma.teacherProfile.findMany({
     res.status(400).json({ message: e.message });
   }
 }
-
-
 // =====================================================
 // 🔥 CREATE MONTHLY SALARY
 // =====================================================
@@ -132,8 +130,6 @@ async createTeacherSalary(req, res) {
     res.status(400).json({ message: e.message })
   }
 }
-
-
 // =====================================================
 // 🔥 SALARY HISTORY
 // =====================================================
@@ -320,7 +316,6 @@ async getAllSalaryHistoryBySchool(req, res) {
     res.status(400).json({ message: e.message });
   }
 }
-
 }
 
 export default new TeacherSalaryController()

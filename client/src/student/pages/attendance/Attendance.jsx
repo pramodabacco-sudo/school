@@ -5,7 +5,6 @@ import {
   Calendar, CheckCircle, XCircle, TrendingUp,
   Award, AlertCircle, Loader2,
 } from "lucide-react";
-import PageLayout from "../../components/PageLayout";
 import { getToken } from "../../../auth/storage.js";
 
 // ─── Stormy Morning palette ───────────────────────────────────────────────────
@@ -256,7 +255,7 @@ function Attendance() {
   ];
 
   return (
-    <PageLayout>
+    <>
       <style>{ATT_CSS}</style>
 
       <div className="att-page">
@@ -610,7 +609,7 @@ function Attendance() {
         </div>
 
       </div>
-    </PageLayout>
+    </>
   );
 }
 

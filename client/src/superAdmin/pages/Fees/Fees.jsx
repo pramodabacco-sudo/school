@@ -5,7 +5,6 @@ import {
   ChevronLeft, ChevronRight, X, AlertTriangle,
   IndianRupee, BookOpen, Filter
 } from "lucide-react";
-import PageLayout from "../../components/PageLayout";
 
 // ─── Mock Data ────────────────────────────────────────────────────────────────
 const MOCK_FEES = [
@@ -126,7 +125,7 @@ export default function Fees() {
   ];
 
   return (
-    <PageLayout>
+    <>
     <div className="min-h-screen" style={{ background: "#F0F7FF", fontFamily: "'DM Sans', 'Segoe UI', sans-serif" }}>
 
       {/* Toast */}
@@ -372,6 +371,6 @@ export default function Fees() {
         </div>
       </div>
     </div>
-    </PageLayout>
+    </>
   );
 }

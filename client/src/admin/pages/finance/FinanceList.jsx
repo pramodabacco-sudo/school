@@ -7,7 +7,6 @@ import {
   Calendar,
   SlidersHorizontal,
 } from "lucide-react";
-import PageLayout from "../../components/PageLayout";
 import FinanceStatsCards from "./components/FinanceStatsCards";
 import FinanceTableRow from "./components/FinanceTableRow";
 
@@ -105,7 +104,7 @@ function FinanceList() {
     .reduce((sum, t) => sum + t.amount, 0);
 
   return (
-    <PageLayout>
+    <>
       <div className="p-4 md:p-6">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
@@ -237,7 +236,7 @@ function FinanceList() {
           </div>
         </div>
       </div>
-    </PageLayout>
+    </>
   );
 }
 

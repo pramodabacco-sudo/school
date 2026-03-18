@@ -5,7 +5,6 @@ import {
   GraduationCap, Users2, Crown,
   Check, X, Building2, Globe,
 } from "lucide-react";
-import PageLayout from "../../components/PageLayout";
 import { getAllUsers } from "../UsersManagement/api/usersApi";
 
 const font = { fontFamily: "'DM Sans', sans-serif" };
@@ -142,7 +141,7 @@ export default function RolesPermissions() {
   const grouped = groupByCategory(MATRIX);
 
   return (
-    <PageLayout>
+    <>
       <div className="p-4 sm:p-6 min-h-screen bg-[#EFF6FD]" style={font}>
 
         {/* ── Header ── */}
@@ -356,6 +355,6 @@ export default function RolesPermissions() {
         </div>
 
       </div>
-    </PageLayout>
+    </>
   );
 }

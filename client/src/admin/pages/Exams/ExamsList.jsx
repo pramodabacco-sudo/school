@@ -8,7 +8,6 @@ import {
 import { fetchGroups, deleteGroup, publishGroup, lockGroup } from "./components/examsApi.js";
 import AddExamsModal from "./components/AddExam.jsx";
 import ViewExamsModal from "./components/ViewExams.jsx";
-import PageLayout from "../../components/PageLayout.jsx";
 import { getToken } from "../../../auth/storage.js";
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -179,26 +178,26 @@ export default function ExamsList() {
   // ── Academic year loading/error states ──
   if (yearLoading) {
     return (
-      <PageLayout>
+      <>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60vh", ...font, color: C.mid, gap: 10 }}>
           <Loader2 size={18} className="animate-spin" /> Loading academic year…
         </div>
-      </PageLayout>
+      </>
     );
   }
 
   if (yearError) {
     return (
-      <PageLayout>
+      <>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60vh", ...font, color: C.danger, fontSize: 14 }}>
           {yearError}
         </div>
-      </PageLayout>
+      </>
     );
   }
 
   return (
-    <PageLayout>
+    <>
       <div className="min-h-screen p-7" style={{ background: C.bg, ...font }}>
 
         {/* Page header */}
@@ -337,7 +336,7 @@ export default function ExamsList() {
           />
         )}
       </div>
-    </PageLayout>
+    </>
   );
 }
 

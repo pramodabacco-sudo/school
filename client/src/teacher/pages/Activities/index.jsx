@@ -1,13 +1,12 @@
 // client/src/teacher/pages/Activities/index.jsx
-// Redesigned to match Gallery.jsx design system
+// Strict Stormy Morning palette — zero out-of-system colors
 
 import { useState } from "react";
 import ActivitiesPage    from "./ActivitiesPage";
 import TeacherEventsPage from "./TeacherEventsPage";
-import PageLayout        from "../../components/PageLayout";
 import { Trophy, Star }  from "lucide-react";
 
-/* ── Design tokens (Gallery-identical) ── */
+/* ── Design tokens (Stormy Morning — single source of truth) ── */
 const C = {
   slate: "#6A89A7", mist: "#BDDDFC", sky: "#88BDF2", deep: "#384959",
   bg: "#EDF3FA", white: "#FFFFFF", border: "#C8DCF0", borderLight: "#DDE9F5",
@@ -23,68 +22,38 @@ export default function ActivitiesAndEvents() {
   const [tab, setTab] = useState("activities");
 
   return (
-    <PageLayout>
+    <>
+      <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
       <style>{`
+        * { box-sizing: border-box; }
         @keyframes fadeUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
-        .fade-up { animation: fadeUp 0.35s ease both; }
+        .fade-up { animation: fadeUp 0.45s ease forwards; }
+        .acts-tabs { padding: 16px 16px 0; }
+        @media (min-width: 480px)  { .acts-tabs { padding: 20px 20px 0; } }
+        @media (min-width: 768px)  { .acts-tabs { padding: 24px 28px 0; } }
+        @media (min-width: 1024px) { .acts-tabs { padding: 28px 32px 0; } }
       `}</style>
 
-      {/* Tab switcher — matches Gallery card header style */}
-      <div
-        className="fade-up"
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 4,
-          marginBottom: 0,
-          background: C.white,
-          border: `1.5px solid ${C.borderLight}`,
-          borderRadius: 14,
-          padding: 4,
-          boxShadow: "0 2px 12px rgba(56,73,89,0.07)",
-        }}
-      >
-        {tabs.map(({ key, label, Icon }) => {
-          const active = tab === key;
-          return (
-            <button
-              key={key}
-              onClick={() => setTab(key)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 7,
-                padding: "8px 20px",
-                borderRadius: 10,
-                border: "none",
-                cursor: "pointer",
-                fontWeight: 700,
-                fontSize: 13,
-                fontFamily: "'Inter', sans-serif",
-                letterSpacing: "0.01em",
-                transition: "all 0.18s ease",
-                background: active
-                  ? `linear-gradient(135deg, ${C.slate} 0%, ${C.deep} 100%)`
-                  : "transparent",
-                color: active ? C.white : C.textLight,
-                boxShadow: active ? "0 2px 10px rgba(56,73,89,0.22)" : "none",
-              }}
-              onMouseEnter={e => { if (!active) e.currentTarget.style.background = `${C.mist}55`; }}
-              onMouseLeave={e => { if (!active) e.currentTarget.style.background = "transparent"; }}
-            >
-              <Icon
-                size={13}
-                style={{ color: active ? C.mist : C.textLight, opacity: active ? 1 : 0.7 }}
-              />
-              {label}
-            </button>
-          );
-        })}
+      {/* Tab switcher — Curriculum-style pill, Stormy Morning only */}
+      <div className="acts-tabs fade-up">
+        <div style={{ display:"inline-flex", alignItems:"center", gap:4, background:C.white, border:`1.5px solid ${C.borderLight}`, borderRadius:14, padding:4, boxShadow:"0 2px 12px rgba(56,73,89,0.07)" }}>
+          {tabs.map(({ key, label, Icon }) => {
+            const active = tab === key;
+            return (
+              <button key={key} onClick={() => setTab(key)}
+                style={{ display:"flex", alignItems:"center", gap:7, padding:"8px 20px", borderRadius:10, border:"none", cursor:"pointer", fontWeight:700, fontSize:13, fontFamily:"'Inter', sans-serif", letterSpacing:"0.01em", transition:"all 0.18s ease", background: active ? `linear-gradient(135deg, ${C.slate} 0%, ${C.deep} 100%)` : "transparent", color: active ? C.white : C.textLight, boxShadow: active ? "0 2px 10px rgba(56,73,89,0.22)" : "none" }}
+                onMouseEnter={e => { if (!active) e.currentTarget.style.background = `${C.mist}55`; }}
+                onMouseLeave={e => { if (!active) e.currentTarget.style.background = "transparent"; }}>
+                <Icon size={13} style={{ color: active ? C.mist : C.textLight, opacity: active ? 1 : 0.7 }}/>
+                {label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Tab content */}
       {tab === "activities" && <ActivitiesPage />}
       {tab === "events"     && <TeacherEventsPage />}
-    </PageLayout>
+    </>
   );
 }

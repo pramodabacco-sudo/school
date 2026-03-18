@@ -1,34 +1,32 @@
 // client/src/teacher/Routes.jsx
 import React from "react";
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  Navigate,
-} from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
+import PageLayout from "./components/PageLayout";
+
 import Dashboard from "./dashboard/Dashboard";
 import Attendance from "./pages/Attendance/Attendance";
 import CurriculumPage from "./pages/curriculum/CurriculumPage";
 import ActivitiesAndEvents from "./pages/Activities/index";
 import AwardsPage from "./pages/awardspage/Awardspage";
+import OnlineClassesPage from "./pages/onlineClasses/OnlineClassesPage";
+import TimetablePage from "./pages/timetable/TimetablePage";
 
-function TeachersRoutes() {
+function TeacherRoutes() {
   return (
-    <Routes>
-      {/* Dashboard Route */}
-      <Route path="/" element={<Dashboard />} />
-      <Route path="/dashboard" element={<Dashboard />} />
-      <Route path="/attendance" element={<Attendance />} />
-
-      {/* Curriculum Route */}
-      <Route path="/curriculum" element={<CurriculumPage />} />
-     <Route path="/activities" element={<ActivitiesAndEvents />} />
-     <Route path="/teacher/awards" element={<AwardsPage />} />
-
-      {/* Redirect any unknown route to dashboard */}
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
-    </Routes>
+    <PageLayout>
+      <Routes>
+        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route path="dashboard"      element={<Dashboard />} />
+        <Route path="attendance"     element={<Attendance />} />
+        <Route path="curriculum"     element={<CurriculumPage />} />
+        <Route path="activities"     element={<ActivitiesAndEvents />} />
+        <Route path="awards"         element={<AwardsPage />} />
+        <Route path="online-classes" element={<OnlineClassesPage />} />
+        <Route path="timetable"      element={<TimetablePage />} />
+        <Route path="*"              element={<Navigate to="dashboard" replace />} />
+      </Routes>
+    </PageLayout>
   );
 }
 
-export default TeachersRoutes;
+export default TeacherRoutes;

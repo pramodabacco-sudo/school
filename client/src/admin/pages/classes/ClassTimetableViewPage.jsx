@@ -11,7 +11,6 @@ import {
   Edit,
   RefreshCw,
 } from "lucide-react";
-import PageLayout from "../../components/PageLayout";
 import {
   fetchClassSectionById,
   fetchTimetableConfig,
@@ -167,7 +166,7 @@ export default function ClassTimetableViewPage() {
   })();
 
   return (
-    <PageLayout>
+    <>
       <div
         className="p-4 md:p-6"
         style={{ background: C.bg, minHeight: "100%" }}
@@ -847,6 +846,6 @@ export default function ClassTimetableViewPage() {
           </>
         )}
       </div>
-    </PageLayout>
+    </>
   );
 }

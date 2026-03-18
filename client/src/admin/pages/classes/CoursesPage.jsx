@@ -17,7 +17,6 @@ import {
   GitBranch,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import PageLayout from "../../components/PageLayout";
 import {
   fetchCourses,
   createCourse,
@@ -806,7 +805,7 @@ export default function CoursesPage() {
   };
 
   return (
-    <PageLayout>
+    <>
       <div style={{ maxWidth: 860, margin: "0 auto", padding: "24px 16px" }}>
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -1030,6 +1029,6 @@ export default function CoursesPage() {
           onClose={() => setToast(null)}
         />
       )}
-    </PageLayout>
+    </>
   );
 }

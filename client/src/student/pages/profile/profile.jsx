@@ -1,7 +1,6 @@
 // client/src/student/pages/profile/profile.jsx
 import React, { useState, useEffect, useCallback } from "react";
 import { User, BookOpen, Heart, FileText, RefreshCw, WifiOff } from "lucide-react";
-import PageLayout from "../../components/PageLayout";
 import { getToken } from "../../../auth/storage.js";
 import { C, PROFILE_CSS } from "./components/shared.jsx";
 import ProfileSidebar from "./components/ProfileSidebar.jsx";
@@ -129,7 +128,7 @@ export default function Profile() {
     : profileData?.name ?? "Student";
 
   return (
-    <PageLayout>
+    <>
       <style>{PROFILE_CSS}</style>
 
       <div className="pf-page">
@@ -237,6 +236,6 @@ export default function Profile() {
         </div>
 
       </div>
-    </PageLayout>
+    </>
   );
 }

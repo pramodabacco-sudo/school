@@ -14,7 +14,6 @@ import {
   Swords, Medal, Calendar, Layers, Search,
   EyeOff, Activity,
 } from "lucide-react";
-import PageLayout from "../../components/PageLayout";
 import { getToken } from "../../../auth/storage.js";
 
 // ─── Design tokens ─────────────────────────────────────────────
@@ -506,7 +505,7 @@ export default function ActivitiesPage() {
   ];
 
   return (
-    <PageLayout>
+    <>
       <style>{STYLE}</style>
 
       {/* Toast */}
@@ -737,6 +736,6 @@ export default function ActivitiesPage() {
         )}
 
       </div>
-    </PageLayout>
+    </>
   );
 }

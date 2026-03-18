@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { getFinances, deleteFinance } from "./components/financeApi";
 import AddFinance from "./AddFinancers";
-import PageLayout from "../../components/PageLayout";
 import {
   Users, RefreshCw, Plus, Search, Mail, School,
   Pencil, Trash2, BadgeCheck, ShieldOff, TrendingUp
@@ -69,7 +68,7 @@ export default function FinanceListPage() {
   );
 
   return (
-    <PageLayout>
+    <>
       <div style={{ background: C.bg, minHeight: "100vh" }} className="p-6 font-sans">
 
         {/* Header */}
@@ -278,6 +277,6 @@ export default function FinanceListPage() {
           </div>
         )}
       </div>
-    </PageLayout>
+    </>
   );
 }
