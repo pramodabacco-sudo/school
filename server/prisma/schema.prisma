@@ -312,6 +312,7 @@ model School {
   activities            Activity[]
   activityEvents        ActivityEvent[]
   Award                 Award[]
+  liveClasses           LiveClass[]
 
   @@index([universityId])
   @@index([type])
@@ -550,6 +551,7 @@ model Student {
   eventResults        EventResult[]
   certificates        Certificate[]
   StudentAward        StudentAward[]
+  liveClassAttendance LiveClassAttendance[]
 
   @@unique([email, schoolId])
   @@index([schoolId])
@@ -689,6 +691,7 @@ model Subject {
   timetableEntries    TimetableEntry[]
   subjectSyllabus     SubjectSyllabus[]
   portionProgress     SectionPortionProgress[]
+  liveClasses         LiveClass[]
 
   @@unique([code, schoolId])
   @@index([schoolId])
@@ -763,11 +766,11 @@ model TeacherProfile {
   teacherAttendances   TeacherAttendance[]
   TeacherMonthlySalary TeacherMonthlySalary[]
   GroupBStaffSalary    GroupBStaffSalary[]
-
   timetableEntries TimetableEntry[]
   syllabusCreated  SubjectSyllabus[]        @relation("SyllabusCreatedBy")
   syllabusUpdated  SubjectSyllabus[]        @relation("SyllabusUpdatedBy")
   portionProgress  SectionPortionProgress[]
+  liveClasses          LiveClass[]
 
   @@index([schoolId])
   @@index([department])
@@ -850,6 +853,7 @@ model AcademicYear {
   activityEvents      ActivityEvent[]
   activityEnrollments StudentActivityEnrollment[]
   StudentAward        StudentAward[]
+  liveClasses         LiveClass[]
 
   @@unique([name, schoolId])
   @@index([schoolId])
@@ -891,6 +895,8 @@ model ClassSection {
   activityClasses     ActivityClass[]
   eventClasses        EventClass[]
   StudentAward        StudentAward[]
+  liveClasses         LiveClass[]
+  liveClassSections   LiveClassSection[]
 
   @@index([schoolId])
   @@index([grade, schoolId])
@@ -2044,4 +2050,100 @@ model ExpenseCategoryMap {
 
   @@unique([categoryId, expenseId])
   @@map("expense_category_map")
+}
+
+enum LiveClassPlatform {
+  ZOOM
+  GOOGLE_MEET
+  MICROSOFT_TEAMS
+  CUSTOM
+}
+
+enum LiveClassStatus {
+  SCHEDULED
+  LIVE
+  COMPLETED
+  CANCELLED
+}
+
+model LiveClass {
+  id String @id @default(uuid())
+
+  title       String
+  description String?
+
+  platform     LiveClassPlatform
+  meetingLink  String
+  recordingUrl String?
+
+  startTime DateTime
+  endTime   DateTime?
+
+  status LiveClassStatus @default(SCHEDULED)
+
+  isArchived Boolean @default(false)
+
+  teacherId String
+  teacher   TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  subjectId String?
+  subject   Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+
+  mainSectionId String?
+  mainSection   ClassSection? @relation(fields: [mainSectionId], references: [id], onDelete: SetNull)
+
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  academicYearId String
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sections   LiveClassSection[]
+  attendance LiveClassAttendance[]
+
+  @@index([teacherId])
+  @@index([schoolId])
+  @@index([academicYearId])
+  @@index([startTime])
+  @@index([subjectId])
+  @@index([mainSectionId])
+  @@index([schoolId, academicYearId, startTime])
+  @@map("live_classes") // ← only change
+}
+
+model LiveClassSection {
+  id String @id @default(uuid())
+
+  liveClassId String
+  liveClass   LiveClass @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
+
+  classSectionId String
+  classSection   ClassSection @relation(fields: [classSectionId], references: [id], onDelete: Cascade)
+
+  @@unique([liveClassId, classSectionId])
+  @@index([classSectionId])
+  @@map("live_class_sections")
+}
+
+model LiveClassAttendance {
+  id String @id @default(uuid())
+
+  liveClassId String
+  liveClass   LiveClass @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  joinTime  DateTime?
+  leaveTime DateTime?
+
+  isPresent Boolean @default(false)
+
+  @@unique([liveClassId, studentId])
+  @@index([studentId])
+  @@index([liveClassId])
+  @@map("live_class_attendance")
 }

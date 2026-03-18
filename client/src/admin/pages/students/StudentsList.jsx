@@ -24,7 +24,6 @@ import {
   Layers,
 } from "lucide-react";
 import { getToken } from "../../../auth/storage";
-import PageLayout from "../../components/PageLayout";
 import AddStudent from "./AddStudents";
 import SignedProfileImage from "./components/SignedProfileImage";
 import { useInstitutionConfig } from "../classes/hooks/useInstitutionConfig";
@@ -1494,7 +1493,7 @@ function StudentsList() {
   ];
 
   return (
-    <PageLayout>
+    <>
       <link
         href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800;900&display=swap"
         rel="stylesheet"
@@ -1968,7 +1967,7 @@ function StudentsList() {
           />
         )}
       </div>
-    </PageLayout>
+    </>
   );
 }
 

@@ -24,7 +24,6 @@ import {
   X,
   ShieldAlert,
 } from "lucide-react";
-import PageLayout from "../../components/PageLayout";
 import {
   fetchTimetableConfig,
   saveTimetableConfig,
@@ -973,7 +972,7 @@ export default function SchoolTimingsPage() {
 
   if (loading)
     return (
-      <PageLayout>
+      <>
         <div className="flex items-center justify-center h-64">
           <Loader2
             size={22}
@@ -981,11 +980,11 @@ export default function SchoolTimingsPage() {
             style={{ color: C.light }}
           />
         </div>
-      </PageLayout>
+      </>
     );
 
   return (
-    <PageLayout>
+    <>
       <div
         className="p-4 md:p-6"
         style={{ background: C.bg, minHeight: "100%" }}
@@ -1358,6 +1357,6 @@ export default function SchoolTimingsPage() {
           onClose={() => setToast(null)}
         />
       )}
-    </PageLayout>
+    </>
   );
 }

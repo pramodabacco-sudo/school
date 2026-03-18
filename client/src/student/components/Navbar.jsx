@@ -1,3 +1,4 @@
+//client\src\student\components\Navbar.jsx
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import {
   Search,

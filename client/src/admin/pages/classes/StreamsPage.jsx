@@ -17,7 +17,6 @@ import {
   GitBranch,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import PageLayout from "../../components/PageLayout";
 import {
   fetchStreams,
   createStream,
@@ -760,7 +759,7 @@ export default function StreamsPage() {
   };
 
   return (
-    <PageLayout>
+    <>
       <div style={{ maxWidth: 860, margin: "0 auto", padding: "24px 16px" }}>
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -1100,6 +1099,6 @@ export default function StreamsPage() {
           onClose={() => setToast(null)}
         />
       )}
-    </PageLayout>
+    </>
   );
 }

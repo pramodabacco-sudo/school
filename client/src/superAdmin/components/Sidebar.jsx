@@ -1,22 +1,24 @@
-// client/src/pages/superadmin/Sidebar.jsx
+// client/src/superAdmin/components/Sidebar.jsx
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Building2, UserCog, Users, ShieldCheck,
   CreditCard, BarChart3, Settings, X, GraduationCap, Wallet,
+  CalendarCheck,
 } from "lucide-react";
 
+// ← all paths prefixed with /superadmin/ to match App.jsx mount point
 const NAV = [
   { icon: LayoutDashboard, label: "Dashboard",           to: "/superadmin/dashboard" },
-  { icon: Building2,       label: "Schools",             to: "/schools" },
-  { icon: UserCog,         label: "School Admins",       to: "/schools-admins" },
-  { icon: Wallet,          label: "Finance Account",     to: "/finance" },
-  { icon: Users,           label: "Users Management",    to: "/users-management" },
-  { icon: ShieldCheck,     label: "Roles & Permissions", to: "/roles-permissions" },
-  { icon: Building2,       label: "Fees",                to: "/fees" },
-  { icon: Building2,       label: "Meetings",            to: "/mettings" },
-  { icon: BarChart3,       label: "Analytics",           to: "/analytics" },
-  { icon: CreditCard,      label: "Subscription Plans",  to: "/subscription-Plans" },
+  { icon: Building2,       label: "Schools",             to: "/superadmin/schools" },
+  { icon: UserCog,         label: "School Admins",       to: "/superadmin/schools-admins" },
+  { icon: Wallet,          label: "Finance Account",     to: "/superadmin/finance" },
+  { icon: Users,           label: "Users Management",    to: "/superadmin/users-management" },
+  { icon: ShieldCheck,     label: "Roles & Permissions", to: "/superadmin/roles-permissions" },
+  { icon: Building2,       label: "Fees",                to: "/superadmin/fees" },
+  { icon: CalendarCheck,   label: "Meetings",            to: "/superadmin/mettings" },
+  { icon: BarChart3,       label: "Analytics",           to: "/superadmin/analytics" },
+  { icon: CreditCard,      label: "Subscription Plans",  to: "/superadmin/subscription-Plans" },
   { icon: Settings,        label: "Global Settings",     to: "/superadmin/settings" },
 ];
 
@@ -27,19 +29,14 @@ export default function Sidebar({ isOpen, onClose, user }) {
   const { pathname } = useLocation();
   const isActive = (to) => pathname === to || pathname.startsWith(to + "/");
 
-  // ── Pull from the user object saved in localStorage ──────────────────────
-  // storage.js saves: auth.user = data.user (the raw API user object)
-  // Expected fields: name, email, role  (e.g. "SUPER_ADMIN")
   const name  = user?.name  || "Super Admin";
   const email = user?.email || "";
-  // Format role for display: "SUPER_ADMIN" → "Super Admin"
   const role  = user?.role
     ? user.role.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
     : "Platform Owner";
 
   return (
     <>
-      {/* Mobile overlay */}
       {isOpen && (
         <div
           className="fixed inset-0 z-40 bg-[#384959]/50 backdrop-blur-sm md:hidden"
@@ -47,13 +44,12 @@ export default function Sidebar({ isOpen, onClose, user }) {
         />
       )}
 
-      {/* Sidebar */}
       <aside
         className={`fixed md:static inset-y-0 left-0 z-50 flex flex-col w-60 h-screen
           bg-[#384959] transition-transform duration-300 shadow-2xl
           ${isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
       >
-        {/* ── Logo ── */}
+        {/* Logo */}
         <div className="flex items-center justify-between px-4 h-16 border-b border-[#BDDDFC]/10 flex-shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#88BDF2] to-[#6A89A7] flex items-center justify-center shadow-lg shadow-[#88BDF2]/30">
@@ -74,7 +70,7 @@ export default function Sidebar({ isOpen, onClose, user }) {
           </button>
         </div>
 
-        {/* ── Nav ── */}
+        {/* Nav */}
         <nav className="flex-1 overflow-y-auto px-3.5 py-6 space-y-0.5">
           {NAV.map(({ icon: Icon, label, to }, i) => {
             const active = isActive(to);
@@ -110,14 +106,12 @@ export default function Sidebar({ isOpen, onClose, user }) {
           })}
         </nav>
 
-        {/* ── User card (bottom) ── */}
+        {/* User card */}
         <div className="px-2.5 py-3 border-t border-[#BDDDFC]/10 flex-shrink-0">
           <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-[#BDDDFC]/10 border border-[#BDDDFC]/15 hover:bg-[#BDDDFC]/15 transition-colors cursor-pointer group">
-            {/* Avatar */}
             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#88BDF2] to-[#6A89A7] flex items-center justify-center text-xs font-bold text-white shadow-md flex-shrink-0 group-hover:scale-105 transition-transform">
               {initials(name)}
             </div>
-            {/* Info */}
             <div className="min-w-0">
               <p className="text-[13px] font-semibold text-white truncate">{name}</p>
               <p className="text-[10px] text-[#88BDF2] truncate">{role}</p>

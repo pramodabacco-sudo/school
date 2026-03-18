@@ -1,6 +1,5 @@
 // client/src/admin/pages/teachers/TeachersPage.jsx
 import React, { useState, useCallback, useRef } from "react";
-import PageLayout from "../../components/PageLayout";
 import TeachersHeader from "./components/TeachersHeader";
 import TeachersFilters from "./components/TeachersFilters";
 import TeachersGrid from "./components/TeachersGrid";
@@ -30,7 +29,7 @@ export default function TeachersPage() {
   }, [refetch]);
 
   return (
-    <PageLayout>
+    <>
       {/* Inter font */}
       <link rel="preconnect" href="https://fonts.googleapis.com" />
       <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -110,6 +109,6 @@ export default function TeachersPage() {
           <AddTeacherModal onClose={() => setShowAdd(false)} onSuccess={() => { setShowAdd(false); refetch(); }} />
         )}
       </div>
-    </PageLayout>
+    </>
   );
 }

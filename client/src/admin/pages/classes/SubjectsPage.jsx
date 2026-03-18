@@ -20,7 +20,6 @@ import {
   Users,
   Layout,
 } from "lucide-react";
-import PageLayout from "../../components/PageLayout";
 import {
   fetchSubjects,
   createSubject,
@@ -326,7 +325,7 @@ export default function SubjectsPage() {
   }, {});
 
   return (
-    <PageLayout>
+    <>
       <div
         className="p-4 md:p-6"
         style={{ background: C.bg, minHeight: "100%" }}
@@ -1210,6 +1209,6 @@ export default function SubjectsPage() {
           onClose={() => setToast(null)}
         />
       )}
-    </PageLayout>
+    </>
   );
 }

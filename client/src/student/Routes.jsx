@@ -1,29 +1,34 @@
-import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
-import Dashboard from './dashboard/Dashboard';
-import Profile from './pages/profile/profile.jsx';
-import Attendance from './pages/attendance/Attendance';
-import Marks from './pages/marks/Marks';
-import TimeTable from './pages/TimeTable/TimeTable';
-import ActivitiesPage from './pages/Activities/ActivitiesPage';
-import CertificatesPage from './pages/Certificates/CertificatesPage';
-import MyFees from './pages/Fees/Myfees';
+// client/src/student/Routes.jsx
+import React from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
+import PageLayout from "./components/PageLayout";
 
-function App() {
+import Dashboard from "./dashboard/Dashboard";
+import Profile from "./pages/profile/profile.jsx";
+import Attendance from "./pages/attendance/Attendance";
+import Marks from "./pages/marks/Marks";
+import TimeTable from "./pages/TimeTable/TimeTable";
+import ActivitiesPage from "./pages/Activities/ActivitiesPage";
+import CertificatesPage from "./pages/Certificates/CertificatesPage";
+import OnlineClassesPage from "./pages/onlineClasses/OnlineClassesPage";
+
+function StudentRoutes() {        // ← fixed: was named "App"
   return (
-    <Routes>
-      <Route path="/" element={<Dashboard />} />
-      <Route path="/dashboard" element={<Dashboard />} />
-      <Route path="/profile" element={<Profile />} />
-      <Route path="/attendance" element={<Attendance />} />
-      <Route path="/marks" element={<Marks />} />
-      <Route path="/time-table" element={<TimeTable />} />
-      <Route path="/my-fees" element={<MyFees />} />
-      <Route path="/activites" element={<ActivitiesPage />} />
-      <Route path="/certicates" element={<CertificatesPage />} />
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
-    </Routes>
+    <PageLayout>                  {/* ← added PageLayout wrapper */}
+      <Routes>
+        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route path="dashboard"       element={<Dashboard />} />
+        <Route path="profile"         element={<Profile />} />
+        <Route path="attendance"      element={<Attendance />} />
+        <Route path="marks"           element={<Marks />} />
+        <Route path="time-table"      element={<TimeTable />} />
+        <Route path="activites"       element={<ActivitiesPage />} />
+        <Route path="certicates"      element={<CertificatesPage />} />
+        <Route path="online-classes"  element={<OnlineClassesPage />} />
+        <Route path="*"               element={<Navigate to="dashboard" replace />} />
+      </Routes>
+    </PageLayout>
   );
 }
 
-export default App;
+export default StudentRoutes;

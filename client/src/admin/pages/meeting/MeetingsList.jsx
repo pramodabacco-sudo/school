@@ -1,7 +1,6 @@
 // client/src/admin/pages/meeting/MeetingsList.jsx
 import React, { useState, useEffect, useCallback } from "react";
 import { Plus, Search, RefreshCw, CalendarDays, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
-import PageLayout from "../../components/PageLayout";
 import MeetingStatsCards from "./components/MeetingStatsCards";
 import MeetingTableRow from "./components/MeetingTableRow";
 import MeetingFormModal from "./components/MeetingFormModal";
@@ -142,7 +141,7 @@ export default function MeetingsList() {
   };
 
   return (
-    <PageLayout>
+    <>
       <div style={{ minHeight: "100vh", background: C.bg, padding: "28px 30px",  fontFamily: "'Inter', sans-serif", backgroundImage: `radial-gradient(ellipse at 0% 0%, ${C.mist}40 0%, transparent 55%)` }}>
 
         {/* ── Header ── */}
@@ -285,6 +284,6 @@ export default function MeetingsList() {
       {showForm    && <MeetingFormModal meeting={editMeeting} onClose={() => { setShowForm(false); setEditMeeting(null); }} onSaved={handleSaved} />}
       {viewMeeting && <MeetingViewModal meeting={viewMeeting} onClose={() => setViewMeeting(null)} onStatusChange={() => { loadMeetings(); loadStats(); }} />}
       {deleteTarget && <DeleteConfirm meeting={deleteTarget} onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} loading={deleting} />}
-    </PageLayout>
+    </>
   );
 }

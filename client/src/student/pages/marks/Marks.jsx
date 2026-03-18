@@ -7,7 +7,6 @@ import {
   EyeOff, Loader2, Download, Lock,
 } from "lucide-react";
 
-import PageLayout          from "../../components/PageLayout";
 import { getToken }        from "../../../auth/storage.js";
 import { C, FONT, GLOBAL_CSS } from "./tokens.js";
 import SummaryCards        from "./components/SummaryCards.jsx";
@@ -207,7 +206,7 @@ export default function Marks() {
   }, [reportData, enrollment]);
 
   return (
-    <PageLayout>
+    <>
       <style>{GLOBAL_CSS}</style>
 
       <div className="mrk-page">
@@ -378,6 +377,6 @@ export default function Marks() {
         )}
 
       </div>
-    </PageLayout>
+    </>
   );
 }

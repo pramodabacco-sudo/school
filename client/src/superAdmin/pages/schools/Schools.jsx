@@ -1,7 +1,6 @@
 // client/src/superAdmin/pages/schools/Schools.jsx
 import React, { useState, useEffect } from "react";
 import { Plus, Search, Edit, Trash2, Building2, CheckCircle, Ban, RefreshCw, X, AlertTriangle, Loader2 } from "lucide-react";
-import PageLayout from "../../components/PageLayout";
 import AddSchoolModal from "./AddSchool";
 import { getSchools, deleteSchool } from "./components/SchoolsApi";
 
@@ -182,7 +181,7 @@ export default function Schools() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <PageLayout>
+    <>
       <div className="p-4 sm:p-6 min-h-screen bg-[#EFF6FD]">
 
         {/* ── Header ── */}
@@ -433,6 +432,6 @@ export default function Schools() {
       )}
 
       <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}`}</style>
-    </PageLayout>
+    </>
   );
 }

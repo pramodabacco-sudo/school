@@ -9,7 +9,6 @@ import {
   Star, Users, BookMarked, Target, Zap,
   ChevronRight, Flame, BarChart3, Menu, X,
 } from "lucide-react";
-import PageLayout from "../components/PageLayout";
 import { getToken } from "../../auth/storage.js";
 
 /* ─── STORMY MORNING palette only ─── */
@@ -773,7 +772,7 @@ export default function StudentDashboard() {
   ];
 
   return (
-    <PageLayout>
+    <>
       <style>{GLOBAL_CSS}</style>
 
       {/* ── Toast ── */}
@@ -893,6 +892,6 @@ export default function StudentDashboard() {
         </div>
 
       </div>
-    </PageLayout>
+    </>
   );
 }

@@ -3,7 +3,6 @@ import {
   GraduationCap, Users, HardDrive, Check, X, TrendingUp, School, DollarSign,
   Activity, ChevronRight, ChevronDown, Zap, Shield, Star, ArrowRight
 } from 'lucide-react'
-import PageLayout from '../../components/PageLayout'
 
 // ─── Student Tier Pricing Config ───────────────────────────────────────────
 const studentTiers = [
@@ -160,7 +159,7 @@ export default function Plans() {
   }
 
   return (
-    <PageLayout>
+    <>
       <div className="min-h-screen bg-[#EFF6FD] p-8 font-sans text-[#384959]">
 
         {/* Header */}
@@ -397,6 +396,6 @@ export default function Plans() {
         </div>
 
       </div>
-    </PageLayout>
+    </>
   )
 }

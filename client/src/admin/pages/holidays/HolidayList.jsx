@@ -1,6 +1,5 @@
 // client/src/admin/pages/holidays/HolidayList.jsx
 import React, { useEffect, useState, useMemo, useCallback } from "react";
-import PageLayout from "../../components/PageLayout";
 import {
   CalendarDays, Plus, Trash2, Pencil, X,
   Loader2, Building2, GraduationCap, AlertCircle, Check, RefreshCw,
@@ -450,7 +449,7 @@ export default function HolidayList() {
   );
 
   return (
-    <PageLayout>
+    <>
       <style>{`
         * { box-sizing: border-box; }
         @keyframes fadeUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
@@ -636,6 +635,6 @@ export default function HolidayList() {
         <DeleteDialog holiday={deleteHoliday} onClose={() => setDeleteHoliday(null)} onDeleted={handleDeleted} />
       )}
       {toast && <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
-    </PageLayout>
+    </>
   );
 }

@@ -8,7 +8,6 @@ import {
   Music, BookOpen, ChevronRight, Dumbbell, Brain,
   Calendar, MapPin, Archive, RefreshCw, FolderOpen,
 } from "lucide-react";
-import PageLayout from "../../components/PageLayout";
 import { getToken } from "../../../auth/storage.js";
 
 /* ── Design tokens (Gallery-identical) ── */
@@ -578,7 +577,7 @@ export default function ActivitiesList() {
   ];
 
   return (
-    <PageLayout>
+    <>
       <style>{`
         @keyframes fadeUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
         .fade-up { animation: fadeUp 0.45s ease both; }
@@ -938,6 +937,6 @@ export default function ActivitiesList() {
           pushToast={push}
         />
       )}
-    </PageLayout>
+    </>
   );
 }

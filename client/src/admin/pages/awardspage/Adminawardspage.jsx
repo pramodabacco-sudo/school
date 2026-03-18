@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Plus, Pencil, Trash2, X, AlertCircle } from "lucide-react";
 import { getToken } from "../../../auth/storage";
-import PageLayout from "../../components/PageLayout";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -374,7 +373,7 @@ export default function AdminAwardsPage() {
   }, {});
 
   return (
-    <PageLayout>
+    <>
     <div
       style={{
         minHeight: "100vh",
@@ -576,6 +575,6 @@ export default function AdminAwardsPage() {
         <DeleteModal award={deleteAward} onClose={() => setDeleteAward(null)} onDeleted={handleDeleted} />
       )}
     </div>
-    </PageLayout>
+    </>
   );
 }

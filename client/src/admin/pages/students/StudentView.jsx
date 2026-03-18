@@ -21,7 +21,6 @@ import {
   GraduationCap,
 } from "lucide-react";
 import { getToken } from "../../../auth/storage";
-import PageLayout from "../../components/PageLayout";
 import DocumentViewer from "./components/DocumentViewer";
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -166,7 +165,7 @@ export default function StudentView() {
 
   if (loading)
     return (
-      <PageLayout>
+      <>
         <div className="flex items-center justify-center h-96">
           <div className="flex flex-col items-center gap-3">
             <Loader2
@@ -179,12 +178,12 @@ export default function StudentView() {
             </p>
           </div>
         </div>
-      </PageLayout>
+      </>
     );
 
   if (error || !student)
     return (
-      <PageLayout>
+      <>
         <div className="flex items-center justify-center h-96">
           <div className="flex flex-col items-center gap-4 text-center">
             <div
@@ -205,7 +204,7 @@ export default function StudentView() {
             </button>
           </div>
         </div>
-      </PageLayout>
+      </>
     );
 
   const pi = student.personalInfo;
@@ -487,7 +486,7 @@ export default function StudentView() {
   }
 
   return (
-    <PageLayout>
+    <>
       <div
         className="p-4 md:p-6"
         style={{ background: "#F4F8FC", minHeight: "100%" }}
@@ -713,6 +712,6 @@ export default function StudentView() {
           </div>
         </div>
       </div>
-    </PageLayout>
+    </>
   );
 }

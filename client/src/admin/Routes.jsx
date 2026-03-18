@@ -1,6 +1,8 @@
-// client/src/admin/Routes.jsx
+// src/admin/Routes.jsx
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
+import PageLayout from "./components/PageLayout";
+
 import Dashboard from "./dashboard/Dashboard";
 import StudentsList from "./pages/students/StudentsList";
 import AddStudents from "./pages/students/AddStudents";
@@ -20,8 +22,6 @@ import CurriculumList from "./pages/curriculum/CurriculumList";
 import Gallery from "./pages/gallery/Gallery.jsx";
 import HolidayList from "./pages/holidays/HolidayList.jsx";
 import Settings from "./pages/settings/Settings";
-
-// ── NEW imports ───────────────────────────────────────────────────────────────
 import StreamsPage from "./pages/classes/StreamsPage";
 import CoursesPage from "./pages/classes/CoursesPage";
 import PromotionPage from "./pages/classes/PromotionPage";
@@ -29,72 +29,54 @@ import ReadmissionPage from "./pages/classes/ReadmissionPage";
 import AdminAwardsPage from "./pages/awardspage/Adminawardspage.jsx";
 import ExamsPage from "./pages/Exams/Examspage.jsx";
 import ActivitiesList from "./pages/activities/ActivitiesList";
+
 function AdminRoutes() {
   return (
-    <Routes>
-      {/* Dashboard */}
-      <Route path="/" element={<Dashboard />} />
-      <Route path="/dashboard" element={<Dashboard />} />
+    <PageLayout>
+      <Routes>
+        {/* /admin/ → /admin/dashboard */}
+        <Route index element={<Navigate to="dashboard" replace />} />
 
-      {/* Students */}
-      <Route path="/students" element={<StudentsList />} />
-      <Route path="/students/add" element={<AddStudents />} />
-      <Route path="/students/:id" element={<StudentView />} />
-      <Route path="/students/:id/edit" element={<AddStudents />} />
+        <Route path="dashboard"             element={<Dashboard />} />
 
-      {/* Teachers */}
-      <Route path="/teachers" element={<TeachersPage />} />
+        {/* Students */}
+        <Route path="students"              element={<StudentsList />} />
+        <Route path="students/add"          element={<AddStudents />} />
+        <Route path="students/:id"          element={<StudentView />} />
+        <Route path="students/:id/edit"     element={<AddStudents />} />
 
-      {/* Classes */}
-      <Route path="/classes" element={<ClassesList />} />
+        {/* Teachers */}
+        <Route path="teachers"              element={<TeachersPage />} />
 
-      {/* ① School Timings */}
-      <Route path="/classes/timings" element={<SchoolTimingsPage />} />
+        {/* Classes */}
+        <Route path="classes"               element={<ClassesList />} />
+        <Route path="classes/timings"       element={<SchoolTimingsPage />} />
+        <Route path="classes/subjects"      element={<SubjectsPage />} />
+        <Route path="classes/sections"      element={<CreateSectionsPage />} />
+        <Route path="classes/timetable"     element={<TimetablePage />} />
+        <Route path="classes/:id/timetable" element={<ClassTimetableViewPage />} />
+        <Route path="classes/streams"       element={<StreamsPage />} />
+        <Route path="classes/courses"       element={<CoursesPage />} />
+        <Route path="classes/promotion"     element={<PromotionPage />} />
+        <Route path="classes/readmission"   element={<ReadmissionPage />} />
 
-      {/* ② Subjects */}
-      <Route path="/classes/subjects" element={<SubjectsPage />} />
+        {/* Other */}
+        <Route path="attendance"            element={<AttendanceList />} />
+        <Route path="exams"                 element={<ExamsList />} />
+        <Route path="exams-page"            element={<ExamsPage />} />
+        <Route path="activities"            element={<ActivitiesList />} />
+        <Route path="finance"               element={<FinanceList />} />
+        <Route path="meetings"              element={<MeetingsList />} />
+        <Route path="curriculum"            element={<CurriculumList />} />
+        <Route path="gallery"               element={<Gallery />} />
+        <Route path="holidays"              element={<HolidayList />} />
+        <Route path="awards"                element={<AdminAwardsPage />} />
+        <Route path="settings"              element={<Settings />} />
 
-      {/* ③ Create Sections */}
-      <Route path="/classes/sections" element={<CreateSectionsPage />} />
-
-      {/* ④ Timetable Builder */}
-      <Route path="/classes/timetable" element={<TimetablePage />} />
-
-      {/* ⑤ View timetable for a specific class */}
-      <Route
-        path="/classes/:id/timetable"
-        element={<ClassTimetableViewPage />}
-      />
-
-      {/* ── NEW: Streams (PUC only) ─────────────────────────────────────── */}
-      <Route path="/classes/streams" element={<StreamsPage />} />
-
-      {/* ── NEW: Courses + Branches (Degree / Diploma / PG) ────────────── */}
-      <Route path="/classes/courses" element={<CoursesPage />} />
-
-      {/* ── NEW: Student Promotion ──────────────────────────────────────── */}
-      <Route path="/classes/promotion" element={<PromotionPage />} />
-
-      {/* ── NEW: Re-admission (School type only) ────────────────────────── */}
-      <Route path="/classes/readmission" element={<ReadmissionPage />} />
-
-      {/* Other */}
-      <Route path="/attendance" element={<AttendanceList />} />
-      <Route path="/exams" element={<ExamsList />} />
-      <Route path="/exams-page" element={<ExamsPage />} />
-      <Route path="/activities" element={<ActivitiesList />} />
-      <Route path="/finance" element={<FinanceList />} />
-      <Route path="/meetings" element={<MeetingsList />} />
-      <Route path="/curriculum" element={<CurriculumList />} />
-      <Route path="/gallery" element={<Gallery />} />
-      <Route path="/holidays" element={<HolidayList />} />
-      <Route path="/awards" element={<AdminAwardsPage />} />
-
-      <Route path="/settings/" element={<Settings />} />
-
-      {/* Fallback */}
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
-    </Routes>
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="dashboard" replace />} />
+      </Routes>
+    </PageLayout>
   );
 }
 

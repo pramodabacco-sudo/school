@@ -10,7 +10,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { CertificateDesign } from "./CertificateDesigns";
 import { getToken } from "../../../auth/storage.js";
-import PageLayout from "../../components/PageLayout";
 import { Medal, X, Search, Loader2, AlertCircle, Download, FileText } from "lucide-react";
 
 // ─── Design tokens ──────────────────────────────────────────────
@@ -436,7 +435,7 @@ export default function CertificatesPage() {
   const school  = pageData?.school  ?? {};
 
   return (
-    <PageLayout>
+    <>
       <style>{STYLE}</style>
 
       <div className="cert-root cert-page" style={{ minHeight: "100vh", background: C.bg }}>
@@ -646,6 +645,6 @@ export default function CertificatesPage() {
           onClose={() => setSelected(null)}
         />
       )}
-    </PageLayout>
+    </>
   );
 }

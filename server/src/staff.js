@@ -32,6 +32,8 @@ import adminActivityRoute from "./staffRoutes/adminActivityRoute.js";
 import teacherActivityRoute from "./staffRoutes/teacherActivityRoute.js";
 import awardRoutes from "./staffRoutes/Awardroutes.js";
 import adminAwardRoutes from "./staffRoutes/Adminawardroutes.js";
+import teacherLiveClassRoute from "./staffRoutes/teacherLiveClassRoute.js";   
+import teacherTimetableRoute from "./staffRoutes/teacherTimetableRoute.js";
 
 
 
@@ -82,6 +84,10 @@ staff.use("/api/admin/activities", adminActivityRoute);
 staff.use("/api/teacher/activities", teacherActivityRoute);
 staff.use("/api/staff/awards", awardRoutes);
 staff.use("/api/admin/awards", adminAwardRoutes);
+staff.use("/api/teacher/live-classes",  teacherLiveClassRoute);   
+staff.use("/api/teacher/timetable", teacherTimetableRoute);
+
+
 
 
 export default staff;

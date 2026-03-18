@@ -1,6 +1,5 @@
 // client/src/admin/pages/attendances/AttendanceList.jsx
 import React, { useEffect, useState, useMemo, useCallback } from "react";
-import PageLayout from "../../components/PageLayout";
 import {
   fetchAdminAttendance,
   fetchAttendanceSummary,
@@ -333,7 +332,7 @@ export default function AttendanceList() {
   }, [attendance, searchTerm]);
 
   return (
-    <PageLayout>
+    <>
       <div
         className="p-4 md:p-6"
         style={{ background: C.bg, minHeight: "100%" }}
@@ -1059,6 +1058,6 @@ export default function AttendanceList() {
           </div>
         </div>
       )}
-    </PageLayout>
+    </>
   );
 }
