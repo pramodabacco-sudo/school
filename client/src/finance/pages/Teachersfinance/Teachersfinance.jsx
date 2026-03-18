@@ -5,7 +5,7 @@ import {
     Plus, X, ChevronRight, Sparkles, BadgeCheck, AlertTriangle,
     User, Mail, BookOpen, Minus, ChevronDown, Pause, Clock
 } from "lucide-react";
-import PageLayout from "../../components/PageLayout";
+// import  from "../../components/";
 import React, { useState, useEffect, useRef } from "react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -424,7 +424,7 @@ export default function TeacherSalaryManagement() {
     );
 
     return (
-        <PageLayout>
+        <>
             <div className="min-h-screen bg-gradient-to-br from-[#dde9f2] via-[#c8dce9] to-[#b8cfe0] p-7">
 
                 {/* ── GROUP TABS ── */}
@@ -1381,6 +1381,6 @@ export default function TeacherSalaryManagement() {
                 </div>
 
             </div>
-        </PageLayout>
+        </>
     );
 }

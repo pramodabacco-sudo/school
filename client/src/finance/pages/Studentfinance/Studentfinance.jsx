@@ -5,7 +5,7 @@ import {
     AlertCircle, CheckCircle, Clock, CreditCard,
     Users, X, Download, Receipt, FileText
 } from "lucide-react";
-import PageLayout from "../../components/PageLayout";
+// import  from "../../components/";
 import Addstudent from "./Addstudent";
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -536,7 +536,7 @@ export default function StudentFeesPage() {
     );
 
     return (
-        <PageLayout>
+        <>
             <style>{`
                 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap');
 
@@ -774,6 +774,6 @@ export default function StudentFeesPage() {
             {invoiceStudent && <InvoiceModal student={invoiceStudent} onClose={() => setInvoiceStudent(null)} />}
             {payStudent     && <PayModal student={payStudent} onClose={() => setPayStudent(null)} onPaymentDone={handlePaymentDone} />}
 
-        </PageLayout>
+        </>
     );
 }

@@ -1,32 +1,15 @@
 // client/src/finance/components/Sidebar.jsx
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import {
-  LayoutDashboard,
-  Users,
-  GraduationCap,
-  BookOpen,
-  ClipboardCheck,
-  FileText,
-  DollarSign,
-  CalendarCheck,
-  Library,
-  Settings,
-  X,
-  Wallet
-} from "lucide-react";
+import { LayoutDashboard, GraduationCap, Wallet, X } from "lucide-react";
 
+// ← all paths prefixed with /finance/
 const NAV = [
-
-
-  // Finance Section
-  { icon: LayoutDashboard, label: "Dashboard", to: "/" },
+  { icon: LayoutDashboard, label: "Dashboard", to: "/finance/dashboard" },
   { icon: GraduationCap, label: "Student", to: "/finance/studentfinance" },
   { icon: Wallet, label: "Staff", to: "/finance/teachersfinance" },
-
-
-
 ];
+
 const initials = (name = "AU") =>
   name
     .trim()
@@ -40,13 +23,12 @@ export default function Sidebar({ isOpen, onClose, user }) {
   const { pathname } = useLocation();
   const isActive = (to) => pathname === to || pathname.startsWith(to + "/");
 
-  const displayName = user?.name || "Admin User";
-  const displayRole = user?.role || "Administrator";
+  const displayName = user?.name || "Finance Admin";
+  const displayRole = user?.role || "Finance";
   const displayEmail = user?.email || "";
 
   return (
     <>
-      {/* Mobile overlay */}
       {isOpen && (
         <div
           className="fixed inset-0 z-40 md:hidden"
@@ -67,7 +49,7 @@ export default function Sidebar({ isOpen, onClose, user }) {
         `}
         style={{ background: "#3f556b", fontFamily: "'DM Sans', sans-serif" }}
       >
-        {/* ── Logo ── */}
+        {/* Logo */}
         <div
           className="flex items-center justify-between px-5 h-16 flex-shrink-0"
           style={{ borderBottom: "1px solid rgba(136,189,242,0.12)" }}
@@ -85,11 +67,12 @@ export default function Sidebar({ isOpen, onClose, user }) {
               <p className="font-bold text-sm" style={{ color: "#fff" }}>
                 SchoolHub
               </p>
+              {/* ← fixed: was "Admin Panel" */}
               <p
                 className="text-[10px] font-semibold uppercase tracking-[0.12em]"
-                style={{ color: "#6A89A7" }}
+                style={{ color: "rgb(200,200,200)" }}
               >
-                Admin Panel
+                Finance Panel
               </p>
             </div>
           </div>
@@ -107,14 +90,10 @@ export default function Sidebar({ isOpen, onClose, user }) {
           </button>
         </div>
 
-        {/* ── Nav items ── */}
+        {/* Nav items */}
         <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
-          {NAV.map((item) => {
-            const { icon: Icon, label, to } = item;
+          {NAV.map(({ icon: Icon, label, to }) => {
             const active = isActive(to);
-
-            if (!Icon) return null; // safety
-
             return (
               <Link
                 key={to}
@@ -140,14 +119,12 @@ export default function Sidebar({ isOpen, onClose, user }) {
                       e.currentTarget.style.background = "transparent";
                   }}
                 >
-                  {/* Active left bar */}
                   {active && (
                     <span
                       className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-full"
                       style={{ background: "#88BDF2" }}
                     />
                   )}
-
                   <Icon
                     size={17}
                     style={{
@@ -155,7 +132,6 @@ export default function Sidebar({ isOpen, onClose, user }) {
                       flexShrink: 0,
                     }}
                   />
-
                   <span
                     className="text-sm"
                     style={{
@@ -166,8 +142,6 @@ export default function Sidebar({ isOpen, onClose, user }) {
                   >
                     {label}
                   </span>
-
-                  {/* Active dot */}
                   {active && (
                     <span
                       className="ml-auto w-1.5 h-1.5 rounded-full flex-shrink-0"
@@ -180,7 +154,7 @@ export default function Sidebar({ isOpen, onClose, user }) {
           })}
         </nav>
 
-        {/* ── User card ── */}
+        {/* User card */}
         <div
           className="px-3 py-3 flex-shrink-0"
           style={{ borderTop: "1px solid rgba(136,189,242,0.12)" }}

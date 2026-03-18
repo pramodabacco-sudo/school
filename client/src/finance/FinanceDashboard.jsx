@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import PageLayout from "./components/PageLayout";
+// import  from "./components/";
 import {
   IndianRupee, TrendingUp, TrendingDown, AlertCircle,
   PiggyBank, BarChart3, School, ArrowUpRight, ArrowDownRight,
@@ -675,7 +675,7 @@ export default function FinanceHome() {
   };
 
   return (
-    <PageLayout>
+    <>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap');
 
@@ -1056,6 +1056,6 @@ export default function FinanceHome() {
           onAdd={handleAddExpense}
         />
       )}
-    </PageLayout>
+    </>
   );
 }
