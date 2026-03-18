@@ -1,64 +1,153 @@
-import { useState, useEffect } from "react";
-import PageLayout from "../../components/PageLayout";
+import { useState, useEffect, useRef } from "react";
+import {
+  Trophy, AlertCircle, Loader2, CheckCircle2,
+  Users, ClipboardCheck, Search, BookOpen,
+  Star, Shield, Crown, Palette, Dumbbell,
+} from "lucide-react";
 import { getToken } from "../../../auth/storage";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
-// ─── Design tokens — matches ERP "Stormy Morning" palette ─────────────────────
 const C = {
-  dark:  "#384959",
-  mid:   "#6A89A7",
-  light: "#88BDF2",
-  pale:  "#BDDDFC",
-  bg:    "#EDF3FA",
-  white: "#ffffff",
+  slate:       "#6A89A7",
+  mist:        "#BDDDFC",
+  sky:         "#88BDF2",
+  deep:        "#384959",
+  bg:          "#EDF3FA",
+  white:       "#FFFFFF",
+  border:      "#C8DCF0",
+  borderLight: "#DDE9F5",
+  text:        "#243340",
+  textLight:   "#6A89A7",
 };
 
-// ─── Category config ───────────────────────────────────────────────────────────
 const CATEGORY = {
-  ACADEMIC:   { bg: "#EFF6FF", text: "#1D4ED8", dot: "#3B82F6", icon: "📘" },
-  ATTENDANCE: { bg: "#F0FDF4", text: "#15803D", dot: "#22C55E", icon: "✅" },
-  SPORTS:     { bg: "#FFF7ED", text: "#C2410C", dot: "#F97316", icon: "🏆" },
-  CULTURAL:   { bg: "#FDF4FF", text: "#7E22CE", dot: "#A855F7", icon: "🎭" },
-  DISCIPLINE: { bg: "#FFF1F2", text: "#BE123C", dot: "#F43F5E", icon: "🛡️" },
-  LEADERSHIP: { bg: "#FFFBEB", text: "#92400E", dot: "#F59E0B", icon: "👑" },
-  SPECIAL:    { bg: "#F0F9FF", text: "#0369A1", dot: "#0EA5E9", icon: "⭐" },
+  ACADEMIC:   { bg: "#EFF6FF", text: "#1D4ED8", dot: "#3B82F6", Icon: BookOpen     },
+  ATTENDANCE: { bg: "#F0FDF4", text: "#15803D", dot: "#22C55E", Icon: CheckCircle2 },
+  SPORTS:     { bg: "#FFF7ED", text: "#C2410C", dot: "#F97316", Icon: Dumbbell     },
+  CULTURAL:   { bg: "#FDF4FF", text: "#7E22CE", dot: "#A855F7", Icon: Palette      },
+  DISCIPLINE: { bg: "#FFF1F2", text: "#BE123C", dot: "#F43F5E", Icon: Shield       },
+  LEADERSHIP: { bg: "#FFFBEB", text: "#92400E", dot: "#F59E0B", Icon: Crown        },
+  SPECIAL:    { bg: "#F0F9FF", text: "#0369A1", dot: "#0EA5E9", Icon: Star         },
 };
+
+// ── ResizeObserver hook — measures the ACTUAL content container width ──────────
+function useContainerWidth(ref) {
+  const [width, setWidth] = useState(600);
+  useEffect(() => {
+    if (!ref.current) return;
+    const ro = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        setWidth(entry.contentRect.width);
+      }
+    });
+    ro.observe(ref.current);
+    return () => ro.disconnect();
+  }, []);
+  return width;
+}
+
+function Pulse({ w = "100%", h = 13, r = 8 }) {
+  return <div style={{ width: w, height: h, borderRadius: r, background: `${C.mist}55` }} />;
+}
+
+function IconBox({ Icon }) {
+  return (
+    <div style={{
+      width: 40, height: 40, borderRadius: 12, flexShrink: 0,
+      background: `linear-gradient(135deg, ${C.sky}, ${C.deep})`,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      boxShadow: `0 4px 10px ${C.sky}44`,
+    }}>
+      <Icon size={17} color="#fff" strokeWidth={2} />
+    </div>
+  );
+}
+
+function Card({ children }) {
+  return (
+    <div style={{
+      background: C.white, borderRadius: 18,
+      border: `1.5px solid ${C.borderLight}`,
+      boxShadow: "0 2px 16px rgba(56,73,89,0.06)",
+      overflow: "hidden",
+      minWidth: 0,   // critical — prevents grid blowout
+    }}>
+      {children}
+    </div>
+  );
+}
+
+function CardHeader({ Icon, title, sub }) {
+  return (
+    <div style={{
+      padding: "14px 16px",
+      background: `linear-gradient(90deg, ${C.bg}, ${C.white})`,
+      borderBottom: `1.5px solid ${C.borderLight}`,
+      display: "flex", alignItems: "center", gap: 10,
+    }}>
+      <IconBox Icon={Icon} />
+      <div style={{ minWidth: 0 }}>
+        <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: C.text, fontFamily: "'Inter',sans-serif", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</p>
+        <p style={{ margin: 0, fontSize: 11, color: C.textLight, fontFamily: "'Inter',sans-serif" }}>{sub}</p>
+      </div>
+    </div>
+  );
+}
 
 const CategoryBadge = ({ category }) => {
   const c = CATEGORY[category] ?? CATEGORY.SPECIAL;
   return (
     <span style={{
       background: c.bg, color: c.text,
-      display: "inline-flex", alignItems: "center", gap: 5,
-      padding: "3px 10px", borderRadius: 99,
+      display: "inline-flex", alignItems: "center", gap: 4,
+      padding: "3px 8px", borderRadius: 99,
       fontSize: 11, fontWeight: 600, whiteSpace: "nowrap",
+      fontFamily: "'Inter',sans-serif", flexShrink: 0,
     }}>
-      <span style={{ width: 6, height: 6, borderRadius: "50%", background: c.dot, display: "inline-block" }} />
+      <span style={{ width: 5, height: 5, borderRadius: "50%", background: c.dot, display: "inline-block", flexShrink: 0 }} />
       {category}
     </span>
   );
 };
 
-const Avatar = ({ name, image, size = 34 }) => {
+const CategoryIconBox = ({ category }) => {
+  const c = CATEGORY[category] ?? CATEGORY.SPECIAL;
+  const { Icon } = c;
+  return (
+    <div style={{
+      width: 30, height: 30, borderRadius: 8,
+      background: c.bg, flexShrink: 0,
+      display: "flex", alignItems: "center", justifyContent: "center",
+    }}>
+      <Icon size={13} color={c.text} strokeWidth={2} />
+    </div>
+  );
+};
+
+const Avatar = ({ name, image, size = 32 }) => {
   const initials = name?.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
   return image ? (
     <img src={image} alt={name} style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
   ) : (
     <div style={{
-      width: size, height: size, borderRadius: "50%",
-      background: `linear-gradient(135deg, ${C.light}, ${C.mid})`,
+      width: size, height: size, borderRadius: "50%", flexShrink: 0,
+      background: `linear-gradient(135deg, ${C.sky}, ${C.deep})`,
       color: C.white, display: "flex", alignItems: "center", justifyContent: "center",
-      fontSize: size * 0.33, fontWeight: 700, flexShrink: 0,
-      fontFamily: "'DM Sans', sans-serif",
+      fontSize: size * 0.33, fontWeight: 700, fontFamily: "'Inter',sans-serif",
     }}>
       {initials}
     </div>
   );
 };
 
-// ─── Main Page ─────────────────────────────────────────────────────────────────
+// ─── Main ────────────────────────────────────────────────────────────────────
 export default function AwardsPage() {
+  const containerRef = useRef(null);
+  const containerWidth = useContainerWidth(containerRef);
+  // 2-col only when container itself is wide enough (≥ 560px)
+  const twoCol = containerWidth >= 560;
+
   const [tab, setTab]                         = useState("assign");
   const [classData, setClassData]             = useState(null);
   const [awardTypes, setAwardTypes]           = useState([]);
@@ -69,6 +158,7 @@ export default function AwardsPage() {
   const [search, setSearch]                   = useState("");
   const [loading, setLoading]                 = useState(true);
   const [submitting, setSubmitting]           = useState(false);
+  const [error, setError]                     = useState("");
   const [toast, setToast]                     = useState(null);
 
   useEffect(() => {
@@ -86,7 +176,7 @@ export default function AwardsPage() {
         setClassData(classJson.data ?? null);
         setAwardTypes(awardsJson.data ?? []);
       } catch (err) {
-        showToast("error", err.message ?? "Failed to load data");
+        setError(err.message ?? "Failed to load data");
       } finally {
         setLoading(false);
       }
@@ -99,7 +189,9 @@ export default function AwardsPage() {
 
   const loadHistory = async () => {
     try {
-      const res  = await fetch(`${API_URL}/api/staff/awards/given-by-me`, { headers: { Authorization: `Bearer ${getToken()}` } });
+      const res  = await fetch(`${API_URL}/api/staff/awards/given-by-me`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message ?? "Failed");
       setHistory(json.data ?? []);
@@ -108,8 +200,8 @@ export default function AwardsPage() {
     }
   };
 
-  const showToast = (type, message) => {
-    setToast({ type, message });
+  const showToast = (type, msg) => {
+    setToast({ type, msg });
     setTimeout(() => setToast(null), 3500);
   };
 
@@ -123,7 +215,11 @@ export default function AwardsPage() {
       const res  = await fetch(`${API_URL}/api/staff/awards/assign`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
-        body: JSON.stringify({ studentId: selectedStudent.id, awardId: selectedAward.id, remarks: remarks.trim() || undefined }),
+        body: JSON.stringify({
+          studentId: selectedStudent.id,
+          awardId:   selectedAward.id,
+          remarks:   remarks.trim() || undefined,
+        }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message ?? "Failed to assign award");
@@ -139,292 +235,332 @@ export default function AwardsPage() {
   const filteredStudents = (classData?.students ?? []).filter(s =>
     `${s.name} ${s.rollNumber ?? ""}`.toLowerCase().includes(search.toLowerCase())
   );
-
-  // ── Loading ─────────────────────────────────────────────────────────────────
-  if (loading) return (
-    <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-        <div style={{ width: 36, height: 36, borderRadius: "50%", border: `3px solid ${C.pale}`, borderTopColor: C.mid, animation: "spin 0.8s linear infinite" }} />
-        <p style={{ fontSize: 13, color: C.mid, fontFamily: "'DM Sans', sans-serif" }}>Loading your class…</p>
-      </div>
-      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
-    </div>
-  );
-
-  if (!classData) return (
-    <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ textAlign: "center" }}>
-        <p style={{ fontSize: 40, marginBottom: 12 }}>🏫</p>
-        <p style={{ fontSize: 14, fontWeight: 600, color: C.dark, fontFamily: "'DM Sans', sans-serif" }}>No class assigned</p>
-        <p style={{ fontSize: 12, color: C.mid, marginTop: 4, fontFamily: "'DM Sans', sans-serif" }}>You are not assigned as a class teacher for the current academic year</p>
-      </div>
-    </div>
-  );
-
   const canSubmit = !submitting && !!selectedStudent && !!selectedAward;
 
   return (
-    <PageLayout>
-      <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'DM Sans', sans-serif" }}>
+    <>
+      <style>{`
+        @keyframes fadeUp  { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes slideIn { from{opacity:0;transform:translateX(10px)} to{opacity:1;transform:translateX(0)} }
+        .aw-fade { animation: fadeUp 0.4s ease forwards; }
+        .aw-row:hover { background: ${C.bg} !important; }
+      `}</style>
 
-        {/* ── Toast ── */}
+      {/* ── outer wrapper — gives ResizeObserver something to measure ── */}
+      <div ref={containerRef} style={{
+        width: "100%", minHeight: "100vh",
+        background: C.bg, fontFamily: "'Inter',sans-serif",
+        backgroundImage: `radial-gradient(circle at 15% 0%, ${C.mist}28 0%, transparent 50%)`,
+        boxSizing: "border-box",
+        padding: twoCol ? "24px 28px" : "16px 14px",
+      }}>
+
+        {/* Toast */}
         {toast && (
           <div style={{
-            position: "fixed", top: 20, right: 20, zIndex: 9999,
-            display: "flex", alignItems: "center", gap: 10,
-            padding: "12px 18px", borderRadius: 12,
+            position: "fixed", top: 16, right: 16, zIndex: 9999,
+            display: "flex", alignItems: "center", gap: 8,
+            padding: "10px 16px", borderRadius: 12,
             background: toast.type === "success" ? "#F0FDF4" : "#FFF1F2",
-            color: toast.type === "success" ? "#15803D" : "#BE123C",
-            border: `1px solid ${toast.type === "success" ? "#BBF7D0" : "#FECDD3"}`,
-            boxShadow: "0 4px 24px rgba(56,73,89,0.14)",
-            fontSize: 13, fontWeight: 500,
-            animation: "slideIn 0.2s ease",
+            color:      toast.type === "success" ? "#15803D" : "#BE123C",
+            border:    `1px solid ${toast.type === "success" ? "#BBF7D0" : "#FECDD3"}`,
+            boxShadow: "0 4px 20px rgba(56,73,89,0.14)",
+            fontSize: 13, fontWeight: 500, fontFamily: "'Inter',sans-serif",
+            animation: "slideIn 0.2s ease", maxWidth: "calc(100vw - 32px)",
           }}>
-            <span style={{ fontSize: 15 }}>{toast.type === "success" ? "✓" : "✕"}</span>
-            {toast.message}
+            {toast.type === "success" ? <CheckCircle2 size={14}/> : <AlertCircle size={14}/>}
+            {toast.msg}
           </div>
         )}
 
-        <div style={{ maxWidth: 960, margin: "0 auto", padding: "32px 24px" }}>
+        {/* Header */}
+        <div style={{ marginBottom: 20 }} className="aw-fade">
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+            <div style={{ width: 4, height: 28, borderRadius: 99, flexShrink: 0, background: `linear-gradient(180deg,${C.sky},${C.deep})` }} />
+            <h1 style={{ margin: 0, fontSize: "clamp(18px,4vw,26px)", fontWeight: 800, color: C.text, letterSpacing: "-0.5px", fontFamily: "'Inter',sans-serif" }}>
+              Student Awards
+            </h1>
+          </div>
+          <p style={{ margin: 0, paddingLeft: 14, fontSize: 12, color: C.textLight, fontWeight: 500, fontFamily: "'Inter',sans-serif" }}>
+            {classData
+              ? `${classData.classSection?.name ?? ""} · ${classData.academicYear?.name ?? ""} · ${classData.students?.length ?? 0} students`
+              : "Recognise and celebrate student achievements"}
+          </p>
+        </div>
 
-          {/* ── Header — matches ERP page header style ── */}
-          <div style={{
-            background: `linear-gradient(90deg, ${C.bg} 0%, ${C.white} 100%)`,
-            borderRadius: 16, padding: "22px 28px", marginBottom: 24,
-            borderLeft: `4px solid ${C.light}`,
-            boxShadow: "0 1px 4px rgba(56,73,89,0.06)",
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-              <div style={{
-                width: 42, height: 42, borderRadius: 11,
-                background: `linear-gradient(135deg, ${C.light}, ${C.mid})`,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 20, boxShadow: `0 4px 12px rgba(136,189,242,0.35)`,
-                flexShrink: 0,
-              }}>🏅</div>
-              <div>
-                <h1 style={{ fontSize: 20, fontWeight: 700, color: C.dark, margin: 0, letterSpacing: -0.3 }}>Student Awards</h1>
-                <p style={{ fontSize: 12, color: C.mid, margin: "3px 0 0" }}>
-                  {classData?.classSection?.name ?? "—"}&nbsp;·&nbsp;{classData?.academicYear?.name ?? "—"}&nbsp;·&nbsp;{classData?.students?.length ?? 0} students
-                </p>
-              </div>
+        {/* Error */}
+        {error && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 14px", borderRadius: 12, background: "#fee8e8", border: "1px solid #f5b0b0", marginBottom: 16, fontSize: 13, color: "#8b1c1c", fontFamily: "'Inter',sans-serif" }}>
+            <AlertCircle size={14} style={{ flexShrink: 0 }} /><span>{error}</span>
+          </div>
+        )}
+
+        {/* Loading */}
+        {loading ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ display: "flex", gap: 8 }}><Pulse w={130} h={36} r={10}/><Pulse w={110} h={36} r={10}/></div>
+            <div style={{ display: "grid", gridTemplateColumns: twoCol ? "1fr 1fr" : "1fr", gap: 16 }}>
+              {[1,2].map(i => (
+                <div key={i} style={{ background: C.white, borderRadius: 16, border: `1.5px solid ${C.borderLight}`, padding: 20 }}>
+                  <div style={{ display:"flex", gap:10, marginBottom:14 }}>
+                    <Pulse w={40} h={40} r={12}/>
+                    <div style={{ flex:1, display:"flex", flexDirection:"column", gap:7 }}><Pulse w="55%" h={13}/><Pulse w="35%" h={10}/></div>
+                  </div>
+                  {[1,2,3,4].map(j=>(
+                    <div key={j} style={{ display:"flex", gap:10, alignItems:"center", marginBottom:12 }}>
+                      <Pulse w={30} h={30} r={99}/>
+                      <div style={{ flex:1, display:"flex", flexDirection:"column", gap:6 }}><Pulse w="60%" h={11}/><Pulse w="35%" h={9}/></div>
+                    </div>
+                  ))}
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* ── Tabs ── */}
-          <div style={{
-            display: "inline-flex", gap: 4,
-            background: C.white, padding: 4, borderRadius: 12,
-            marginBottom: 22,
-            boxShadow: "0 1px 4px rgba(56,73,89,0.08)",
-          }}>
-            {[{ key: "assign", label: "Assign Award" }, { key: "history", label: "Given by Me" }].map(t => (
-              <button key={t.key} onClick={() => setTab(t.key)} style={{
-                padding: "8px 20px", borderRadius: 9, border: "none", cursor: "pointer",
-                fontSize: 13, fontWeight: 600, fontFamily: "'DM Sans', sans-serif",
-                transition: "all 0.15s",
-                background: tab === t.key ? `linear-gradient(135deg, ${C.light}, ${C.mid})` : "transparent",
-                color: tab === t.key ? C.white : C.mid,
-                boxShadow: tab === t.key ? `0 2px 8px rgba(136,189,242,0.4)` : "none",
-              }}>{t.label}</button>
-            ))}
+        ) : !classData ? (
+          <div style={{ display:"flex", flexDirection:"column", alignItems:"center", padding:"50px 0", gap:12 }}>
+            <div style={{ width:60, height:60, borderRadius:18, background:`${C.sky}18`, border:`1px solid ${C.sky}33`, display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <Trophy size={26} color={C.sky} strokeWidth={1.5}/>
+            </div>
+            <p style={{ fontSize:14, fontWeight:600, color:C.text, margin:0, fontFamily:"'Inter',sans-serif" }}>No class assigned</p>
+            <p style={{ fontSize:12, color:C.textLight, margin:0, textAlign:"center", fontFamily:"'Inter',sans-serif" }}>You are not assigned as a class teacher for the current academic year</p>
           </div>
 
-          {/* ── TAB: ASSIGN ── */}
-          {tab === "assign" && (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+        ) : (
+          <>
+            {/* Tabs */}
+            <div style={{ display:"inline-flex", gap:4, background:C.white, padding:4, borderRadius:12, marginBottom:20, boxShadow:"0 1px 4px rgba(56,73,89,0.08)" }}>
+              {[{key:"assign",label:"Assign Award"},{key:"history",label:"Given by Me"}].map(t=>(
+                <button key={t.key} onClick={()=>setTab(t.key)} style={{
+                  padding:"7px 16px", borderRadius:9, border:"none", cursor:"pointer",
+                  fontSize:13, fontWeight:600, fontFamily:"'Inter',sans-serif", transition:"all 0.15s", whiteSpace:"nowrap",
+                  background: tab===t.key ? `linear-gradient(135deg,${C.slate},${C.deep})` : "transparent",
+                  color: tab===t.key ? C.white : C.textLight,
+                  boxShadow: tab===t.key ? "0 2px 8px rgba(56,73,89,0.25)" : "none",
+                }}>{t.label}</button>
+              ))}
+            </div>
 
-              {/* Student picker */}
-              <div style={{ background: C.white, borderRadius: 14, overflow: "hidden", border: `1px solid ${C.pale}`, boxShadow: "0 1px 4px rgba(56,73,89,0.06)" }}>
-                <div style={{ padding: "16px 20px", borderBottom: `1px solid ${C.bg}` }}>
-                  <p style={{ fontSize: 11, fontWeight: 700, color: C.mid, letterSpacing: 1, textTransform: "uppercase", margin: "0 0 10px" }}>1. Select Student</p>
-                  <div style={{ position: "relative" }}>
-                    <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontSize: 13, color: C.mid }}>🔍</span>
-                    <input
-                      type="text"
-                      placeholder="Search by name or roll no…"
-                      value={search}
-                      onChange={e => setSearch(e.target.value)}
-                      style={{
-                        width: "100%", padding: "8px 10px 8px 32px",
-                        border: `1.5px solid ${C.pale}`, borderRadius: 9,
-                        fontSize: 13, color: C.dark, outline: "none",
-                        fontFamily: "'DM Sans', sans-serif",
-                        background: C.bg, boxSizing: "border-box",
-                      }}
-                      onFocus={e => e.target.style.borderColor = C.light}
-                      onBlur={e => e.target.style.borderColor = C.pale}
-                    />
-                  </div>
-                </div>
-                <div style={{ overflowY: "auto", maxHeight: 310 }}>
-                  {filteredStudents.length === 0 ? (
-                    <div style={{ padding: "32px 20px", textAlign: "center", fontSize: 13, color: C.mid }}>No students found</div>
-                  ) : filteredStudents.map(s => {
-                    const sel = selectedStudent?.id === s.id;
-                    return (
-                      <button key={s.id} onClick={() => setSelectedStudent(s)} style={{
-                        width: "100%", display: "flex", alignItems: "center", gap: 11,
-                        padding: "10px 20px", border: "none", cursor: "pointer", textAlign: "left",
-                        background: sel ? C.bg : C.white,
-                        borderBottom: `1px solid ${C.bg}`,
-                        borderLeft: `3px solid ${sel ? C.light : "transparent"}`,
-                        transition: "all 0.1s", fontFamily: "'DM Sans', sans-serif",
-                      }}
-                        onMouseEnter={e => { if (!sel) e.currentTarget.style.background = C.bg; }}
-                        onMouseLeave={e => { if (!sel) e.currentTarget.style.background = C.white; }}
-                      >
-                        <Avatar name={s.name} image={s.profileImage} />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{ fontSize: 13, fontWeight: 600, color: sel ? C.mid : C.dark, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</p>
-                          {s.rollNumber && <p style={{ fontSize: 11, color: C.mid, margin: "1px 0 0" }}>Roll #{s.rollNumber}</p>}
-                        </div>
-                        {sel && <span style={{ color: C.light, fontWeight: 700 }}>✓</span>}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+            {/* ── ASSIGN TAB ── */}
+            {tab === "assign" && (
+              <div className="aw-fade" style={{
+                display: "grid",
+                gridTemplateColumns: twoCol ? "1fr 1fr" : "1fr",
+                gap: 16,
+                alignItems: "start",
+                width: "100%",
+              }}>
 
-              {/* Right column */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                {/* Student picker */}
+                <Card>
+                  <CardHeader Icon={Users} title="1. Select Student" sub={`${classData?.students?.length ?? 0} students in class`}/>
 
-                {/* Award picker */}
-                <div style={{ background: C.white, borderRadius: 14, overflow: "hidden", border: `1px solid ${C.pale}`, boxShadow: "0 1px 4px rgba(56,73,89,0.06)" }}>
-                  <div style={{ padding: "16px 20px", borderBottom: `1px solid ${C.bg}` }}>
-                    <p style={{ fontSize: 11, fontWeight: 700, color: C.mid, letterSpacing: 1, textTransform: "uppercase", margin: 0 }}>2. Select Award</p>
-                  </div>
-                  <div style={{ overflowY: "auto", maxHeight: 228 }}>
-                    {awardTypes.length === 0 ? (
-                      <div style={{ padding: "24px 20px", textAlign: "center", fontSize: 13, color: C.mid }}>No award types configured yet</div>
-                    ) : awardTypes.map(a => {
-                      const sel = selectedAward?.id === a.id;
-                      const cat = CATEGORY[a.category] ?? CATEGORY.SPECIAL;
-                      return (
-                        <button key={a.id} onClick={() => setSelectedAward(a)} style={{
-                          width: "100%", display: "flex", alignItems: "center", gap: 11,
-                          padding: "10px 20px", border: "none", cursor: "pointer", textAlign: "left",
-                          background: sel ? C.bg : C.white,
-                          borderBottom: `1px solid ${C.bg}`,
-                          borderLeft: `3px solid ${sel ? C.light : "transparent"}`,
-                          transition: "all 0.1s", fontFamily: "'DM Sans', sans-serif",
+                  <div style={{ padding:"12px 14px", borderBottom:`1.5px solid ${C.borderLight}` }}>
+                    <div style={{ position:"relative" }}>
+                      <Search size={13} color={C.textLight} style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", pointerEvents:"none" }}/>
+                      <input
+                        type="text" placeholder="Search by name or roll no..."
+                        value={search} onChange={e=>setSearch(e.target.value)}
+                        style={{
+                          width:"100%", padding:"8px 10px 8px 30px",
+                          border:`1.5px solid ${C.border}`, borderRadius:9,
+                          fontSize:13, color:C.text, outline:"none",
+                          fontFamily:"'Inter',sans-serif", background:C.bg, boxSizing:"border-box",
                         }}
-                          onMouseEnter={e => { if (!sel) e.currentTarget.style.background = C.bg; }}
-                          onMouseLeave={e => { if (!sel) e.currentTarget.style.background = C.white; }}
+                        onFocus={e=>e.target.style.borderColor=C.sky}
+                        onBlur={e=>e.target.style.borderColor=C.border}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ overflowY:"auto", maxHeight: twoCol ? 340 : 240 }}>
+                    {filteredStudents.length===0 ? (
+                      <div style={{ padding:"32px 20px", textAlign:"center", fontSize:13, color:C.textLight, fontFamily:"'Inter',sans-serif" }}>No students found</div>
+                    ) : filteredStudents.map(s=>{
+                      const sel = selectedStudent?.id===s.id;
+                      return (
+                        <button key={s.id} onClick={()=>setSelectedStudent(s)} style={{
+                          width:"100%", display:"flex", alignItems:"center", gap:10,
+                          padding:"9px 14px", border:"none", cursor:"pointer", textAlign:"left",
+                          background: sel ? C.bg : C.white,
+                          borderBottom:`1px solid ${C.borderLight}`,
+                          borderLeft:`3px solid ${sel ? C.sky : "transparent"}`,
+                          transition:"background 0.1s", fontFamily:"'Inter',sans-serif",
+                        }}
+                          onMouseEnter={e=>{ if(!sel) e.currentTarget.style.background=C.bg; }}
+                          onMouseLeave={e=>{ if(!sel) e.currentTarget.style.background=C.white; }}
                         >
-                          <div style={{ width: 32, height: 32, borderRadius: 8, background: cat.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0 }}>{cat.icon}</div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <p style={{ fontSize: 13, fontWeight: 600, color: sel ? C.mid : C.dark, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.name}</p>
-                            {a.description && <p style={{ fontSize: 11, color: C.mid, margin: "1px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.description}</p>}
+                          <Avatar name={s.name} image={s.profileImage}/>
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <p style={{ fontSize:13, fontWeight:600, color:sel?C.slate:C.text, margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.name}</p>
+                            {s.rollNumber && <p style={{ fontSize:10, color:C.textLight, margin:"1px 0 0" }}>Roll #{s.rollNumber}</p>}
                           </div>
-                          <CategoryBadge category={a.category} />
-                          {sel && <span style={{ color: C.light, fontWeight: 700, marginLeft: 4 }}>✓</span>}
+                          {sel && <CheckCircle2 size={15} color={C.sky} style={{ flexShrink:0 }}/>}
                         </button>
                       );
                     })}
                   </div>
-                </div>
+                </Card>
 
-                {/* Confirm */}
-                <div style={{ background: C.white, borderRadius: 14, padding: "18px 20px", border: `1px solid ${C.pale}`, boxShadow: "0 1px 4px rgba(56,73,89,0.06)" }}>
-                  <p style={{ fontSize: 11, fontWeight: 700, color: C.mid, letterSpacing: 1, textTransform: "uppercase", margin: "0 0 12px" }}>3. Confirm & Submit</p>
+                {/* Right column */}
+                <div style={{ display:"flex", flexDirection:"column", gap:16, minWidth:0 }}>
 
-                  {/* Summary */}
-                  <div style={{ background: C.bg, borderRadius: 10, padding: "10px 14px", marginBottom: 12 }}>
-                    {[["Student", selectedStudent?.name], ["Award", selectedAward?.name]].map(([label, value]) => (
-                      <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: `1px solid ${C.pale}` }}>
-                        <span style={{ fontSize: 12, color: C.mid }}>{label}</span>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: value ? C.dark : C.pale }}>{value ?? "—"}</span>
+                  {/* Award picker */}
+                  <Card>
+                    <CardHeader Icon={Trophy} title="2. Select Award" sub={`${awardTypes.length} award types available`}/>
+                    <div style={{ overflowY:"auto", maxHeight:240 }}>
+                      {awardTypes.length===0 ? (
+                        <div style={{ padding:"24px 20px", textAlign:"center", fontSize:13, color:C.textLight, fontFamily:"'Inter',sans-serif" }}>No award types configured yet</div>
+                      ) : awardTypes.map(a=>{
+                        const sel = selectedAward?.id===a.id;
+                        return (
+                          <button key={a.id} onClick={()=>setSelectedAward(a)} style={{
+                            width:"100%", display:"flex", alignItems:"center", gap:10,
+                            padding:"9px 14px", border:"none", cursor:"pointer", textAlign:"left",
+                            background: sel ? C.bg : C.white,
+                            borderBottom:`1px solid ${C.borderLight}`,
+                            borderLeft:`3px solid ${sel ? C.sky : "transparent"}`,
+                            transition:"background 0.1s", fontFamily:"'Inter',sans-serif",
+                          }}
+                            onMouseEnter={e=>{ if(!sel) e.currentTarget.style.background=C.bg; }}
+                            onMouseLeave={e=>{ if(!sel) e.currentTarget.style.background=C.white; }}
+                          >
+                            <CategoryIconBox category={a.category}/>
+                            <div style={{ flex:1, minWidth:0 }}>
+                              <p style={{ fontSize:13, fontWeight:600, color:sel?C.slate:C.text, margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{a.name}</p>
+                              {a.description && <p style={{ fontSize:11, color:C.textLight, margin:"1px 0 0", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{a.description}</p>}
+                            </div>
+                            <CategoryBadge category={a.category}/>
+                            {sel && <CheckCircle2 size={14} color={C.sky} style={{ marginLeft:4, flexShrink:0 }}/>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </Card>
+
+                  {/* Confirm */}
+                  <Card>
+                    <CardHeader Icon={ClipboardCheck} title="3. Confirm & Submit" sub="Review and assign the award"/>
+                    <div style={{ padding:"14px" }}>
+                      <div style={{ background:C.bg, borderRadius:12, padding:"10px 12px", marginBottom:12, border:`1.5px solid ${C.borderLight}` }}>
+                        {[["Student",selectedStudent?.name],["Award",selectedAward?.name]].map(([lbl,val])=>(
+                          <div key={lbl} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"5px 0", borderBottom:`1px solid ${C.borderLight}` }}>
+                            <span style={{ fontSize:12, color:C.textLight, fontFamily:"'Inter',sans-serif" }}>{lbl}</span>
+                            <span style={{ fontSize:13, fontWeight:600, color:val?C.text:C.mist, fontFamily:"'Inter',sans-serif", overflow:"hidden", textOverflow:"ellipsis", maxWidth:"60%" }}>{val ?? "—"}</span>
+                          </div>
+                        ))}
+                        {selectedAward && (
+                          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", paddingTop:7 }}>
+                            <span style={{ fontSize:12, color:C.textLight, fontFamily:"'Inter',sans-serif" }}>Category</span>
+                            <CategoryBadge category={selectedAward.category}/>
+                          </div>
+                        )}
                       </div>
-                    ))}
-                    {selectedAward && (
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 6 }}>
-                        <span style={{ fontSize: 12, color: C.mid }}>Category</span>
-                        <CategoryBadge category={selectedAward.category} />
-                      </div>
-                    )}
-                  </div>
 
-                  <textarea rows={2} placeholder="Remarks (optional)" value={remarks} onChange={e => setRemarks(e.target.value)} style={{
-                    width: "100%", padding: "8px 12px",
-                    border: `1.5px solid ${C.pale}`, borderRadius: 9,
-                    fontSize: 13, color: C.dark, fontFamily: "'DM Sans', sans-serif",
-                    resize: "none", outline: "none", boxSizing: "border-box",
-                    marginBottom: 12, background: C.bg,
-                  }}
-                    onFocus={e => e.target.style.borderColor = C.light}
-                    onBlur={e => e.target.style.borderColor = C.pale}
-                  />
+                      <textarea rows={2} placeholder="Remarks (optional)" value={remarks} onChange={e=>setRemarks(e.target.value)}
+                        style={{
+                          width:"100%", padding:"8px 12px",
+                          border:`1.5px solid ${C.border}`, borderRadius:9,
+                          fontSize:13, color:C.text, fontFamily:"'Inter',sans-serif",
+                          resize:"none", outline:"none", boxSizing:"border-box",
+                          marginBottom:12, background:C.bg,
+                        }}
+                        onFocus={e=>e.target.style.borderColor=C.sky}
+                        onBlur={e=>e.target.style.borderColor=C.border}
+                      />
 
-                  <button onClick={handleAssign} disabled={!canSubmit} style={{
-                    width: "100%", padding: "11px", borderRadius: 10, border: "none",
-                    cursor: canSubmit ? "pointer" : "not-allowed",
-                    fontSize: 14, fontWeight: 700, fontFamily: "'DM Sans', sans-serif",
-                    background: canSubmit ? `linear-gradient(135deg, ${C.light}, ${C.mid})` : C.pale,
-                    color: canSubmit ? C.white : C.mid,
-                    boxShadow: canSubmit ? `0 4px 14px rgba(136,189,242,0.45)` : "none",
-                    transition: "all 0.15s",
-                  }}
-                    onMouseEnter={e => { if (canSubmit) e.currentTarget.style.transform = "translateY(-1px)"; }}
-                    onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; }}
-                  >
-                    {submitting ? "Assigning…" : "Assign Award"}
-                  </button>
+                      <button onClick={handleAssign} disabled={!canSubmit} style={{
+                        width:"100%", padding:"11px", borderRadius:10, border:"none",
+                        cursor: canSubmit ? "pointer" : "not-allowed",
+                        fontSize:13, fontWeight:700, fontFamily:"'Inter',sans-serif",
+                        background: canSubmit ? `linear-gradient(135deg,${C.slate},${C.deep})` : C.border,
+                        color: canSubmit ? C.white : C.textLight,
+                        boxShadow: canSubmit ? "0 4px 14px rgba(56,73,89,0.28)" : "none",
+                        transition:"all 0.15s",
+                        display:"flex", alignItems:"center", justifyContent:"center", gap:6,
+                      }}
+                        onMouseEnter={e=>{ if(canSubmit) e.currentTarget.style.transform="translateY(-1px)"; }}
+                        onMouseLeave={e=>{ e.currentTarget.style.transform="translateY(0)"; }}
+                      >
+                        {submitting
+                          ? <><Loader2 size={14} className="animate-spin"/> Assigning…</>
+                          : <><Trophy size={14}/> Assign Award</>}
+                      </button>
+                    </div>
+                  </Card>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* ── TAB: HISTORY ── */}
-          {tab === "history" && (
-            <div style={{ background: C.white, borderRadius: 14, overflow: "hidden", border: `1px solid ${C.pale}`, boxShadow: "0 1px 4px rgba(56,73,89,0.06)" }}>
-              {history.length === 0 ? (
-                <div style={{ textAlign: "center", padding: "60px 20px" }}>
-                  <p style={{ fontSize: 34, marginBottom: 10 }}>🏅</p>
-                  <p style={{ fontSize: 14, fontWeight: 600, color: C.dark, margin: 0 }}>No awards assigned yet</p>
-                  <p style={{ fontSize: 12, color: C.mid, marginTop: 6 }}>Awards you assign will appear here</p>
-                </div>
-              ) : (
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                  <thead>
-                    <tr style={{ background: C.bg }}>
-                      {["Student", "Award", "Category", "Date", "Remarks"].map(h => (
-                        <th key={h} style={{ padding: "11px 20px", textAlign: "left", fontSize: 11, fontWeight: 700, color: C.mid, letterSpacing: 0.8, textTransform: "uppercase", borderBottom: `1px solid ${C.pale}` }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {history.map(h => (
-                      <tr key={h.id} style={{ borderBottom: `1px solid ${C.bg}`, transition: "background 0.1s" }}
-                        onMouseEnter={e => e.currentTarget.style.background = C.bg}
-                        onMouseLeave={e => e.currentTarget.style.background = C.white}
-                      >
-                        <td style={{ padding: "11px 20px" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                            <Avatar name={h.student?.name ?? ""} image={h.student?.personalInfo?.profileImage} size={30} />
-                            <span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{h.student?.name ?? "—"}</span>
-                          </div>
-                        </td>
-                        <td style={{ padding: "11px 20px", fontSize: 13, fontWeight: 500, color: C.dark }}>{h.award?.name ?? "—"}</td>
-                        <td style={{ padding: "11px 20px" }}>{h.award?.category && <CategoryBadge category={h.award.category} />}</td>
-                        <td style={{ padding: "11px 20px", fontSize: 12, color: C.mid }}>
-                          {h.createdAt ? new Date(h.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—"}
-                        </td>
-                        <td style={{ padding: "11px 20px", fontSize: 12, color: C.mid, fontStyle: h.remarks ? "normal" : "italic" }}>{h.remarks ?? "—"}</td>
+            {/* ── HISTORY TAB ── */}
+            {tab === "history" && (
+              <div className="aw-fade" style={{ background:C.white, borderRadius:18, border:`1.5px solid ${C.borderLight}`, boxShadow:"0 2px 16px rgba(56,73,89,0.06)", overflow:"hidden" }}>
+                {history.length===0 ? (
+                  <div style={{ display:"flex", flexDirection:"column", alignItems:"center", padding:"50px 20px", gap:12 }}>
+                    <div style={{ width:60, height:60, borderRadius:18, background:`${C.sky}18`, border:`1px solid ${C.sky}33`, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                      <Trophy size={26} color={C.sky} strokeWidth={1.5}/>
+                    </div>
+                    <p style={{ fontSize:14, fontWeight:600, color:C.text, margin:0, fontFamily:"'Inter',sans-serif" }}>No awards assigned yet</p>
+                    <p style={{ fontSize:12, color:C.textLight, margin:0, fontFamily:"'Inter',sans-serif" }}>Awards you assign will appear here</p>
+                  </div>
+                ) : twoCol ? (
+                  /* desktop table */
+                  <table style={{ width:"100%", borderCollapse:"collapse" }}>
+                    <thead>
+                      <tr style={{ background:C.bg }}>
+                        {["Student","Award","Category","Date","Remarks"].map(h=>(
+                          <th key={h} style={{ padding:"11px 14px", textAlign:"left", fontSize:11, fontWeight:700, color:C.textLight, letterSpacing:0.8, textTransform:"uppercase", borderBottom:`1.5px solid ${C.borderLight}`, fontFamily:"'Inter',sans-serif" }}>{h}</th>
+                        ))}
                       </tr>
+                    </thead>
+                    <tbody>
+                      {history.map(h=>(
+                        <tr key={h.id} className="aw-row" style={{ borderBottom:`1px solid ${C.borderLight}`, transition:"background 0.1s" }}>
+                          <td style={{ padding:"11px 14px" }}>
+                            <div style={{ display:"flex", alignItems:"center", gap:9 }}>
+                              <Avatar name={h.student?.name??""} image={h.student?.personalInfo?.profileImage} size={28}/>
+                              <span style={{ fontSize:13, fontWeight:600, color:C.text, fontFamily:"'Inter',sans-serif" }}>{h.student?.name??"—"}</span>
+                            </div>
+                          </td>
+                          <td style={{ padding:"11px 14px", fontSize:13, fontWeight:500, color:C.text, fontFamily:"'Inter',sans-serif" }}>{h.award?.name??"—"}</td>
+                          <td style={{ padding:"11px 14px" }}>{h.award?.category && <CategoryBadge category={h.award.category}/>}</td>
+                          <td style={{ padding:"11px 14px", fontSize:12, color:C.textLight, fontFamily:"'Inter',sans-serif", whiteSpace:"nowrap" }}>
+                            {h.createdAt ? new Date(h.createdAt).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}) : "—"}
+                          </td>
+                          <td style={{ padding:"11px 14px", fontSize:12, color:C.textLight, fontStyle:h.remarks?"normal":"italic", fontFamily:"'Inter',sans-serif" }}>{h.remarks??"—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  /* mobile cards */
+                  <div style={{ display:"flex", flexDirection:"column", gap:10, padding:12 }}>
+                    {history.map(h=>(
+                      <div key={h.id} style={{ borderRadius:13, border:`1.5px solid ${C.borderLight}`, padding:"12px 14px", background:C.bg }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
+                          <Avatar name={h.student?.name??""} image={h.student?.personalInfo?.profileImage} size={34}/>
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <p style={{ margin:0, fontSize:13, fontWeight:700, color:C.text, fontFamily:"'Inter',sans-serif", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{h.student?.name??"—"}</p>
+                            <p style={{ margin:0, fontSize:11, color:C.textLight, fontFamily:"'Inter',sans-serif" }}>
+                              {h.createdAt ? new Date(h.createdAt).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}) : "—"}
+                            </p>
+                          </div>
+                          {h.award?.category && <CategoryBadge category={h.award.category}/>}
+                        </div>
+                        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                          {h.award?.category && <CategoryIconBox category={h.award.category}/>}
+                          <p style={{ margin:0, fontSize:13, fontWeight:600, color:C.text, fontFamily:"'Inter',sans-serif" }}>{h.award?.name??"—"}</p>
+                        </div>
+                        {h.remarks && <p style={{ margin:"8px 0 0", fontSize:11, color:C.textLight, fontStyle:"italic", fontFamily:"'Inter',sans-serif" }}>"{h.remarks}"</p>}
+                      </div>
                     ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          )}
-        </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
       </div>
-
-      <style>{`
-        @keyframes slideIn { from { opacity:0; transform:translateX(10px); } to { opacity:1; transform:translateX(0); } }
-        @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-      `}</style>
-    </PageLayout>
+    </>
   );
 }

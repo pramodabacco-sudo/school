@@ -15,7 +15,6 @@ import {
   ArrowLeft,
   Users,
 } from "lucide-react";
-import PageLayout from "../../components/PageLayout";
 import {
   fetchClassSections,
   createClassSection,
@@ -451,7 +450,7 @@ export default function CreateSectionsPage() {
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <PageLayout>
+    <>
       <div
         className="p-4 md:p-6"
         style={{ background: C.bg, minHeight: "100%" }}
@@ -1238,6 +1237,6 @@ export default function CreateSectionsPage() {
           onClose={() => setToast(null)}
         />
       )}
-    </PageLayout>
+    </>
   );
 }

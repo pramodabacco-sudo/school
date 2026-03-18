@@ -25,7 +25,6 @@ import {
   Hash,
   ChevronDown,
 } from "lucide-react";
-import PageLayout from "../../components/PageLayout";
 import CreateAcademicYearModal from "./components/CreateAcademicYearModal";
 import {
   fetchClassSections,
@@ -1169,7 +1168,7 @@ export default function ClassesList() {
     });
 
   return (
-    <PageLayout>
+    <>
       <link
         href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800;900&display=swap"
         rel="stylesheet"
@@ -2613,6 +2612,6 @@ export default function ClassesList() {
           onClose={() => setToast(null)}
         />
       )}
-    </PageLayout>
+    </>
   );
 }

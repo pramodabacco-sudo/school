@@ -1,6 +1,5 @@
 // client/src/admin/pages/Dashboard.jsx
 import React, { useState, useEffect } from "react";
-import PageLayout from "../components/PageLayout";
 import { getToken } from "../../auth/storage";
 import {
   GraduationCap,
@@ -652,7 +651,7 @@ export default function Dashboard() {
     : [{ pct: 100, color: C.border }];
 
   return (
-    <PageLayout>
+    <>
       <link
         href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800;900&display=swap"
         rel="stylesheet"
@@ -1424,6 +1423,6 @@ export default function Dashboard() {
           </div>
         )}
       </div>
-    </PageLayout>
+    </>
   );
 }

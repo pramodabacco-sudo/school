@@ -13,7 +13,6 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, AreaChart, Area,
 } from "recharts";
-import PageLayout from "../../components/PageLayout";
 import { getAnalytics } from "./api/analyticsApi";
 import AllSchools from "./AllSchool";
 
@@ -254,7 +253,7 @@ useEffect(() => {
   const topSchools       = Array.isArray(data?.topSchools)       ? data.topSchools       : [];
 
   return (
-    <PageLayout>
+    <>
       <div className="p-4 sm:p-6 min-h-screen bg-[#EFF6FD]" style={font}>
 
         {/* ── Header ───────────────────────────────────────────── */}
@@ -574,6 +573,6 @@ useEffect(() => {
           to   { opacity: 1; transform: translateX(0);    }
         }
       `}</style>
-    </PageLayout>
+    </>
   );
 }

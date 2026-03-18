@@ -1,3 +1,4 @@
+//client\src\student\components\PageLayout.jsx
 import React, { useState, useMemo } from "react";
 import Sidebar from "./Sidebar";
 import Navbar from "./Navbar";

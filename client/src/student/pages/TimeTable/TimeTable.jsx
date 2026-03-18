@@ -5,7 +5,6 @@ import {
   Calendar, Clock, BookOpen, Coffee, UtensilsCrossed,
   MapPin, User, AlertCircle,
 } from "lucide-react";
-import PageLayout from "../../components/PageLayout";
 import { getToken } from "../../../auth/storage.js";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:5000";
@@ -305,7 +304,7 @@ export default function TimeTable() {
   const titleSize   = isMobile ? 20 : 26;
 
   return (
-    <PageLayout>
+    <>
       <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
         rel="stylesheet"
@@ -646,6 +645,6 @@ export default function TimeTable() {
           </div>
         )}
       </div>
-    </PageLayout>
+    </>
   );
 }

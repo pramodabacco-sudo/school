@@ -24,7 +24,6 @@ import {
   Activity,
   BadgeCheck,
 } from "lucide-react";
-import PageLayout from "../../components/PageLayout";
 import { getToken } from "../../../auth/storage";
 import { COLORS, InputField } from "./components/FormFields";
 import StudentFormSidebar from "./components/StudentFormSidebar";
@@ -2288,7 +2287,7 @@ export default function AddStudent({ onClose, closeModal, onSuccess }) {
     );
 
   return (
-    <PageLayout>
+    <>
       <div className="p-4 md:p-6">
         <div className="mb-6">
           <button
@@ -2301,6 +2300,6 @@ export default function AddStudent({ onClose, closeModal, onSuccess }) {
         </div>
         {shell}
       </div>
-    </PageLayout>
+    </>
   );
 }

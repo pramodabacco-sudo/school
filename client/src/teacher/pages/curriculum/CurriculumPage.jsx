@@ -8,7 +8,6 @@ import {
   Pencil,
   CheckCircle2,
 } from "lucide-react";
-import PageLayout from "../../components/PageLayout";
 import { getToken } from "../../../auth/storage";
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -137,7 +136,7 @@ export default function CurriculumPage() {
   }, {});
 
   return (
-    <PageLayout>
+    <>
       <link
         href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap"
         rel="stylesheet"
@@ -541,7 +540,7 @@ export default function CurriculumPage() {
           onSaved={fetchAssignments}
         />
       )}
-    </PageLayout>
+    </>
   );
 }
 

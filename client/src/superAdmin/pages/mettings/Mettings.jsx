@@ -8,7 +8,6 @@ import {
   FileText,
   ChevronRight,
 } from "lucide-react";
-import PageLayout from "../../components/PageLayout";
 
 export default function Meetings() {
   const C = {
@@ -51,7 +50,7 @@ export default function Meetings() {
   ];
 
   return (
-    <PageLayout>
+    <>
     <div className="p-6 bg-gray-50 min-h-screen">
 
       {/* Header */}
@@ -175,6 +174,6 @@ export default function Meetings() {
 
       </div>
     </div>
-    </PageLayout>
+    </>
   );
 }

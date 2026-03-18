@@ -9,7 +9,6 @@ import {
   MoreVertical,
   ArrowUpRight,
 } from "lucide-react";
-import PageLayout from "../components/PageLayout";
 
 function Dashboard() {
   const stats = [
@@ -128,7 +127,7 @@ function Dashboard() {
   ];
 
   return (
-    <PageLayout>
+    <>
       <div className="p-4 md:p-6">
         {/* Header */}
         <div className="mb-6">
@@ -328,7 +327,7 @@ function Dashboard() {
           </div>
         </div>
       </div>
-    </PageLayout>
+    </>
   );
 }
 

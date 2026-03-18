@@ -15,7 +15,6 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import PageLayout from "../../components/PageLayout";
 import {
   fetchPendingReadmission,
   readmitStudent,
@@ -443,7 +442,7 @@ export default function ReadmissionPage() {
   };
 
   return (
-    <PageLayout>
+    <>
       <div style={{ maxWidth: 800, margin: "0 auto", padding: "24px 16px" }}>
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
@@ -585,6 +584,6 @@ export default function ReadmissionPage() {
           onClose={() => setToast(null)}
         />
       )}
-    </PageLayout>
+    </>
   );
 }

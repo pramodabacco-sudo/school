@@ -6,7 +6,6 @@ import {
   ChevronLeft, ChevronRight, UserCog,
   GraduationCap, Users2, BookOpen,
 } from "lucide-react";
-import PageLayout from "../../components/PageLayout";
 import { getAllUsers } from "./api/usersApi";
 
 const font = { fontFamily: "'DM Sans', sans-serif" };
@@ -104,7 +103,7 @@ export default function UsersManagement() {
   ];
 
   return (
-    <PageLayout>
+    <>
       <div className="p-4 sm:p-6 min-h-screen bg-[#EFF6FD]" style={font}>
 
         {/* ── Header ── */}
@@ -415,6 +414,6 @@ export default function UsersManagement() {
       </div>
 
       <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}`}</style>
-    </PageLayout>
+    </>
   );
 }

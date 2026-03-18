@@ -17,7 +17,6 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import PageLayout from "../../components/PageLayout";
 import {
   fetchAcademicYears,
   fetchPromotionPreview,
@@ -342,7 +341,7 @@ export default function PromotionPage() {
 
   if (loading) {
     return (
-      <PageLayout>
+      <>
         <div className="flex items-center justify-center h-64">
           <Loader2
             size={28}
@@ -350,12 +349,12 @@ export default function PromotionPage() {
             style={{ color: C.light }}
           />
         </div>
-      </PageLayout>
+      </>
     );
   }
 
   return (
-    <PageLayout>
+    <>
       <div style={{ maxWidth: 860, margin: "0 auto", padding: "24px 16px" }}>
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
@@ -921,6 +920,6 @@ export default function PromotionPage() {
           onClose={() => setToast(null)}
         />
       )}
-    </PageLayout>
+    </>
   );
 }

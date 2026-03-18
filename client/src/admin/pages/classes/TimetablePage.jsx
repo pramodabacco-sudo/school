@@ -27,7 +27,6 @@ import {
   Clock,
   Pencil,
 } from "lucide-react";
-import PageLayout from "../../components/PageLayout";
 import {
   fetchClassSections,
   fetchTimetableConfig,
@@ -653,7 +652,7 @@ export default function TimetablePage() {
 
   if (loading)
     return (
-      <PageLayout>
+      <>
         <div className="flex items-center justify-center h-64">
           <Loader2
             size={22}
@@ -661,11 +660,11 @@ export default function TimetablePage() {
             style={{ color: C.light }}
           />
         </div>
-      </PageLayout>
+      </>
     );
 
   return (
-    <PageLayout>
+    <>
       <div
         className="p-4 md:p-6"
         style={{ background: C.bg, minHeight: "100%" }}
@@ -2202,6 +2201,6 @@ export default function TimetablePage() {
           onClose={() => setToast(null)}
         />
       )}
-    </PageLayout>
+    </>
   );
 }

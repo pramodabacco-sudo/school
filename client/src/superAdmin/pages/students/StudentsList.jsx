@@ -4,7 +4,6 @@ import {
   Search, Download, Plus, Edit, Trash2, Eye,
   Mail, Phone, Loader2, AlertCircle, RefreshCw,
 } from "lucide-react";
-import PageLayout from "../../components/PageLayout";
 // import AddStudent from "./AddStudents";
 import { getToken } from "../../../auth/storage";
 
@@ -107,7 +106,7 @@ function StudentsList() {
     s.personalInfo ? `${s.personalInfo.firstName} ${s.personalInfo.lastName}` : s.name;
 
   return (
-    <PageLayout>
+    <>
       <div className="p-4 md:p-6">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
@@ -293,7 +292,7 @@ function StudentsList() {
           />
         )}
       </div>
-    </PageLayout>
+    </>
   );
 }
 

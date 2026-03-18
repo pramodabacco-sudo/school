@@ -5,7 +5,6 @@ import {
   ShieldCheck, ShieldX, Mail, RefreshCw, Building2,
   X, AlertTriangle, Loader2,
 } from "lucide-react";
-import PageLayout from "../../components/PageLayout";
 import AddSchoolAdminModal from "./AddScholAdmin";
 import { getSchoolAdmins, deleteSchoolAdmin, updateSchoolAdmin } from "./components/schoolAdminApi";
 
@@ -182,7 +181,7 @@ export default function SchoolAdmins() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <PageLayout>
+    <>
       <div className="p-4 sm:p-6 min-h-screen bg-[#EFF6FD]" style={font}>
 
         {/* ── Header ── */}
@@ -459,6 +458,6 @@ export default function SchoolAdmins() {
       )}
 
       <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}} @keyframes modalIn{from{opacity:0;transform:translate(-50%,-47%)}to{opacity:1;transform:translate(-50%,-50%)}}`}</style>
-    </PageLayout>
+    </>
   );
 }
