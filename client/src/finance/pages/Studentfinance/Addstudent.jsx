@@ -1,781 +1,662 @@
 import React, { useState, useEffect } from "react";
-import { X, ChevronDown, User, Mail, Phone, BookOpen, MapPin, DollarSign } from "lucide-react";
+import {
+  X, ChevronDown, User, Mail, Phone, BookOpen,
+  DollarSign, Plus, Minus, GraduationCap, Building2,
+  AlertCircle
+} from "lucide-react";
+
 const API_URL = import.meta.env.VITE_API_URL;
+
+// ── Read school from the logged-in finance user's auth ──────────────────────
+const getAuthSchool = () => {
+  try {
+    const raw = localStorage.getItem("auth");
+    if (!raw) {
+      console.warn("[Addstudent] No auth found in localStorage");
+      return { schoolId: "", schoolName: "Your School" };
+    }
+    const auth = JSON.parse(raw);
+    console.log("[Addstudent] auth object:", JSON.stringify(auth, null, 2));
+
+    // Check every path the API might place schoolId
+    const schoolId =
+      auth.user?.schoolId   ||  // flat on user
+      auth.user?.school?.id ||  // nested school relation
+      auth.schoolId         ||  // flat on root
+      "";
+
+    const schoolName =
+      auth.user?.school?.name ||
+      auth.schoolName         ||
+      "Your School";
+
+    console.log("[Addstudent] schoolId resolved:", schoolId, "| name:", schoolName);
+    return { schoolId, schoolName };
+  } catch (e) {
+    console.error("[Addstudent] getAuthSchool error:", e);
+    return { schoolId: "", schoolName: "Your School" };
+  }
+};
+
+// ── Component ─────────────────────────────────────────────────────────────────
 const Addstudent = ({ open, handleClose, addStudentData, editData }) => {
 
-    const [student, setStudent] = useState({
-        name: "",
-        email: "",
-        phone: "",
-        course: "",
-        fees: "",
-        address: ""
-    });
-    const [schools, setSchools] = useState([]);
-    const [classes, setClasses] = useState([]);
-    const [students, setStudents] = useState([]);
+  // school — re-read from localStorage every time modal opens
+  const [authSchool, setAuthSchool] = useState({ schoolId: "", schoolName: "Your School" });
 
-    const [selectedSchool, setSelectedSchool] = useState("");
-    const [selectedClass, setSelectedClass] = useState("");
-    const [openFeesPopup, setOpenFeesPopup] = useState(false);
+  // cascade selects
+  const [classes,           setClasses]           = useState([]);
+  const [selectedClass,     setSelectedClass]     = useState("");
+  const [students,          setStudents]          = useState([]);
+  const [selectedStudentId, setSelectedStudentId] = useState("");
 
-    const [feeBreakdown, setFeeBreakdown] = useState({
-        tuition: "",
-        transport: "",
-        books: "",
-        exam: "",
-        misc: ""
-    });
+  // auto-filled info
+  const [studentInfo, setStudentInfo] = useState({ name: "", email: "", phone: "", course: "", studentId: "" });
+  const [autoFilled,  setAutoFilled]  = useState(false);
 
-    useEffect(() => {
-        if (!open) return;
-        if (editData) {
-            setStudent({
-                name: editData?.name ?? "",
-                email: editData?.email ?? "",
-                phone: editData?.phone ?? "",
-                course: editData?.course ?? "",
-                fees: editData?.fees ?? "",
-                address: editData?.address ?? ""
-            });
-        } else {
-            setStudent({ name: "", email: "", phone: "", course: "", fees: "", address: "" });
+  // ── Fee rows state ──────────────────────────────────────────────────────────
+  const DEFAULT_FEES = [
+    { id: "college",   label: "College Fee",   amount: "", enabled: true,  required: true  },
+    { id: "tuition",   label: "Tuition Fee",   amount: "", enabled: true,  required: false },
+    { id: "exam",      label: "Exam Fee",       amount: "", enabled: false, required: false },
+    { id: "transport", label: "Transport Fee",  amount: "", enabled: false, required: false },
+    { id: "books",     label: "Books Fee",      amount: "", enabled: false, required: false },
+    { id: "lab",       label: "Lab Fee",        amount: "", enabled: false, required: false },
+  ];
+  const [feeRows,    setFeeRows]    = useState(DEFAULT_FEES);
+  const [customFees, setCustomFees] = useState([]); // [{ id, label, amount }]
+
+  // ui
+  const [loading, setLoading] = useState(false);
+  const [error,   setError]   = useState("");
+
+  // ── Reset helper ───────────────────────────────────────────────────────────
+  const resetForm = () => {
+    setSelectedClass(""); setSelectedStudentId("");
+    setStudents([]); setAutoFilled(false);
+    setStudentInfo({ name: "", email: "", phone: "", course: "", studentId: "" });
+    setFeeRows(DEFAULT_FEES);
+    setCustomFees([]);
+    setError("");
+  };
+
+  // ── On open: re-read school from auth, fetch classes, restore editData ──────
+  useEffect(() => {
+    if (!open) return;
+    resetForm();
+
+    const school = getAuthSchool();
+    setAuthSchool(school);
+
+    if (school.schoolId) {
+      const url = `${API_URL}/api/finance/classSections?schoolId=${school.schoolId}`;
+      console.log("[Addstudent] Fetching classes from:", url);
+      fetch(url)
+        .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+        .then(d => { console.log("[Addstudent] Classes received:", d); setClasses(Array.isArray(d) ? d : []); })
+        .catch(e => { console.error("[Addstudent] Failed to fetch classes:", e); setClasses([]); });
+    } else {
+      console.warn("[Addstudent] schoolId is empty — cannot fetch classes.");
+    }
+
+    if (editData) {
+      // ── Restore student info ──────────────────────────────────────────────
+      setStudentInfo({
+        name:      editData.name      ?? "",
+        email:     editData.email     ?? "",
+        phone:     editData.phone     ?? "",
+        course:    editData.course    ?? "",
+        studentId: editData.id        ?? "",
+      });
+      setAutoFilled(true);
+
+      // ── Restore fee breakdown from stored JSON ────────────────────────────
+      let parsed = null;
+      try {
+        if (editData.feeBreakdown) parsed = JSON.parse(editData.feeBreakdown);
+      } catch { parsed = null; }
+
+      if (parsed) {
+        // Map JSON keys to feeRow ids  e.g. "tuitionFee" → "tuition"
+        const keyMap = {
+          collegeFee:   "college",
+          tuitionFee:   "tuition",
+          examFee:      "exam",
+          transportFee: "transport",
+          booksFee:     "books",
+          labFee:       "lab",
+        };
+
+        // If collegeFee not stored (old records), derive it:
+        // collegeFee = total fees - sum of all other named fees
+        if (!parsed.collegeFee && editData.fees) {
+          const otherSum = ["tuitionFee","examFee","transportFee","booksFee","labFee","miscFee"]
+            .reduce((s, k) => s + Number(parsed[k] || 0), 0);
+          const customSum = (parsed.customFees || []).reduce((s, c) => s + Number(c.amount || 0), 0);
+          parsed.collegeFee = Math.max(0, Number(editData.fees) - otherSum - customSum);
         }
-    }, [open, editData]);
 
-    useEffect(() => {
-        if (!open) return;
-        fetch(`${API_URL}/api/finance/schools`)
-            .then(res => res.json())
-            .then(data => setSchools(data));
-    }, [open]);
+        setFeeRows(DEFAULT_FEES.map(row => {
+          const jsonKey = Object.keys(keyMap).find(k => keyMap[k] === row.id);
+          const amt     = jsonKey ? Number(parsed[jsonKey] || 0) : 0;
+          return {
+            ...row,
+            amount:  amt > 0 ? String(amt) : "",
+            enabled: row.required || amt > 0,  // enable the row if it has a stored amount
+          };
+        }));
 
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setStudent(prev => ({ ...prev, [name]: value }));
-    };
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        try {
-            let url = `${API_URL}/api/finance/addStudentFinance`;
-            let method = "POST";
-            if (editData) {
-                url = `${API_URL}/api/finance/updateStudentFinance/${editData.id}`;
-                method = "PUT";
-            }
-            const response = await fetch(url, {
-                method,
-                headers: { "Content-Type": "application/json" },
-                credentials: "include",
-                body: JSON.stringify(student)
-            });
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.log("Server Error 👉", errorText);
-                return;
-            }
-            const result = await response.json();
-            console.log("Saved in DB 👉", result);
-            addStudentData(result);
-            handleClose();
-            setStudent({ name: "", email: "", phone: "", course: "", fees: "", address: "" });
-        } catch (error) {
-            console.log("API Error 👉", error);
+        // Restore custom fees
+        if (Array.isArray(parsed.customFees) && parsed.customFees.length > 0) {
+          setCustomFees(parsed.customFees.map((c, i) => ({
+            id:     `custom_edit_${i}`,
+            label:  c.label  || "",
+            amount: c.amount ? String(c.amount) : "",
+          })));
         }
-    };
+      } else if (editData.fees) {
+        // Fallback: no breakdown stored — put total into College Fee
+        setFeeRows(DEFAULT_FEES.map(row =>
+          row.id === "college"
+            ? { ...row, amount: String(Number(editData.fees)), enabled: true }
+            : row
+        ));
+      }
+    }
+  }, [open, editData]);
 
-    if (!open) return null;
+  // ── Class change → fetch students ─────────────────────────────────────────
+  const handleClassChange = async (e) => {
+    const classId = e.target.value;
+    setSelectedClass(classId);
+    setSelectedStudentId(""); setStudents([]);
+    setStudentInfo({ name: "", email: "", phone: "", course: "", studentId: "" });
+    setAutoFilled(false);
+    if (!classId) return;
+    try {
+      const res  = await fetch(`${API_URL}/api/finance/studentsByClass?classSectionId=${classId}`);
+      const data = await res.json();
+      setStudents(Array.isArray(data) ? data : []);
+    } catch { setStudents([]); }
+  };
 
-    const handleSchoolChange = async (e) => {
-        const schoolId = e.target.value;
-        setSelectedSchool(schoolId);
-        const res = await fetch(`${API_URL}/api/finance/classSections?schoolId=${schoolId}`);
-        const data = await res.json();
-        setClasses(data);
-    };
+  // ── Student change → auto-fill ─────────────────────────────────────────────
+  const handleStudentChange = (e) => {
+    const sid = e.target.value;
+    setSelectedStudentId(sid);
+    if (!sid) { setStudentInfo({ name: "", email: "", phone: "", course: "", studentId: "" }); setAutoFilled(false); return; }
+    const enrollment = students.find(s => s.student?.id === sid);
+    if (!enrollment) return;
+    const st = enrollment.student;
+    const cs = enrollment.classSection;
+    setStudentInfo({ name: st.name ?? "", email: st.email ?? "", phone: st.personalInfo?.phone ?? "", course: cs?.name ?? `${cs?.grade ?? ""} ${cs?.section ?? ""}`.trim(), studentId: st.id });
+    setAutoFilled(true);
+  };
 
-    const handleClassChange = async (e) => {
-        const classId = e.target.value;
-        setSelectedClass(classId);
-        const res = await fetch(`${API_URL}/api/finance/studentsByClass?classSectionId=${classId}`);
-        const data = await res.json();
-        setStudents(data);
-    };
+  // ── Fee helpers ────────────────────────────────────────────────────────────
+  const toggleFee   = (id) => setFeeRows(rows => rows.map(r => r.id === id ? { ...r, enabled: !r.enabled } : r));
+  const updateFee   = (id, val) => setFeeRows(rows => rows.map(r => r.id === id ? { ...r, amount: val } : r));
 
-    const feeTotal =
-        Number(feeBreakdown.tuition || 0) +
-        Number(feeBreakdown.transport || 0) +
-        Number(feeBreakdown.books || 0) +
-        Number(feeBreakdown.exam || 0) +
-        Number(feeBreakdown.misc || 0);
+  const addCustomFee = () =>
+    setCustomFees(prev => [...prev, { id: `custom_${Date.now()}`, label: "", amount: "" }]);
+  const updateCustom = (id, field, val) =>
+    setCustomFees(prev => prev.map(c => c.id === id ? { ...c, [field]: val } : c));
+  const removeCustom = (id) =>
+    setCustomFees(prev => prev.filter(c => c.id !== id));
 
-    return (
-        <>
-            <style>{`
-                @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+  const grandTotal =
+    feeRows.filter(r => r.enabled).reduce((s, r) => s + Number(r.amount || 0), 0) +
+    customFees.reduce((s, c) => s + Number(c.amount || 0), 0);
 
-                :root {
-                    --brand:        #3f556c;
-                    --brand-dark:   #2e3f52;
-                    --brand-deeper: #1e2c3a;
-                    --brand-light:  #5a7390;
-                    --brand-mist:   #eef1f4;
-                    --brand-fog:    #dce3ea;
-                    --brand-glow:   rgba(63,85,108,0.15);
-                }
+  // ── Submit ─────────────────────────────────────────────────────────────────
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!studentInfo.name) return setError("Please select a student.");
+    const hasAnyFee = feeRows.some(r => r.enabled && Number(r.amount) > 0) || customFees.some(c => Number(c.amount) > 0);
+    if (!hasAnyFee) return setError("Please enter at least one fee amount.");
+    setLoading(true); setError("");
+    try {
+      const feeMap = Object.fromEntries(feeRows.map(r => [r.id + "Fee", r.enabled ? Number(r.amount || 0) : 0]));
+      const payload = {
+        name: studentInfo.name, email: studentInfo.email,
+        phone: studentInfo.phone, course: studentInfo.course,
+        fees: grandTotal, address: "",
+        ...feeMap,
+        customFees: customFees.map(c => ({ label: c.label, amount: Number(c.amount || 0) })),
+      };
+      const url    = editData ? `${API_URL}/api/finance/updateStudentFinance/${editData.id}` : `${API_URL}/api/finance/addStudentFinance`;
+      const method = editData ? "PUT" : "POST";
+      const res    = await fetch(url, { method, headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(payload) });
+      if (!res.ok) throw new Error(await res.text());
+      const result = await res.json();
+      addStudentData(result);
+      handleClose(); resetForm();
+    } catch (err) {
+      setError(err.message || "Failed to save. Please try again.");
+    } finally { setLoading(false); }
+  };
 
-                .as-overlay {
-                    position: fixed;
-                    inset: 0;
-                    background: rgba(15, 25, 36, 0.78);
-                    backdrop-filter: blur(7px);
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    z-index: 1000;
-                    font-family: 'Sora', sans-serif;
-                    padding: 20px;
-                }
+  if (!open) return null;
 
-                .as-modal {
-                    background: #ffffff;
-                    border-radius: 20px;
-                    width: 100%;
-                    max-width: 520px;
-                    max-height: 90vh;
-                    overflow-y: auto;
-                    box-shadow: 0 32px 80px rgba(15,25,36,0.28), 0 0 0 1px var(--brand-fog);
-                    position: relative;
-                    animation: slideUp 0.32s cubic-bezier(0.16, 1, 0.3, 1);
-                }
+  // ── JSX ────────────────────────────────────────────────────────────────────
+  return (
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+        :root {
+          --br:#3f556c; --brd:#2e3f52; --brp:#1e2c3a; --brl:#5a7390;
+          --bm:#eef1f4; --bf:#dce3ea; --bg:rgba(63,85,108,.15);
+          --ex:#7c3aed; --exm:#f5f3ff; --exf:#ede9fe;
+        }
+        .as-ov{position:fixed;inset:0;background:rgba(15,25,36,.76);backdrop-filter:blur(7px);
+          display:flex;justify-content:center;align-items:center;z-index:1000;
+          font-family:'Sora',sans-serif;padding:20px;}
+        .as-mod{background:#fff;border-radius:22px;width:100%;max-width:560px;
+          max-height:92vh;overflow-y:auto;
+          box-shadow:0 32px 80px rgba(15,25,36,.28),0 0 0 1px var(--bf);
+          animation:su .3s cubic-bezier(.16,1,.3,1);}
+        .as-mod::-webkit-scrollbar{width:4px}
+        .as-mod::-webkit-scrollbar-thumb{background:var(--bf);border-radius:4px}
+        @keyframes su{from{opacity:0;transform:translateY(22px) scale(.97)}to{opacity:1;transform:none}}
 
-                .as-modal::-webkit-scrollbar { width: 4px; }
-                .as-modal::-webkit-scrollbar-track { background: transparent; }
-                .as-modal::-webkit-scrollbar-thumb { background: var(--brand-fog); border-radius: 4px; }
+        .as-hd{background:linear-gradient(135deg,var(--br),var(--brd));padding:22px 26px;
+          border-radius:22px 22px 0 0;display:flex;align-items:flex-start;justify-content:space-between;}
+        .as-ttl{font-size:18px;font-weight:700;color:#fff;margin:0;letter-spacing:-.3px}
+        .as-sub{font-size:12px;color:rgba(255,255,255,.55);margin:3px 0 0}
+        .as-cx{width:32px;height:32px;border-radius:50%;border:none;background:rgba(255,255,255,.15);
+          display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;flex-shrink:0}
+        .as-cx:hover{background:rgba(255,255,255,.28)}
 
-                @keyframes slideUp {
-                    from { opacity: 0; transform: translateY(24px) scale(0.97); }
-                    to   { opacity: 1; transform: translateY(0) scale(1); }
-                }
+        .as-bd{padding:20px 26px 26px;display:flex;flex-direction:column;gap:18px}
+        .as-sl{font-size:10px;font-weight:700;letter-spacing:1.1px;text-transform:uppercase;
+          color:var(--brl);margin-bottom:9px;display:flex;align-items:center;gap:6px}
 
-                /* HEADER STRIPE */
-                .as-header {
-                    background: linear-gradient(135deg, var(--brand), var(--brand-dark));
-                    padding: 24px 28px;
-                    border-radius: 20px 20px 0 0;
-                    display: flex;
-                    align-items: flex-start;
-                    justify-content: space-between;
-                }
+        .as-sbadge{display:flex;align-items:center;gap:11px;background:linear-gradient(135deg,#eef1f4,#e4ecf2);
+          border:1.5px solid var(--bf);border-radius:12px;padding:12px 16px}
+        .as-sicon{width:36px;height:36px;border-radius:10px;flex-shrink:0;
+          background:linear-gradient(135deg,var(--br),var(--brd));
+          display:flex;align-items:center;justify-content:center}
+        .as-sname{font-size:13.5px;font-weight:600;color:var(--brp)}
+        .as-shint{font-size:10.5px;color:var(--brl);margin-top:2px}
 
-                .as-title {
-                    font-size: 19px;
-                    font-weight: 700;
-                    color: #fff;
-                    letter-spacing: -0.3px;
-                    margin: 0;
-                }
+        .as-f{display:flex;flex-direction:column;gap:6px}
+        .as-lbl{font-size:12px;font-weight:600;color:var(--brd);display:flex;align-items:center;gap:5px}
+        .as-lbl svg{color:var(--brl)}
+        .as-sel,.as-inp{width:100%;padding:10px 14px;border:1.5px solid var(--bf);border-radius:10px;
+          font-size:13.5px;font-family:'Sora',sans-serif;color:#1e293b;background:var(--bm);
+          outline:none;transition:all .2s;box-sizing:border-box;appearance:none;-webkit-appearance:none}
+        .as-sel:focus,.as-inp:focus{border-color:var(--br);background:#fff;box-shadow:0 0 0 3px var(--bg)}
+        .as-sw{position:relative}
+        .as-sw>svg{position:absolute;right:12px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--brl)}
 
-                .as-subtitle {
-                    font-size: 12.5px;
-                    color: rgba(255,255,255,0.6);
-                    font-weight: 400;
-                    margin: 4px 0 0;
-                }
+        .as-ig{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+        .as-ic{background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;padding:10px 14px}
+        .as-icl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;
+          color:#15803d;margin-bottom:3px;display:flex;align-items:center;gap:4px}
+        .as-icv{font-size:13px;font-weight:500;color:#14532d}
+        .as-ph{display:flex;align-items:center;gap:9px;background:var(--bm);
+          border:1.5px dashed var(--bf);border-radius:10px;padding:14px 16px;
+          color:var(--brl);font-size:12.5px}
 
-                .as-close-btn {
-                    width: 34px;
-                    height: 34px;
-                    border-radius: 50%;
-                    border: none;
-                    background: rgba(255,255,255,0.15);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    cursor: pointer;
-                    color: #fff;
-                    transition: all 0.2s;
-                    flex-shrink: 0;
-                }
-                .as-close-btn:hover { background: rgba(255,255,255,0.28); }
+        .as-div{height:1px;background:var(--bf)}
 
-                .as-body {
-                    padding: 22px 28px 28px;
-                    display: flex;
-                    flex-direction: column;
-                    gap: 16px;
-                }
+        /* ── Fee list ── */
+        .as-fee-list{
+          border:1.5px solid var(--bf);border-radius:16px;overflow:hidden;
+        }
 
-                .as-section-label {
-                    font-size: 10.5px;
-                    font-weight: 700;
-                    letter-spacing: 1px;
-                    text-transform: uppercase;
-                    color: var(--brand-light);
-                    margin-bottom: 10px;
-                }
+        /* numbered row */
+        .as-fee-row{
+          display:flex;align-items:center;gap:0;
+          border-bottom:1px solid var(--bf);
+          transition:background .15s;
+        }
+        .as-fee-row:last-child{border-bottom:none}
+        .as-fee-row.disabled{ opacity:.45; }
 
-                .as-select-group {
-                    display: grid;
-                    grid-template-columns: 1fr 1fr;
-                    gap: 12px;
-                }
+        .as-fee-num{
+          width:38px;min-width:38px;height:52px;
+          display:flex;align-items:center;justify-content:center;
+          font-size:11px;font-weight:700;color:var(--brl);
+          font-family:'JetBrains Mono',monospace;
+          border-right:1px solid var(--bf);
+          background:var(--bm);
+          flex-shrink:0;
+        }
 
-                .as-field {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 6px;
-                }
+        .as-fee-label-wrap{
+          flex:1;padding:0 14px;display:flex;flex-direction:column;justify-content:center;
+          min-width:0;
+        }
+        .as-fee-label-text{
+          font-size:13px;font-weight:600;color:var(--brp);
+          white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+        }
+        .as-fee-label-input{
+          border:none;outline:none;background:transparent;
+          font-size:13px;font-weight:600;color:var(--brp);
+          font-family:'Sora',sans-serif;width:100%;
+        }
+        .as-fee-label-input::placeholder{color:#c5cfd8}
+        .as-fee-tag{
+          font-size:9.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;
+          padding:1px 6px;border-radius:20px;margin-top:2px;display:inline-block;width:fit-content;
+        }
+        .as-fee-tag-req{background:#fee2e2;color:#b91c1c}
+        .as-fee-tag-opt{background:var(--bf);color:var(--brl)}
+        .as-fee-tag-custom{background:var(--exf);color:var(--ex)}
 
-                .as-label {
-                    font-size: 12px;
-                    font-weight: 600;
-                    color: var(--brand-dark);
-                    display: flex;
-                    align-items: center;
-                    gap: 5px;
-                }
+        /* amount input side */
+        .as-fee-amount-side{
+          display:flex;align-items:center;gap:0;flex-shrink:0;
+          border-left:1px solid var(--bf);height:52px;
+        }
+        .as-fee-sym{
+          padding:0 8px 0 12px;font-size:14px;font-weight:600;
+          color:var(--brl);font-family:'JetBrains Mono',monospace;
+        }
+        .as-fee-amt{
+          border:none;outline:none;background:transparent;
+          font-size:15px;font-weight:700;font-family:'JetBrains Mono',monospace;
+          color:var(--brp);width:90px;padding:0 12px 0 0;
+        }
+        .as-fee-amt::placeholder{color:#d1d9e0}
+        .as-fee-amt:disabled{color:#c5cfd8}
 
-                .as-label svg { color: var(--brand-light); }
+        /* toggle switch */
+        .as-toggle-wrap{
+          padding:0 14px;border-left:1px solid var(--bf);height:52px;
+          display:flex;align-items:center;flex-shrink:0;
+        }
+        .as-toggle{
+          position:relative;width:36px;height:20px;cursor:pointer;flex-shrink:0;
+        }
+        .as-toggle input{opacity:0;width:0;height:0;position:absolute}
+        .as-toggle-slider{
+          position:absolute;inset:0;border-radius:20px;
+          background:#dce3ea;transition:background .2s;
+        }
+        .as-toggle-slider::before{
+          content:'';position:absolute;width:14px;height:14px;border-radius:50%;
+          background:#fff;top:3px;left:3px;transition:transform .2s;
+          box-shadow:0 1px 3px rgba(0,0,0,.2);
+        }
+        .as-toggle input:checked+.as-toggle-slider{background:var(--br)}
+        .as-toggle input:checked+.as-toggle-slider::before{transform:translateX(16px)}
 
-                .as-select, .as-input, .as-textarea {
-                    width: 100%;
-                    padding: 10px 14px;
-                    border: 1.5px solid var(--brand-fog);
-                    border-radius: 10px;
-                    font-size: 13.5px;
-                    font-family: 'Sora', sans-serif;
-                    color: #1e293b;
-                    background: var(--brand-mist);
-                    outline: none;
-                    transition: all 0.2s;
-                    box-sizing: border-box;
-                    appearance: none;
-                    -webkit-appearance: none;
-                }
+        /* delete btn for custom */
+        .as-del-btn{
+          padding:0 12px;border-left:1px solid var(--bf);height:52px;
+          display:flex;align-items:center;cursor:pointer;color:#cbd5e1;
+          background:none;border-top:none;border-bottom:none;border-right:none;
+          transition:color .15s;flex-shrink:0;
+        }
+        .as-del-btn:hover{color:#ef4444}
 
-                .as-select:focus, .as-input:focus, .as-textarea:focus {
-                    border-color: var(--brand);
-                    background: #fff;
-                    box-shadow: 0 0 0 3px var(--brand-glow);
-                }
+        /* add custom row */
+        .as-add-custom{
+          display:flex;align-items:center;gap:8px;
+          padding:12px 16px;cursor:pointer;
+          background:linear-gradient(135deg,var(--exm),#faf8ff);
+          border-top:1.5px dashed #c4b5fd;
+          color:var(--ex);font-size:13px;font-weight:600;
+          transition:background .15s;
+          border:none;width:100%;font-family:'Sora',sans-serif;
+          border-radius:0 0 14px 14px;
+        }
+        .as-add-custom:hover{background:var(--exf)}
 
-                .as-select-wrap {
-                    position: relative;
-                }
-                .as-select-wrap svg {
-                    position: absolute;
-                    right: 12px;
-                    top: 50%;
-                    transform: translateY(-50%);
-                    pointer-events: none;
-                    color: var(--brand-light);
-                }
+        /* total bar */
+        .as-tb{
+          background:linear-gradient(135deg,var(--br),var(--brp));
+          border-radius:14px;padding:16px 22px;
+          display:flex;align-items:center;justify-content:space-between;
+        }
+        .as-tl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:rgba(255,255,255,.6)}
+        .as-ts{font-size:11px;color:rgba(255,255,255,.4);margin-top:2px}
+        .as-ta{font-size:30px;font-weight:700;color:#fff;font-family:'JetBrains Mono',monospace;letter-spacing:-1px}
+        .as-tcs{font-size:18px;opacity:.65;margin-right:2px}
 
-                .as-textarea {
-                    resize: vertical;
-                    min-height: 80px;
-                    line-height: 1.5;
-                }
+        .as-err{background:#fef2f2;border:1.5px solid #fecaca;border-radius:10px;padding:10px 14px;
+          font-size:12.5px;color:#b91c1c;display:flex;align-items:center;gap:7px}
 
-                .as-fees-input-wrap { position: relative; }
+        .as-act{display:flex;gap:10px}
+        .as-bp{flex:1;padding:12px 20px;background:linear-gradient(135deg,var(--br),var(--brd));
+          color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;
+          font-family:'Sora',sans-serif;cursor:pointer;transition:all .2s;letter-spacing:.2px}
+        .as-bp:hover:not(:disabled){background:linear-gradient(135deg,var(--brd),var(--brp));
+          transform:translateY(-1px);box-shadow:0 6px 20px rgba(63,85,108,.4)}
+        .as-bp:disabled{opacity:.6;cursor:not-allowed}
+        .as-bs{padding:12px 20px;background:var(--bm);color:var(--br);border:1.5px solid var(--bf);
+          border-radius:10px;font-size:14px;font-weight:600;
+          font-family:'Sora',sans-serif;cursor:pointer;transition:all .2s}
+        .as-bs:hover{background:var(--bf);color:var(--brd)}
+      `}</style>
 
-                .as-fees-badge {
-                    position: absolute;
-                    right: 12px;
-                    top: 50%;
-                    transform: translateY(-50%);
-                    font-size: 10.5px;
-                    font-weight: 700;
-                    color: var(--brand);
-                    background: var(--brand-fog);
-                    padding: 2px 8px;
-                    border-radius: 20px;
-                    pointer-events: none;
-                    letter-spacing: 0.3px;
-                }
+      <div className="as-ov">
+        <div className="as-mod">
 
-                .as-input-fees {
-                    cursor: pointer;
-                    padding-right: 88px;
-                }
-                .as-input-fees:hover {
-                    border-color: var(--brand);
-                    background: #fff;
-                }
+          {/* Header */}
+          <div className="as-hd">
+            <div>
+              <h2 className="as-ttl">{editData ? "Edit Student Fees" : "Add Student Fees"}</h2>
+              <p className="as-sub">{editData ? "Edit existing fee record" : "School auto-detected • Select class then student"}</p>
+            </div>
+            <button className="as-cx" onClick={handleClose}><X size={15} /></button>
+          </div>
 
-                .as-form-grid {
-                    display: grid;
-                    grid-template-columns: 1fr 1fr;
-                    gap: 12px;
-                }
+          <div className="as-bd">
 
-                .as-divider {
-                    height: 1px;
-                    background: var(--brand-fog);
-                    margin: 2px 0;
-                }
-
-                .as-actions {
-                    display: flex;
-                    gap: 10px;
-                    padding-top: 4px;
-                }
-
-                .as-btn-primary {
-                    flex: 1;
-                    padding: 12px 20px;
-                    background: linear-gradient(135deg, var(--brand), var(--brand-dark));
-                    color: #fff;
-                    border: none;
-                    border-radius: 10px;
-                    font-size: 14px;
-                    font-weight: 600;
-                    font-family: 'Sora', sans-serif;
-                    cursor: pointer;
-                    transition: all 0.2s;
-                    letter-spacing: 0.2px;
-                }
-                .as-btn-primary:hover {
-                    background: linear-gradient(135deg, var(--brand-dark), var(--brand-deeper));
-                    transform: translateY(-1px);
-                    box-shadow: 0 6px 20px rgba(63,85,108,0.4);
-                }
-                .as-btn-primary:active { transform: translateY(0); }
-
-                .as-btn-secondary {
-                    padding: 12px 20px;
-                    background: var(--brand-mist);
-                    color: var(--brand);
-                    border: 1.5px solid var(--brand-fog);
-                    border-radius: 10px;
-                    font-size: 14px;
-                    font-weight: 600;
-                    font-family: 'Sora', sans-serif;
-                    cursor: pointer;
-                    transition: all 0.2s;
-                }
-                .as-btn-secondary:hover {
-                    background: var(--brand-fog);
-                    color: var(--brand-dark);
-                }
-
-                /* ── FEES POPUP ── */
-                .as-fees-modal {
-                    background: #ffffff;
-                    border-radius: 24px;
-                    width: 100%;
-                    max-width: 700px;
-                    max-height: 90vh;
-                    overflow-y: auto;
-                    box-shadow: 0 40px 100px rgba(15,25,36,0.3), 0 0 0 1px var(--brand-fog);
-                    animation: slideUp 0.32s cubic-bezier(0.16, 1, 0.3, 1);
-                }
-
-                .as-fees-header {
-                    background: linear-gradient(135deg, var(--brand), var(--brand-dark));
-                    padding: 28px 36px;
-                    border-radius: 24px 24px 0 0;
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: flex-start;
-                }
-
-                .as-fees-title {
-                    font-size: 22px;
-                    font-weight: 700;
-                    color: #fff;
-                    letter-spacing: -0.4px;
-                    margin: 0 0 4px;
-                }
-
-                .as-fees-subtitle {
-                    font-size: 13px;
-                    color: rgba(255,255,255,0.6);
-                }
-
-                .as-fees-body {
-                    padding: 30px 36px;
-                    display: flex;
-                    flex-direction: column;
-                    gap: 20px;
-                }
-
-                .as-fees-grid {
-                    display: grid;
-                    grid-template-columns: 1fr 1fr;
-                    gap: 16px;
-                }
-
-                .as-fee-card {
-                    background: var(--brand-mist);
-                    border: 1.5px solid var(--brand-fog);
-                    border-radius: 14px;
-                    padding: 18px 20px;
-                    transition: all 0.2s;
-                }
-
-                .as-fee-card:focus-within {
-                    border-color: var(--brand);
-                    background: #fff;
-                    box-shadow: 0 0 0 3px var(--brand-glow);
-                }
-
-                .as-fee-card-label {
-                    font-size: 10.5px;
-                    font-weight: 700;
-                    letter-spacing: 0.8px;
-                    text-transform: uppercase;
-                    color: var(--brand-light);
-                    margin-bottom: 10px;
-                    display: flex;
-                    align-items: center;
-                    gap: 7px;
-                }
-
-                .as-fee-card-dot {
-                    width: 7px;
-                    height: 7px;
-                    border-radius: 50%;
-                    flex-shrink: 0;
-                }
-
-                .as-fee-input-wrap {
-                    display: flex;
-                    align-items: center;
-                    gap: 5px;
-                }
-
-                .as-currency {
-                    font-size: 17px;
-                    font-weight: 600;
-                    color: var(--brand-light);
-                    font-family: 'JetBrains Mono', monospace;
-                }
-
-                .as-fee-input {
-                    border: none;
-                    outline: none;
-                    background: transparent;
-                    font-size: 26px;
-                    font-weight: 700;
-                    font-family: 'JetBrains Mono', monospace;
-                    color: var(--brand-deeper);
-                    width: 100%;
-                    min-width: 0;
-                }
-                .as-fee-input::placeholder { color: var(--brand-fog); }
-
-                /* Total bar */
-                .as-total-bar {
-                    background: linear-gradient(135deg, var(--brand), var(--brand-deeper));
-                    border-radius: 16px;
-                    padding: 22px 28px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                    grid-column: 1 / -1;
-                }
-
-                .as-total-label {
-                    font-size: 11px;
-                    font-weight: 700;
-                    color: rgba(255,255,255,0.65);
-                    text-transform: uppercase;
-                    letter-spacing: 0.8px;
-                }
-
-                .as-total-desc {
-                    font-size: 12px;
-                    color: rgba(255,255,255,0.4);
-                    margin-top: 4px;
-                }
-
-                .as-total-amount {
-                    font-size: 38px;
-                    font-weight: 700;
-                    color: #fff;
-                    font-family: 'JetBrains Mono', monospace;
-                    letter-spacing: -1px;
-                }
-
-                .as-total-currency {
-                    font-size: 22px;
-                    margin-right: 2px;
-                    opacity: 0.65;
-                }
-
-                .as-fees-actions {
-                    display: flex;
-                    gap: 12px;
-                    padding: 0 36px 32px;
-                }
-
-                /* dot colors — muted palette to match brand */
-                .dot-tuition    { background: #3f556c; }
-                .dot-transport  { background: #c07a2e; }
-                .dot-books      { background: #2e7a5a; }
-                .dot-exam       { background: #a63c3c; }
-                .dot-misc       { background: #6a5a8c; }
-            `}</style>
-
-            {/* MAIN MODAL */}
-            <div className="as-overlay">
-                <div className="as-modal">
-
-                    {/* Branded header */}
-                    <div className="as-header">
-                        <div>
-                            <h2 className="as-title">{editData ? "Edit Student" : "Add Student Details"}</h2>
-                            <p className="as-subtitle">Fill in student financial information below</p>
-                        </div>
-                        <button className="as-close-btn" onClick={handleClose}>
-                            <X size={16} />
-                        </button>
-                    </div>
-
-                    <div className="as-body">
-
-                        {/* SCHOOL + CLASS */}
-                        <div>
-                            <p className="as-section-label">School & Class</p>
-                            <div className="as-select-group">
-                                <div className="as-field">
-                                    <label className="as-label">School</label>
-                                    <div className="as-select-wrap">
-                                        <select className="as-select" value={selectedSchool} onChange={handleSchoolChange}>
-                                            <option value="">Select school</option>
-                                            {schools.map(s => (
-                                                <option key={s.id} value={s.id}>{s.name}</option>
-                                            ))}
-                                        </select>
-                                        <ChevronDown size={14} />
-                                    </div>
-                                </div>
-                                <div className="as-field">
-                                    <label className="as-label">Class</label>
-                                    <div className="as-select-wrap">
-                                        <select className="as-select" value={selectedClass} onChange={handleClassChange}>
-                                            <option value="">Select class</option>
-                                            {classes.map(c => (
-                                                <option key={c.id} value={c.id}>{c.grade} - {c.section}</option>
-                                            ))}
-                                        </select>
-                                        <ChevronDown size={14} />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* STUDENT SELECTOR */}
-                        <div className="as-field">
-                            <label className="as-label"><User size={13} /> Student</label>
-                            <div className="as-select-wrap">
-                                <select
-                                    className="as-select"
-                                    onChange={(e) => {
-                                        const selected = students.find(s => s.student.id === e.target.value);
-                                        if (!selected) return;
-                                        setStudent({
-                                            name: selected.student.name,
-                                            email: selected.student.email,
-                                            phone: selected.student.personalInfo?.phone || "",
-                                            course: "",
-                                            fees: "",
-                                            address: ""
-                                        });
-                                    }}
-                                >
-                                    <option value="">Select student</option>
-                                    {students.map(s => (
-                                        <option key={s.student.id} value={s.student.id}>{s.student.name}</option>
-                                    ))}
-                                </select>
-                                <ChevronDown size={14} />
-                            </div>
-                        </div>
-
-                        <div className="as-divider" />
-
-                        {/* FORM */}
-                        <form onSubmit={handleSubmit}>
-                            <p className="as-section-label">Contact & Academic Info</p>
-                            <div className="as-form-grid" style={{ marginBottom: 16 }}>
-                                <div className="as-field">
-                                    <label className="as-label"><Mail size={13} /> Email</label>
-                                    <input
-                                        className="as-input"
-                                        name="email"
-                                        placeholder="student@email.com"
-                                        value={student.email}
-                                        onChange={handleChange}
-                                        required
-                                    />
-                                </div>
-                                <div className="as-field">
-                                    <label className="as-label"><Phone size={13} /> Phone</label>
-                                    <input
-                                        className="as-input"
-                                        name="phone"
-                                        placeholder="+91 00000 00000"
-                                        value={student.phone}
-                                        onChange={handleChange}
-                                        required
-                                    />
-                                </div>
-                                <div className="as-field">
-                                    <label className="as-label"><BookOpen size={13} /> Course</label>
-                                    <input
-                                        className="as-input"
-                                        name="course"
-                                        placeholder="e.g. Science"
-                                        value={student.course}
-                                        onChange={handleChange}
-                                    />
-                                </div>
-                                <div className="as-field">
-                                    <label className="as-label">₹ Total Fees</label>
-                                    <div className="as-fees-input-wrap">
-                                        <input
-                                            className="as-input as-input-fees"
-                                            name="fees"
-                                            placeholder="Click to set fees"
-                                            value={student.fees ? `₹ ${student.fees}` : ""}
-                                            onClick={() => setOpenFeesPopup(true)}
-                                            readOnly
-                                        />
-                                        {student.fees && <span className="as-fees-badge">Breakdown</span>}
-                                    </div>
-                                </div>
-                                <div className="as-field" style={{ gridColumn: "1 / -1" }}>
-                                    <label className="as-label"><MapPin size={13} /> Address</label>
-                                    <textarea
-                                        className="as-textarea"
-                                        name="address"
-                                        placeholder="Enter full address..."
-                                        value={student.address}
-                                        onChange={handleChange}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="as-actions">
-                                <button type="submit" className="as-btn-primary">
-                                    {editData ? "Update Student" : "Save Student"}
-                                </button>
-                                <button type="button" className="as-btn-secondary" onClick={handleClose}>
-                                    Cancel
-                                </button>
-                            </div>
-                        </form>
-                    </div>
+            {/* School */}
+            <div>
+              <p className="as-sl">School</p>
+              <div className="as-sbadge">
+                <div className="as-sicon"><Building2 size={16} color="#fff" /></div>
+                <div>
+                  <div className="as-sname">{authSchool.schoolName}</div>
+                  <div className="as-shint">Auto-detected from your login session</div>
                 </div>
+              </div>
             </div>
 
-            {/* FEES BREAKDOWN POPUP */}
-            {openFeesPopup && (
-                <div className="as-overlay" style={{ zIndex: 1100 }}>
-                    <div className="as-fees-modal">
-
-                        <div className="as-fees-header">
-                            <div>
-                                <h3 className="as-fees-title">Fees Breakdown</h3>
-                                <p className="as-fees-subtitle">Enter individual components — total is auto-calculated</p>
-                            </div>
-                            <button className="as-close-btn" onClick={() => setOpenFeesPopup(false)}>
-                                <X size={16} />
-                            </button>
-                        </div>
-
-                        {/* Add these CSS rules into your existing stylesheet */}
-                        <style>{`
-    .as-fee-card        { border: 1.5px solid rgba(39,67,91,.15); box-shadow: 0 2px 8px rgba(39,67,91,.08); }
-    .as-fee-card:hover  { border-color: rgba(39,67,91,.35); box-shadow: 0 4px 14px rgba(39,67,91,.13); }
-    .as-fee-card-label  { color: #4A6B80; }
-
-    .dot-tuition   { background: #27435B; }
-    .dot-transport { background: #3A5E78; }
-    .dot-books     { background: #27435B; opacity: .75; }
-    .dot-exam      { background: #1C3044; }
-    .dot-misc      { background: #4A6B80; }
-
-    .as-fee-input-wrap              { background: #EAF1F6; border: 1.5px solid #C8DCEC; }
-    .as-fee-input-wrap:focus-within { border-color: #27435B; background: #fff; }
-    .as-currency                    { color: #27435B; }
-    .as-fee-input                   { color: #162535; }
-    .as-fee-input::placeholder      { color: #A8C4D6; }
-
-    .as-total-bar      { background: linear-gradient(135deg, #27435B, #1C3044); box-shadow: 0 4px 16px rgba(39,67,91,.28); }
-    .as-total-label    { color: #fff; }
-    .as-total-desc     { color: rgba(255,255,255,.55); }
-    .as-total-amount   { color: #fff; }
-    .as-total-currency { color: rgba(255,255,255,.75); }
-`}</style>
-
-                        {/* ── JSX UNCHANGED ── */}
-                        <div className="as-fees-body">
-                            <div className="as-fees-grid">
-                                {[
-                                    { key: "tuition", label: "Tuition Fee", dot: "dot-tuition" },
-                                    { key: "transport", label: "Transport Fee", dot: "dot-transport" },
-                                    { key: "books", label: "Books Fee", dot: "dot-books" },
-                                    { key: "exam", label: "Exam Fee", dot: "dot-exam" },
-                                    { key: "misc", label: "Misc Fee", dot: "dot-misc" },
-                                ].map(({ key, label, dot }) => (
-                                    <div className="as-fee-card" key={key}>
-                                        <div className="as-fee-card-label">
-                                            <span className={`as-fee-card-dot ${dot}`} />
-                                            {label}
-                                        </div>
-                                        <div className="as-fee-input-wrap">
-                                            <span className="as-currency">₹</span>
-                                            <input
-                                                className="as-fee-input"
-                                                type="number"
-                                                placeholder="0"
-                                                value={feeBreakdown[key]}
-                                                onChange={(e) =>
-                                                    setFeeBreakdown({ ...feeBreakdown, [key]: e.target.value })
-                                                }
-                                            />
-                                        </div>
-                                    </div>
-                                ))}
-
-                                {/* TOTAL */}
-                                <div className="as-total-bar">
-                                    <div>
-                                        <div className="as-total-label">Total Amount</div>
-                                        <div className="as-total-desc">Sum of all fee components</div>
-                                    </div>
-                                    <div className="as-total-amount">
-                                        <span className="as-total-currency">₹</span>
-                                        {feeTotal.toLocaleString("en-IN")}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="as-fees-actions">
-                            <button
-                                className="as-btn-primary"
-                                onClick={() => {
-                                    setStudent(prev => ({ ...prev, fees: feeTotal }));
-                                    setOpenFeesPopup(false);
-                                }}
-                            >
-                                Apply Fees
-                            </button>
-                            <button className="as-btn-secondary" onClick={() => setOpenFeesPopup(false)}>
-                                Cancel
-                            </button>
-                        </div>
-                    </div>
+            {/* Class + Student — only for adding new student, hidden in edit mode */}
+            {!editData && (<>
+              <div>
+                <p className="as-sl">Class</p>
+                <div className="as-f">
+                  <label className="as-lbl"><GraduationCap size={13} /> Select Class</label>
+                  <div className="as-sw">
+                    <select className="as-sel" value={selectedClass} onChange={handleClassChange}>
+                      <option value="">— Choose a class —</option>
+                      {classes.map(c => (
+                        <option key={c.id} value={c.id}>{c.name || `${c.grade} - ${c.section}`}</option>
+                      ))}
+                    </select>
+                    <ChevronDown size={14} />
+                  </div>
                 </div>
+              </div>
+              <div>
+                <p className="as-sl">Student</p>
+                <div className="as-f">
+                  <label className="as-lbl"><User size={13} /> Select Student</label>
+                  <div className="as-sw">
+                    <select className="as-sel" value={selectedStudentId} onChange={handleStudentChange}
+                      disabled={!selectedClass} style={{ opacity: !selectedClass ? .55 : 1 }}>
+                      <option value="">{!selectedClass ? "Select a class first" : students.length === 0 ? "No students in this class" : "— Choose a student —"}</option>
+                      {students.map(s => (
+                        <option key={s.student?.id} value={s.student?.id}>{s.student?.name}</option>
+                      ))}
+                    </select>
+                    <ChevronDown size={14} />
+                  </div>
+                </div>
+              </div>
+            </>)}
+
+            {/* Edit mode: show student name as read-only badge */}
+            {editData && (
+              <div>
+                <p className="as-sl">Student</p>
+                <div style={{display:"flex",alignItems:"center",gap:10,background:"linear-gradient(135deg,#eef1f4,#e4ecf2)",border:"1.5px solid var(--bf)",borderRadius:12,padding:"11px 16px"}}>
+                  <div style={{width:34,height:34,borderRadius:"50%",background:"linear-gradient(135deg,var(--br),var(--brd))",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                    <User size={15} color="#fff" />
+                  </div>
+                  <div>
+                    <div style={{fontSize:13.5,fontWeight:600,color:"var(--brp)"}}>{editData.name}</div>
+                    <div style={{fontSize:10.5,color:"var(--brl)",marginTop:2}}>Editing existing record — ID #{editData.id}</div>
+                  </div>
+                </div>
+              </div>
             )}
-        </>
-    );
+
+            {/* Auto-filled Info */}
+            <div>
+              <p className="as-sl">
+                Student Info
+                {autoFilled && <span style={{fontSize:10,fontWeight:700,background:"#dcfce7",color:"#15803d",padding:"1px 7px",borderRadius:20}}>AUTO-FILLED ✓</span>}
+              </p>
+              {autoFilled ? (
+                <div className="as-ig">
+                  <div className="as-ic">
+                    <div className="as-icl"><Mail size={9}/> Email</div>
+                    <div className="as-icv">{studentInfo.email || "—"}</div>
+                  </div>
+                  <div className="as-ic">
+                    <div className="as-icl"><Phone size={9}/> Phone</div>
+                    <div className="as-icv">{studentInfo.phone || "—"}</div>
+                  </div>
+                  <div className="as-ic" style={{gridColumn:"1 / -1"}}>
+                    <div className="as-icl"><BookOpen size={9}/> Course / Class</div>
+                    <div className="as-icv">{studentInfo.course || "—"}</div>
+                  </div>
+                </div>
+              ) : (
+                <div className="as-ph">
+                  <AlertCircle size={15} style={{color:"#94a3b8",flexShrink:0}}/>
+                  Select a class and student above — email, phone &amp; course will appear here automatically.
+                </div>
+              )}
+            </div>
+
+            <div className="as-div" />
+
+            {/* Fees */}
+            <div>
+              <p className="as-sl">Fees Breakdown</p>
+
+              <div className="as-fee-list">
+                {feeRows.map((row, idx) => (
+                  <div key={row.id} className={`as-fee-row${!row.enabled ? " disabled" : ""}`}>
+                    {/* number */}
+                    <div className="as-fee-num">{String(idx + 1).padStart(2, "0")}</div>
+
+                    {/* label */}
+                    <div className="as-fee-label-wrap">
+                      <div className="as-fee-label-text">{row.label}</div>
+                      <span className={`as-fee-tag ${row.required ? "as-fee-tag-req" : "as-fee-tag-opt"}`}>
+                        {row.required ? "Required" : "Optional"}
+                      </span>
+                    </div>
+
+                    {/* amount input */}
+                    <div className="as-fee-amount-side">
+                      <span className="as-fee-sym">₹</span>
+                      <input
+                        className="as-fee-amt"
+                        type="number"
+                        placeholder="0"
+                        disabled={!row.enabled}
+                        value={row.amount}
+                        onChange={e => updateFee(row.id, e.target.value)}
+                      />
+                    </div>
+
+                    {/* toggle (not for required rows) */}
+                    {!row.required ? (
+                      <div className="as-toggle-wrap">
+                        <label className="as-toggle">
+                          <input type="checkbox" checked={row.enabled} onChange={() => toggleFee(row.id)} />
+                          <span className="as-toggle-slider" />
+                        </label>
+                      </div>
+                    ) : (
+                      <div style={{width:64}} />
+                    )}
+                  </div>
+                ))}
+
+                {/* Custom fee rows */}
+                {customFees.map((cf, idx) => (
+                  <div key={cf.id} className="as-fee-row">
+                    <div className="as-fee-num">{String(feeRows.length + idx + 1).padStart(2, "0")}</div>
+                    <div className="as-fee-label-wrap">
+                      <input
+                        className="as-fee-label-input"
+                        placeholder="Enter fee name…"
+                        value={cf.label}
+                        onChange={e => updateCustom(cf.id, "label", e.target.value)}
+                      />
+                      <span className="as-fee-tag as-fee-tag-custom">Custom</span>
+                    </div>
+                    <div className="as-fee-amount-side">
+                      <span className="as-fee-sym">₹</span>
+                      <input
+                        className="as-fee-amt"
+                        type="number"
+                        placeholder="0"
+                        value={cf.amount}
+                        onChange={e => updateCustom(cf.id, "amount", e.target.value)}
+                      />
+                    </div>
+                    <button className="as-del-btn" onClick={() => removeCustom(cf.id)}>
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+
+                {/* Add custom button */}
+                <button className="as-add-custom" onClick={addCustomFee}>
+                  <Plus size={14} />
+                  Add Custom Fee
+                </button>
+              </div>
+            </div>
+
+            {/* Grand Total */}
+            <div className="as-tb">
+              <div>
+                <div className="as-tl">Grand Total</div>
+                <div className="as-ts">
+                  {feeRows.filter(r => r.enabled && Number(r.amount) > 0).length + customFees.filter(c => Number(c.amount) > 0).length} fee component(s)
+                </div>
+              </div>
+              <div className="as-ta">
+                <span className="as-tcs">₹</span>
+                {grandTotal.toLocaleString("en-IN")}
+              </div>
+            </div>
+
+            {/* Error */}
+            {error && (
+              <div className="as-err">
+                <AlertCircle size={14} style={{flexShrink:0}}/>{error}
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="as-act">
+              <button className="as-bp" onClick={handleSubmit} disabled={loading}>
+                {loading ? "Saving…" : editData ? "Update Fees" : "Save Student Fees"}
+              </button>
+              <button className="as-bs" onClick={handleClose}>Cancel</button>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </>
+  );
 };
 
 export default Addstudent;

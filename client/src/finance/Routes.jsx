@@ -14,8 +14,8 @@ const FinanceAppRoutes = () => {
     <Routes>
       <Route path="pagelayout" element={<PageLayout />} />
       <Route path="/" element={<FinanceDashboard />} />
-      <Route path="/studentfinance" element={<Studentfinance />} />
-      <Route path="/teachersfinance" element={<Teachersfinance />} />
+      <Route path="/finance/studentfinance" element={<Studentfinance />} />
+      <Route path="/finance/teachersfinance" element={<Teachersfinance />} />
 
       <Route path="/group-a" element={<GroupASalary />} />
       <Route path="/group-b" element={<GroupBSalary />} />

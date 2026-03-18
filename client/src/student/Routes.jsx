@@ -7,6 +7,7 @@ import Marks from './pages/marks/Marks';
 import TimeTable from './pages/TimeTable/TimeTable';
 import ActivitiesPage from './pages/Activities/ActivitiesPage';
 import CertificatesPage from './pages/Certificates/CertificatesPage';
+import MyFees from './pages/Fees/Myfees';
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
       <Route path="/attendance" element={<Attendance />} />
       <Route path="/marks" element={<Marks />} />
       <Route path="/time-table" element={<TimeTable />} />
+      <Route path="/my-fees" element={<MyFees />} />
       <Route path="/activites" element={<ActivitiesPage />} />
       <Route path="/certicates" element={<CertificatesPage />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />

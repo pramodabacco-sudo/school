@@ -11,7 +11,9 @@ function PageLayout({ children }) {
       if (!stored) return null;
       return {
         name: stored.user?.name,
-        role: stored.role,
+        email: stored.user?.email,
+        role: stored.user?.role || stored.role,
+        accountType: stored.accountType,
       };
     } catch (err) {
       console.error("Invalid auth in localStorage");

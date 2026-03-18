@@ -1,4 +1,4 @@
-// client/src/admin/components/Navbar.jsx
+// client/src/finance/components/Navbar.jsx
 import React, { useState, useRef, useEffect } from "react";
 import {
   Search,
@@ -30,6 +30,7 @@ export default function Navbar({ onMenuClick, user }) {
 
   const displayName = user?.name || "Admin User";
   const displayRole = user?.role || "Administrator";
+  const displayEmail = user?.email || "";
 
   useEffect(() => {
     const h = (e) => {
@@ -187,6 +188,11 @@ export default function Navbar({ onMenuClick, user }) {
                 <p className="text-[11px]" style={{ color: "#6A89A7" }}>
                   {displayRole}
                 </p>
+                {displayEmail && (
+                  <p className="text-[10px] truncate max-w-[140px]" style={{ color: "#88BDF2" }}>
+                    {displayEmail}
+                  </p>
+                )}
               </div>
 
               {/* Avatar */}
@@ -245,6 +251,14 @@ export default function Navbar({ onMenuClick, user }) {
                     >
                       {displayRole}
                     </p>
+                    {displayEmail && (
+                      <p
+                        className="text-[10px] truncate"
+                        style={{ color: "#88BDF2" }}
+                      >
+                        {displayEmail}
+                      </p>
+                    )}
                   </div>
                 </div>
 

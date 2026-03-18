@@ -10,6 +10,7 @@ import {
   Award,
   GraduationCap,
   X,
+  IndianRupee,
 } from "lucide-react";
 
 const NAV = [
@@ -17,9 +18,10 @@ const NAV = [
   { icon: User,         label: "Profile",        to: "/profile" },
   { icon: CalendarCheck,label: "Attendance",     to: "/attendance" },
   { icon: BarChart3,    label: "Marks & Results",to: "/marks" },
-  { icon: Clock,        label: "Time Table",     to: "/time-table" },
   { icon: Activity,     label: "Activities",     to: "/activites" },
-  { icon: Award,        label: "Certificates",   to: "/certicates" },
+  { icon: Clock,        label: "Time Table",     to: "/time-table" },
+  { icon: IndianRupee,  label: "My Fees",        to: "/my-fees" },
+  { icon: Award,        label: "Certificates",   to: "/certificates" },
 ];
 
 const initials = (name = "AU") =>

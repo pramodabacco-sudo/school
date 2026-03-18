@@ -762,10 +762,12 @@ model TeacherProfile {
   extraClasses         ExtraClass[]
   teacherAttendances   TeacherAttendance[]
   TeacherMonthlySalary TeacherMonthlySalary[]
-  timetableEntries     TimetableEntry[]
-  syllabusCreated      SubjectSyllabus[]          @relation("SyllabusCreatedBy")
-  syllabusUpdated      SubjectSyllabus[]          @relation("SyllabusUpdatedBy")
-  portionProgress      SectionPortionProgress[]
+  GroupBStaffSalary    GroupBStaffSalary[]
+
+  timetableEntries TimetableEntry[]
+  syllabusCreated  SubjectSyllabus[]        @relation("SyllabusCreatedBy")
+  syllabusUpdated  SubjectSyllabus[]        @relation("SyllabusUpdatedBy")
+  portionProgress  SectionPortionProgress[]
 
   @@index([schoolId])
   @@index([department])
@@ -1363,6 +1365,9 @@ model TeacherMonthlySalary {
   schoolId String
   school   School @relation(fields: [schoolId], references: [id])
 
+  teacherName  String // e.g. "Ravi Kumar"
+  teacherEmail String // e.g. "ravi@school.com"
+
   month Int
   year  Int
 
@@ -1370,6 +1375,9 @@ model TeacherMonthlySalary {
   bonus       Decimal @db.Decimal(10, 2)
   deductions  Decimal @db.Decimal(10, 2)
   netSalary   Decimal @db.Decimal(10, 2)
+
+  leaveDays      Int     @default(0) // number of absent days
+  leaveDeduction Decimal @default(0) @db.Decimal(10, 2) // amount deducted for leaves
 
   status      SalaryStatus @default(PENDING)
   paymentDate DateTime?
@@ -1382,6 +1390,7 @@ model TeacherMonthlySalary {
 enum SalaryStatus {
   PENDING
   PAID
+  HOLD
 }
 
 model StudentList {
@@ -1391,11 +1400,17 @@ model StudentList {
   email String
   phone String
 
-  course  String?
-  fees    Decimal?
-  address String?
+  course       String?
+  fees         Decimal?
+  address      String?
+  feeBreakdown String?
+  createdAt    DateTime @default(now())
 
-  createdAt DateTime @default(now())
+  // Payment tracking
+  paidAmount    Decimal? // How much has been paid so far
+  paymentStatus String? // "UNPAID" | "PARTIAL" | "PAID"
+  paymentMode   String? // "UPI" | "Cash" | "Net Banking" | "Card" | "Cheque"
+  paymentDate   DateTime? // Date of last payment
 
   @@map("student_list")
 }
@@ -1403,18 +1418,34 @@ model StudentList {
 // GROUP B STAFF (Junior Faculty)
 
 model GroupBStaffSalary {
-  id Int @id @default(autoincrement())
+  id String @id @default(uuid())
 
-  name        String
-  designation String
-  school      String
-  department  String?
+  teacherId String
+  teacher   TeacherProfile @relation(fields: [teacherId], references: [id])
 
-  basicSalary Decimal
-  allowances  Decimal
+  schoolId String
 
-  status     String  @default("Active")
-  salaryPaid Boolean @default(false)
+  teacherName  String
+  teacherEmail String
+
+  month Int
+  year  Int
+
+  basicSalary    Decimal @db.Decimal(10, 2)
+  bonus          Decimal @default(0) @db.Decimal(10, 2)
+  deductions     Decimal @default(0) @db.Decimal(10, 2)
+  netSalary      Decimal @db.Decimal(10, 2)
+  leaveDays      Int     @default(0)
+  leaveDeduction Decimal @default(0) @db.Decimal(10, 2)
+
+  status      SalaryStatus @default(PENDING)
+  paymentDate DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@unique([teacherId, month, year])
+  @@index([schoolId])
+  @@map("group_b_staff_salary")
 }
 
 model GroupCStaffSalary {

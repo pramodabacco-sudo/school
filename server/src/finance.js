@@ -24,26 +24,16 @@ finance.use(
 finance.use(express.json());
 
 // Routes
-
-// → GET  /api/finance/list
-// → POST /api/finance/add
 finance.use("/api/finance", expenseRoutes);
 
-// → GET  /api/finance/getStudentFinance
-// → POST /api/finance/addStudentFinance
-// → etc.
 finance.use("/api/finance", studentFinanceRoutes);
 
-// → GET  /api/groupb/salary/list/all  etc.
 finance.use("/api/groupb/salary", groupBRoutes);
 
-// → GET  /api/groupc/salary/list/all  etc.
 finance.use("/api/groupc/salary", groupCRoutes);
 
-// → GET  /api/groupd/salary/list/all  etc.
 finance.use("/api/groupd/salary", groupDRoutes);
 
-// → GET  /api/teachers/salary/list/:schoolId  etc.
 finance.use("/api/teachers", teacherRoutes);
 
 export default finance;

@@ -1,4 +1,4 @@
-// client/src/admin/components/Sidebar.jsx
+// client/src/finance/components/Sidebar.jsx
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
@@ -21,8 +21,8 @@ const NAV = [
 
   // Finance Section
   { icon: LayoutDashboard, label: "Dashboard", to: "/" },
-  { icon: GraduationCap, label: "Student", to: "/studentfinance" },
-  { icon: Wallet, label: "Staff", to: "/teachersfinance" },
+  { icon: GraduationCap, label: "Student", to: "/finance/studentfinance" },
+  { icon: Wallet, label: "Staff", to: "/finance/teachersfinance" },
 
 
 
@@ -42,6 +42,7 @@ export default function Sidebar({ isOpen, onClose, user }) {
 
   const displayName = user?.name || "Admin User";
   const displayRole = user?.role || "Administrator";
+  const displayEmail = user?.email || "";
 
   return (
     <>
@@ -216,6 +217,17 @@ export default function Sidebar({ isOpen, onClose, user }) {
               >
                 {displayRole}
               </p>
+              {displayEmail && (
+                <p
+                  className="text-[10px] truncate"
+                  style={{
+                    color: "#88BDF2",
+                    fontFamily: "'DM Sans', sans-serif",
+                  }}
+                >
+                  {displayEmail}
+                </p>
+              )}
             </div>
           </div>
         </div>

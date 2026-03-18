@@ -9,16 +9,31 @@ router.post("/addStudentFinance", async (req, res) => {
 
     console.log("POST BODY 👉", req.body);
 
-    const { name, email, phone, course, fees, address } = req.body;
+    const {
+      name, email, phone, course, fees, address,
+      collegeFee, tuitionFee, examFee, transportFee, booksFee, labFee, miscFee, customFees
+    } = req.body;
+
+    // Store fee breakdown as JSON in feeBreakdown column (add to schema) or address temporarily
+    const feeBreakdown = JSON.stringify({
+      collegeFee:   collegeFee   || 0,
+      tuitionFee:   tuitionFee   || 0,
+      examFee:      examFee      || 0,
+      transportFee: transportFee || 0,
+      booksFee:     booksFee     || 0,
+      labFee:       labFee       || 0,
+      miscFee:      miscFee      || 0,
+      customFees:   customFees   || [],
+    });
 
     const student = await prisma.studentList.create({
       data: {
         name,
         email,
         phone,
-        course: course || null,
-        fees: fees ? parseFloat(fees) : null,
-        address: address || null
+        course:  course || null,
+        fees:    fees   ? parseFloat(fees) : null,
+        feeBreakdown: feeBreakdown,  // JSON: { tuitionFee, examFee, ... }
       }
     });
 
@@ -53,18 +68,43 @@ router.put("/updateStudentFinance/:id", async (req, res) => {
   try {
 
     const id = parseInt(req.params.id);
-    const { name, email, phone, course, fees, address } = req.body;
+    const {
+      name, email, phone, course, fees,
+      collegeFee, tuitionFee, examFee, transportFee, booksFee, labFee, miscFee, customFees,
+      paidAmount, paymentStatus, paymentMode, paymentDate
+    } = req.body;
+
+    // Build update object — only include fields that are present in the request
+    const updateData = {};
+    if (name   !== undefined) updateData.name   = name;
+    if (email  !== undefined) updateData.email  = email;
+    if (phone  !== undefined) updateData.phone  = phone;
+    if (course !== undefined) updateData.course = course;
+    if (fees   !== undefined) updateData.fees   = fees ? parseFloat(fees) : null;
+
+    // Fee breakdown — only write if breakdown fields were sent
+    if (collegeFee !== undefined || tuitionFee !== undefined || customFees !== undefined) {
+      updateData.feeBreakdown = JSON.stringify({
+        collegeFee:   collegeFee   || 0,
+        tuitionFee:   tuitionFee   || 0,
+        examFee:      examFee      || 0,
+        transportFee: transportFee || 0,
+        booksFee:     booksFee     || 0,
+        labFee:       labFee       || 0,
+        miscFee:      miscFee      || 0,
+        customFees:   customFees   || [],
+      });
+    }
+
+    // Payment tracking fields (sent from PayModal)
+    if (paidAmount    !== undefined) updateData.paidAmount    = parseFloat(paidAmount) || 0;
+    if (paymentStatus !== undefined) updateData.paymentStatus = paymentStatus;
+    if (paymentMode   !== undefined) updateData.paymentMode   = paymentMode;
+    if (paymentDate   !== undefined) updateData.paymentDate   = new Date(paymentDate);
 
     const updated = await prisma.studentList.update({
       where: { id },
-      data: {
-        name,
-        email,
-        phone,
-        course,
-        fees: fees ? parseFloat(fees) : null,
-        address
-      }
+      data: updateData,
     });
 
     res.json(updated);
@@ -177,3 +217,21 @@ router.delete("/deleteStudent/:id", async (req, res) => {
 });
 
 export default router;
+// ── Student self-view: fetch MY fees by email ────────────────────────────────
+router.get("/myFees", async (req, res) => {
+  try {
+    const { email } = req.query;
+    if (!email) return res.status(400).json({ message: "email is required" });
+
+    const record = await prisma.studentList.findFirst({
+      where: { email: email },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (!record) return res.status(404).json({ message: "No fee record found" });
+    res.json(record);
+  } catch (error) {
+    console.error("myFees error:", error);
+    res.status(500).json({ message: error.message });
+  }
+});
