@@ -158,7 +158,9 @@ const StudentCard = ({ student }) => {
                     <p className="text-sm text-gray-500 mt-0.5">
                         {p.grade && p.className ? `Grade ${p.grade} - Section ${p.className}` : p.grade || p.className || "—"}
                     </p>
-                    <p className="text-sm text-blue-600 font-medium mt-0.5">{student.id || "—"}</p>
+                    <p className="text-sm text-blue-600 font-medium mt-0.5">
+                        {student.rollNumber || "—"}
+                    </p>
 
                     {/* Badges */}
                     <div className="flex gap-2 mt-3 flex-wrap justify-center">
@@ -177,20 +179,20 @@ const StudentCard = ({ student }) => {
                     {/* Stats Grid */}
                     <div className="grid grid-cols-2 gap-2 mt-5 w-full">
                         <div className="bg-blue-50 rounded-xl p-3 text-center">
-                            <p className="text-lg font-bold text-blue-600">{p.attendance || "—"}</p>
+                            <p>{student.attendance || "0"}</p>
                             <p className="text-xs text-gray-500">Attendance</p>
                         </div>
                         <div className="bg-purple-50 rounded-xl p-3 text-center">
                             <p className="text-lg font-bold text-purple-600">{p.gpa || "—"}</p>
-                            <p className="text-xs text-gray-500">GPA</p>
+                            <p>{student.gpa || "0.0"}</p>
                         </div>
                         <div className="bg-pink-50 rounded-xl p-3 text-center">
                             <p className="text-lg font-bold text-pink-600">{p.subjects || "—"}</p>
-                            <p className="text-xs text-gray-500">Subjects</p>
+                            <p>{student.subjects || "0"}</p>
                         </div>
                         <div className="bg-orange-50 rounded-xl p-3 text-center">
                             <p className="text-lg font-bold text-orange-500">{p.activities || "—"}</p>
-                            <p className="text-xs text-gray-500">Activities</p>
+                            <p>{student.activities || "0"}</p>
                         </div>
                     </div>
                 </div>
@@ -206,15 +208,32 @@ const StudentCard = ({ student }) => {
                             </h2>
                             <hr className="border-blue-200 mb-4" />
                             <div className="grid grid-cols-2 gap-3">
-                                <InfoCard label="Student ID" value={student.id} iconType="id" />
                                 <InfoCard label="Full Name" value={`${p.firstName || ""} ${p.lastName || ""}`.trim()} iconType="person" />
+                                <InfoCard
+                                    label="Admission & Roll Number"
+                                    value={`${student.admissionNumber || student.id} / ${student.rollNumber}`}
+                                    iconType="id"
+                                />
                                 <InfoCard label="Date of Birth" value={p.dateOfBirth?.slice(0, 10)} iconType="calendar" />
                                 <InfoCard label="Father's Name" value={p.parentName} iconType="parent" />
-                                <InfoCard label="Mother's Name" value={p.motherName} iconType="parent" />
+                                {p.motherName && (
+                                    <InfoCard
+                                        label="Mother's Name"
+                                        value={p.motherName}
+                                        iconType="parent"
+                                    />
+                                )}
                                 <InfoCard label="Mobile Number" value={p.phone} iconType="phone" />
                                 <InfoCard label="Email Address" value={student.email} iconType="email" fullWidth />
                                 <InfoCard label="Current Address" value={p.address} iconType="location" fullWidth />
-                                <InfoCard label="Permanent Address" value={p.permanentAddress} iconType="location" fullWidth />
+                                {p.permanentAddress && (
+                                    <InfoCard
+                                        label="Permanent Address"
+                                        value={p.permanentAddress}
+                                        iconType="location"
+                                        fullWidth
+                                    />
+                                )}
                             </div>
                         </>
                     )}
@@ -272,17 +291,16 @@ const Profile = () => {
         const fetchProfile = async () => {
             try {
                 const auth = getAuth();
-                const userType = auth?.accountType; // "student" | "parent" | "staff"
+                const userType = auth?.accountType;
 
                 if (userType === "parent") {
-                    // Parent: fetch all linked students
-                    const data = await getParentStudents();
-                    setStudents(data || []);
+                    const students = await getParentStudents();
+                    setStudents(students || []);
                 } else {
-                    // Student (or staff viewing own): fetch single profile
-                    const data = await getMyProfile();
-                    setStudents(data ? [data] : []);
+                    const res = await getMyProfile(auth?.token);
+                    setStudents(res ? [res] : []);
                 }
+
             } catch (err) {
                 console.error(err.message);
                 setError("Failed to load profile. Please try again.");
@@ -293,7 +311,6 @@ const Profile = () => {
 
         fetchProfile();
     }, []);
-
     if (loading) return <div className="p-6 text-center text-gray-500">Loading...</div>;
     if (error) return <div className="p-6 text-center text-red-500">{error}</div>;
     if (!students.length) return <div className="p-6 text-center text-gray-500">No student data found.</div>;

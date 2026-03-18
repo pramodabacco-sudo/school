@@ -2,12 +2,16 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Search, Bell, Menu, Mail, ChevronDown, User, LogOut } from 'lucide-react';
 import LogoutButton from '../../components/LogoutButton';
 import { useNavigate } from "react-router-dom";
+import { getAuth } from "../../auth/storage";
 
 function Navbar({ onMenuClick }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
+  const auth = getAuth();
+  const parentName = auth?.user?.name || "Parent";
+
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -80,15 +84,22 @@ function Navbar({ onMenuClick }) {
             <div className="relative pl-2 md:pl-4 border-l" ref={dropdownRef}>
               <div className="flex items-center gap-2 md:gap-3">
                 <div className="text-right hidden md:block">
-                  <p className="font-semibold text-sm text-gray-800">Parent User</p>
+                  <p className="font-semibold text-sm text-gray-800">{parentName}</p>
                   <p className="text-xs text-gray-500">Administrator</p>
                 </div>
                 <button
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                   className="flex items-center gap-2 hover:bg-gray-100 p-1 rounded-lg transition"
                 >
+
                   <div className="w-9 h-9 md:w-10 md:h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                    AU
+                    {parentName
+                      .split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .slice(0, 2)
+                      .toUpperCase()}
+
                   </div>
                   <ChevronDown className={`w-4 h-4 text-gray-600 hidden md:block transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
                 </button>

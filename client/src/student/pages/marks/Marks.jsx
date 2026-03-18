@@ -9,10 +9,10 @@ import {
 
 import { getToken }        from "../../../auth/storage.js";
 import { C, FONT, GLOBAL_CSS } from "./tokens.js";
-import SummaryCards        from "./components/SummaryCards.jsx";
-import SubjectTable        from "./components/SubjectTable.jsx";
+import SummaryCards from "./components/SummaryCards.jsx";
+import SubjectTable from "./components/SubjectTable.jsx";
 import PerformanceInsights from "./components/PerformanceInsights.jsx";
-import ExamTabs            from "./components/ExamTabs.jsx";
+import ExamTabs from "./components/ExamTabs.jsx";
 import { downloadReportPDF } from "./utils/downloadPDF.js";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:5000";
@@ -146,20 +146,20 @@ function PageHeader({ loading, enrollment, isMobile }) {
    MAIN
 ═══════════════════════════════ */
 export default function Marks() {
-  const width    = useWindowWidth();
+  const width = useWindowWidth();
   const isMobile = width < 640;
   const isTablet = width >= 640 && width < 1024;
 
-  const [examGroups,    setExamGroups]    = useState([]);
-  const [selectedId,    setSelectedId]    = useState(null);
-  const [reportData,    setReportData]    = useState(null);
-  const [enrollment,    setEnrollment]    = useState(null);
+  const [examGroups, setExamGroups] = useState([]);
+  const [selectedId, setSelectedId] = useState(null);
+  const [reportData, setReportData] = useState(null);
+  const [enrollment, setEnrollment] = useState(null);
   const [loadingGroups, setLoadingGroups] = useState(true);
   const [loadingReport, setLoadingReport] = useState(false);
-  const [errorGroups,   setErrorGroups]   = useState(null);
-  const [errorReport,   setErrorReport]   = useState(null);
-  const [pdfLoading,    setPdfLoading]    = useState(false);
-  const [notPublished,  setNotPublished]  = useState(false);
+  const [errorGroups, setErrorGroups] = useState(null);
+  const [errorReport, setErrorReport] = useState(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [notPublished, setNotPublished] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -192,7 +192,7 @@ export default function Marks() {
   }, [selectedId]);
 
   const selectedGroup = examGroups.find((g) => g.id === selectedId);
-  const showReport    = !loadingReport && !!reportData;
+  const showReport = !loadingReport && !!reportData;
 
   const handleDownload = useCallback(() => {
     if (!reportData) return;

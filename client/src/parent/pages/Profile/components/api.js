@@ -1,8 +1,8 @@
 // src/parent/profile/components/api.js
 import axios from "axios";
-
+import { getToken } from "../../../../auth/storage";
 const API = import.meta.env.VITE_API_URL;
-
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 // ─────────────────────────────────────────
 // AXIOS INSTANCE (Protected)
 // ─────────────────────────────────────────
@@ -35,16 +35,7 @@ protectedAPI.interceptors.request.use((config) => {
 // ─────────────────────────────────────────
 
 // Logged-in student fetches their own profile
-export const getMyProfile = async () => {
-  const res = await protectedAPI.get("/api/students/me");
-  return res.data.student;
-};
 
-// Logged-in parent fetches their linked students
-export const getParentStudents = async () => {
-  const res = await protectedAPI.get("/api/students/my-students");
-  return res.data.students; // array
-};
 
 // Staff viewing any student by ID
 export const getStudentById = async (id) => {
@@ -59,4 +50,36 @@ export const getStudentById = async (id) => {
 export const getStudentFees = async (studentId) => {
   const res = await protectedAPI.get(`/api/fees/student/${studentId}`);
   return res.data;
+};
+export const getMyProfile = async () => {
+  const res = await fetch(`${API_BASE}/student/profile`, {
+    credentials: "include",
+    headers: {
+      Authorization: `Bearer ${getToken()}`,
+    },
+  });
+
+  const json = await res.json();
+
+  if (!json.success) {
+    throw new Error(json.message || "Failed to fetch profile");
+  }
+
+  return json.data;
+};
+export const getParentStudents = async () => {
+  const res = await fetch(`${API_BASE}/api/parent/students`, {
+    credentials: "include",
+    headers: {
+      Authorization: `Bearer ${getToken()}`,
+    },
+  });
+
+  const json = await res.json();
+
+  if (!json.success) {
+    throw new Error(json.message || "Failed to fetch students");
+  }
+
+  return json.data;
 };

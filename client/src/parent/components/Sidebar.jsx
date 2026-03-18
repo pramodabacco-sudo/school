@@ -31,15 +31,12 @@ function Sidebar({ isOpen, onClose }) {
     { icon: User, label: "My Child Profile", href: `${base}/profile` },
     { icon: ClipboardCheck, label: "Attendance", href: `${base}/attendance` },
     { icon: BarChart2, label: "Results", href: `${base}/marks` },
-    { icon: Calendar, label: "Timetable", href: `${base}/timetable` },
-    { icon: BookOpen, label: "Assignments", href: "/homework" },
-    { icon: Bell, label: "Announcements", href: "/notices" },
-    { icon: MessageCircle, label: "Teacher Chat", href: "/messages" },
+    { icon: Calendar, label: "Time Table", href: `${base}/timetable` },
 
-    { icon: CreditCard, label: "Fees & Payments", href: `${base}/fees-payments` },
+    { icon: CreditCard, label: "Activities", href: `${base}/fees-payments` },
 
     { icon: Award, label: "Certificates", href: `${base}/certificates` },
-    { icon: Users, label: "Meeting", href: `${base}/meeting` },
+
   ];
 
 
