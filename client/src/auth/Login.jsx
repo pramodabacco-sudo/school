@@ -26,26 +26,40 @@ export default function Login({ onSwitchToRegister }) {
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleLogin = async () => {
-    setError("");
-    if (!email || !password) return setError("Please enter email and password");
+const handleLogin = async () => {
+  setError("");
+  if (!email || !password) return setError("Please enter email and password");
 
-    try {
-      setLoading(true);
-      let result;
-      if (type === "superAdmin") {
-        result = await loginSuperAdmin({ email, password });
-      } else {
-        result = await loginRequest(type, { email, password });
-      }
-      saveAuth(result.data);
-      window.location.href = REDIRECT[result?.user?.role] || "/dashboard";
-    } catch (err) {
-      setError(err.message || "Login failed");
-    } finally {
-      setLoading(false);
+  try {
+    setLoading(true);
+
+    let result;
+    if (type === "superAdmin") {
+      result = await loginSuperAdmin({ email, password });
+    } else {
+      result = await loginRequest(type, { email, password });
     }
-  };
+
+    console.log("LOGIN RESULT:", result);
+
+    // ✅ FIX HERE
+    saveAuth(result);
+
+    const role = result?.user?.role;
+
+    if (!role) {
+      setError("Login failed: role not found");
+      return;
+    }
+
+    window.location.href = REDIRECT[role] || "/dashboard";
+
+  } catch (err) {
+    setError(err.message || "Login failed");
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#BDDDFC] p-4">
