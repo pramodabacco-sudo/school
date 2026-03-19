@@ -1521,7 +1521,7 @@ async function seedSchool(university, password) {
   await seedHolidays({ school, ay, adminUser });
 
   // NEW: Gallery
-  await seedGallery({ school, ay, adminUser });
+  // await seedGallery({ school, ay, adminUser });
 
   // NEW: Activities & Events (standalone)
   await seedActivitiesAndEvents({ school, ay, allSections, allEnrollments, adminUser });
@@ -1704,7 +1704,7 @@ async function seedPUC(university, password) {
   await seedAttendance({ school, ay, allSections, allEnrollments, adminUser });
   await seedTeacherAttendance({ school, ay, allTeachers: allProfiles, adminUser });
   await seedHolidays({ school, ay, adminUser });
-  await seedGallery({ school, ay, adminUser });
+  // await seedGallery({ school, ay, adminUser });
   await seedActivitiesAndEvents({ school, ay, allSections, allEnrollments, adminUser });
   await seedAwards({ school, ay, allSections, allEnrollments, adminUser });
    await seedStaffAndSalaries({ school, adminUser });
@@ -1854,7 +1854,7 @@ async function seedDegree(university, password) {
   await seedAttendance({ school, ay, allSections, allEnrollments, adminUser });
   await seedTeacherAttendance({ school, ay, allTeachers: allProfiles, adminUser });
   await seedHolidays({ school, ay, adminUser });
-  await seedGallery({ school, ay, adminUser });
+  // await seedGallery({ school, ay, adminUser });
   await seedActivitiesAndEvents({ school, ay, allSections, allEnrollments, adminUser });
   await seedAwards({ school, ay, allSections, allEnrollments, adminUser });
     await seedStaffAndSalaries({ school, adminUser });
