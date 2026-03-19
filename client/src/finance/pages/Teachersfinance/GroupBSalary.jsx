@@ -3,7 +3,7 @@ import {
     GraduationCap, TrendingUp, TrendingDown, Users, ClipboardList,
     Banknote, Building2, CheckCircle2, Printer, ListOrdered,
     Plus, X, Sparkles, BadgeCheck, AlertTriangle,
-    User, Mail, BookOpen, ChevronDown, Pause, FileText
+    User, Mail, BookOpen, ChevronDown, Pause, FileText, Wrench
 } from "lucide-react";
 import React, { useState, useEffect, useRef } from "react";
 import jsPDF from "jspdf";
@@ -42,16 +42,16 @@ export default function GroupBSalary() {
     const [search,                  setSearch]                   = useState("");
     const [tableStatusFilter,       setTableStatusFilter]        = useState("ALL");
     const [showStatusDropdown,      setShowStatusDropdown]       = useState(false);
-    const [schoolTeachers,          setSchoolTeachers]           = useState([]);
+    const [salaryList,              setSalaryList]               = useState([]);
     const [currentMonthPlaceholders,setCurrentMonthPlaceholders] = useState([]);
     const [allSalaryHistory,        setAllSalaryHistory]         = useState([]);
-    const [dropdownTeachers,        setDropdownTeachers]         = useState([]);
+    const [dropdownStaff,           setDropdownStaff]            = useState([]);
     const [showModal,               setShowModal]                = useState(false);
     const [bonus,                   setBonus]                    = useState(0);
     const [deduction,               setDeduction]                = useState(0);
     const [leaveDays,               setLeaveDays]                = useState(0);
-    const [selectedTeacher,         setSelectedTeacher]          = useState("");
-    const [teacherDetail,           setTeacherDetail]            = useState(null);
+    const [selectedStaff,           setSelectedStaff]            = useState("");
+    const [staffDetail,             setStaffDetail]              = useState(null);
     const [editModal,               setEditModal]                = useState(false);
     const [deleteModal,             setDeleteModal]              = useState(false);
     const [historyModal,            setHistoryModal]             = useState(false);
@@ -72,22 +72,24 @@ export default function GroupBSalary() {
         const school = getAuthSchool();
         setAuthSchool(school);
         if (school.schoolId) {
-            fetchJuniorTeachers(school.schoolId);
+            fetchGroupBStaff(school.schoolId);
             refreshSalaryList(school.schoolId);
             fetchAllHistory(school.schoolId);
         }
     }, []);
 
+    // When a staff member is selected in the dropdown, populate their details
     useEffect(() => {
-        if (!selectedTeacher) { setTeacherDetail(null); return; }
-        const found = dropdownTeachers.find(t => t.id === selectedTeacher);
-        setTeacherDetail(found || null);
-    }, [selectedTeacher, dropdownTeachers]);
+        if (!selectedStaff) { setStaffDetail(null); return; }
+        const found = dropdownStaff.find(s => s.id === selectedStaff);
+        setStaffDetail(found || null);
+    }, [selectedStaff, dropdownStaff]);
 
+    // Auto-calculate leave deduction when leaveDays or staffDetail changes
     useEffect(() => {
-        if (teacherDetail && leaveDays > 0)
-            setDeduction(calcLeaveDeduction(teacherDetail.salary || 0, leaveDays));
-    }, [leaveDays, teacherDetail]);
+        if (staffDetail && leaveDays > 0)
+            setDeduction(calcLeaveDeduction(staffDetail.basicSalary || 0, leaveDays));
+    }, [leaveDays, staffDetail]);
 
     useEffect(() => {
         const handler = (e) => {
@@ -98,29 +100,35 @@ export default function GroupBSalary() {
         return () => document.removeEventListener("mousedown", handler);
     }, []);
 
-    // ── API helpers ──────────────────────────────────────────────────────────
-    const fetchJuniorTeachers = async (id) => {
-        const res = await fetch(`${API_URL}/api/groupb/junior-teachers/${id}`, {
-            headers: { Authorization: `Bearer ${tok()}` }
-        });
-        if (!res.ok) { setDropdownTeachers([]); return; }
-        setDropdownTeachers(await res.json());
+    // ── API Calls ─────────────────────────────────────────────────────────────
+
+    // Fetch all Group B staff from StaffProfile
+    const fetchGroupBStaff = async (id) => {
+        try {
+            const res = await fetch(`${API_URL}/api/groupb/staff/${id}`, {
+                headers: { Authorization: `Bearer ${tok()}` }
+            });
+            if (!res.ok) { setDropdownStaff([]); return; }
+            setDropdownStaff(await res.json());
+        } catch { setDropdownStaff([]); }
     };
 
+    // Build placeholder rows for staff who don't yet have a salary this month
     const buildPlaceholderRows = (historyList, targetMonth, targetYear, prefix) => {
-        const byTeacher = {};
-        historyList.forEach(t => {
-            const tid = t.teacher?.id || t.teacherId;
-            if (!byTeacher[tid]) { byTeacher[tid] = t; return; }
-            const prev = byTeacher[tid];
-            if (t.year > prev.year || (t.year === prev.year && t.month > prev.month)) byTeacher[tid] = t;
+        const byStaff = {};
+        historyList.forEach(r => {
+            const sid = r.staff?.id || r.staffId;
+            if (!byStaff[sid]) { byStaff[sid] = r; return; }
+            const prev = byStaff[sid];
+            if (r.year > prev.year || (r.year === prev.year && r.month > prev.month))
+                byStaff[sid] = r;
         });
-        return Object.values(byTeacher).map(t => ({
-            ...t,
-            id: `${prefix}-${t.teacher?.id || t.teacherId}`,
+        return Object.values(byStaff).map(r => ({
+            ...r,
+            id: `${prefix}-${r.staff?.id || r.staffId}`,
             salaryId: null, month: targetMonth, year: targetYear,
             bonus: 0, deductions: 0, leaveDays: 0,
-            netSalary: Number(t.basicSalary || 0),
+            netSalary: Number(r.basicSalary || 0),
             status: "PENDING", paymentDate: null, _isPlaceholder: true,
         }));
     };
@@ -130,9 +138,9 @@ export default function GroupBSalary() {
         const res = await fetch(`${API_URL}/api/groupb/salary/list/${id}`, {
             headers: { Authorization: `Bearer ${tok()}` }
         });
-        if (!res.ok) { setSchoolTeachers([]); return; }
+        if (!res.ok) { setSalaryList([]); return; }
         const data = await res.json();
-        setSchoolTeachers(Array.isArray(data) ? data.filter(t => t.salaryId !== null) : []);
+        setSalaryList(Array.isArray(data) ? data.filter(r => r.salaryId !== null) : []);
     };
 
     const fetchAllHistory = async (id) => {
@@ -154,18 +162,25 @@ export default function GroupBSalary() {
     };
 
     const createSalary = async () => {
-        if (!selectedTeacher) { alert("Please select a teacher"); return; }
+        if (!selectedStaff) { alert("Please select a staff member"); return; }
         setLoading(true);
-        const leaveDeduct = calcLeaveDeduction(teacherDetail?.salary || 0, leaveDays);
+        const leaveDeduct = calcLeaveDeduction(staffDetail?.basicSalary || 0, leaveDays);
         const res = await fetch(`${API_URL}/api/groupb/salary/create`, {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${tok()}` },
-            body: JSON.stringify({ teacherId: selectedTeacher, month: new Date().getMonth() + 1, year: new Date().getFullYear(), bonus: Number(bonus), deductions: Number(leaveDeduct) + Number(deduction), leaveDays: Number(leaveDays) })
+            body: JSON.stringify({
+                staffId: selectedStaff,
+                month: new Date().getMonth() + 1,
+                year: new Date().getFullYear(),
+                bonus: Number(bonus),
+                deductions: Number(leaveDeduct) + Number(deduction),
+                leaveDays: Number(leaveDays),
+            })
         });
         const data = await res.json();
         setLoading(false);
         if (!res.ok) { alert(data.message || data.error); return; }
-        setSelectedTeacher(""); setBonus(0); setDeduction(0); setLeaveDays(0); setShowModal(false);
+        setSelectedStaff(""); setBonus(0); setDeduction(0); setLeaveDays(0); setShowModal(false);
         await refreshSalaryList(authSchool.schoolId);
         await fetchAllHistory(authSchool.schoolId);
     };
@@ -177,7 +192,11 @@ export default function GroupBSalary() {
         const res = await fetch(`${API_URL}/api/groupb/salary/update/${salaryId}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${tok()}` },
-            body: JSON.stringify({ bonus: Number(bonus), deductions: Number(leaveDeduct) + Number(deduction), leaveDays: Number(leaveDays) })
+            body: JSON.stringify({
+                bonus: Number(bonus),
+                deductions: Number(leaveDeduct) + Number(deduction),
+                leaveDays: Number(leaveDays),
+            })
         });
         const data = await res.json();
         if (!res.ok) { alert(data.message || data.error); return; }
@@ -231,35 +250,44 @@ export default function GroupBSalary() {
         setEditModal(true);
     };
 
-    const createThenEdit = async (t) => {
-        const teacherId = t.teacher?.id || t.teacherId;
-        if (!teacherId) return;
+    // For placeholder rows: create a fresh salary record then open edit modal
+    const createThenEdit = async (row) => {
+        const staffId = row.staff?.id || row.staffId;
+        if (!staffId) return;
         setLoading(true);
         const res = await fetch(`${API_URL}/api/groupb/salary/create`, {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${tok()}` },
-            body: JSON.stringify({ teacherId, month: new Date().getMonth() + 1, year: new Date().getFullYear(), bonus: 0, deductions: 0, leaveDays: 0 })
+            body: JSON.stringify({
+                staffId,
+                month: new Date().getMonth() + 1,
+                year: new Date().getFullYear(),
+                bonus: 0, deductions: 0, leaveDays: 0,
+            })
         });
         const data = await res.json();
         setLoading(false);
         if (!res.ok) { alert(data.message || data.error); return; }
         await refreshSalaryList(authSchool.schoolId);
         await fetchAllHistory(authSchool.schoolId);
-        setSelectedSalary({ ...data, id: data.id, basicSalary: data.basicSalary, teacher: t.teacher });
+        setSelectedSalary({ ...data, id: data.id, basicSalary: data.basicSalary, staff: row.staff });
         setBonus(0); setDeduction(0); setLeaveDays(0);
         setEditModal(true);
     };
 
     const openDeleteModal  = (salary) => { setSelectedSalary({ id: salary.id || salary.salaryId }); setDeleteModal(true); };
+
     const openHistoryModal = async (salary) => {
         setSelectedSalary(salary);
-        const res = await fetch(`${API_URL}/api/groupb/salary/history/${salary.teacher?.id || salary.teacherId}`, {
+        const staffId = salary.staff?.id || salary.staffId;
+        const res = await fetch(`${API_URL}/api/groupb/salary/history/${staffId}`, {
             headers: { Authorization: `Bearer ${tok()}` }
         });
         const data = await res.json();
         setSalaryHistory(Array.isArray(data) ? data : []);
         setHistoryModal(true);
     };
+
     const openSlipModal = (salary) => { setSelectedSalary(salary); setSlipModal(true); };
 
     const downloadPayslip = async () => {
@@ -269,74 +297,86 @@ export default function GroupBSalary() {
         const pdf = new jsPDF("p", "mm", "a4");
         const pw = pdf.internal.pageSize.getWidth();
         pdf.addImage(imgData, "PNG", 0, 10, pw, (canvas.height * pw) / canvas.width);
-        pdf.save(`Payslip-GroupB-${selectedSalary.teacher?.firstName}.pdf`);
+        pdf.save(`Payslip-GroupB-${selectedSalary.staffName || selectedSalary.staff?.firstName || "staff"}.pdf`);
     };
 
-    // ── Filtered lists ────────────────────────────────────────────────────────
-    const searchFn = (t) =>
-        `${t.teacher?.firstName} ${t.teacher?.lastName}`.toLowerCase().includes(search.toLowerCase()) ||
-        t.teacher?.user?.email?.toLowerCase().includes(search.toLowerCase());
+    // ── Derived / filtered lists ──────────────────────────────────────────────
+
+    const searchFn = (r) => {
+        const name = r.staffName || `${r.staff?.firstName || ""} ${r.staff?.lastName || ""}`;
+        return name.toLowerCase().includes(search.toLowerCase()) ||
+            (r.staffEmail || r.staff?.email || "").toLowerCase().includes(search.toLowerCase());
+    };
 
     const nowM = new Date().getMonth() + 1, nowY = new Date().getFullYear();
 
-    const realFiltered = schoolTeachers
-        .filter(t => Number(t.month) === nowM && Number(t.year) === nowY)
-        .filter(t => tableStatusFilter === "ALL" || t.status === tableStatusFilter)
+    const realFiltered = salaryList
+        .filter(r => Number(r.month) === nowM && Number(r.year) === nowY)
+        .filter(r => tableStatusFilter === "ALL" || r.status === tableStatusFilter)
         .filter(searchFn);
 
-    const realTeacherIds = new Set(
-        schoolTeachers.filter(t => Number(t.month) === nowM && Number(t.year) === nowY)
-            .map(t => String(t.teacher?.id || t.teacherId))
+    const realStaffIds = new Set(
+        salaryList.filter(r => Number(r.month) === nowM && Number(r.year) === nowY)
+            .map(r => String(r.staff?.id || r.staffId))
     );
 
     const curPlaceholders = currentMonthPlaceholders
-        .filter(t => !realTeacherIds.has(String(t.teacher?.id || t.teacherId)))
+        .filter(r => !realStaffIds.has(String(r.staff?.id || r.staffId)))
         .filter(searchFn);
 
     const filtered = [...realFiltered, ...curPlaceholders];
 
     const filteredHistory = allSalaryHistory
-        .filter(t => historyStatusFilter === "ALL" ? (t.status === "PAID" || t.status === "HOLD") : t.status === historyStatusFilter)
-        .filter(t => `${t.teacher?.firstName} ${t.teacher?.lastName}`.toLowerCase().includes(historySearch.toLowerCase()) || t.teacher?.user?.email?.toLowerCase().includes(historySearch.toLowerCase()));
+        .filter(r => historyStatusFilter === "ALL" ? (r.status === "PAID" || r.status === "HOLD") : r.status === historyStatusFilter)
+        .filter(r => {
+            const name = r.staffName || `${r.staff?.firstName || ""} ${r.staff?.lastName || ""}`;
+            return name.toLowerCase().includes(historySearch.toLowerCase()) ||
+                (r.staffEmail || r.staff?.email || "").toLowerCase().includes(historySearch.toLowerCase());
+        });
 
     const editBasic      = selectedSalary?.basicSalary || 0;
     const editLeaveDed   = calcLeaveDeduction(editBasic, leaveDays);
     const editNetPreview = Number(editBasic) + Number(bonus || 0) - editLeaveDed - Number(deduction || 0);
-    const leaveDedPreview   = calcLeaveDeduction(teacherDetail?.salary || 0, leaveDays);
-    const netPreview        = Number(teacherDetail?.salary || 0) + Number(bonus || 0) - leaveDedPreview - Number(deduction || 0);
+    const leaveDedPreview   = calcLeaveDeduction(staffDetail?.basicSalary || 0, leaveDays);
+    const netPreview        = Number(staffDetail?.basicSalary || 0) + Number(bonus || 0) - leaveDedPreview - Number(deduction || 0);
+
+    // Helper: get display name from salary row
+    const rowName   = (r) => r.staffName || `${r.staff?.firstName || ""} ${r.staff?.lastName || ""}`;
+    const rowEmail  = (r) => r.staffEmail || r.staff?.email || "—";
+    const rowRole   = (r) => r.staffRole  || r.staff?.role  || "—";
 
     return (
         <div>
-            {/* Header */}
+            {/* ── HEADER ── */}
             <div className="bg-gradient-to-r from-[#1A2E3D] via-[#27435B] to-[#3A5E78] rounded-2xl px-8 py-7 flex items-center justify-between mb-5 relative overflow-hidden shadow-xl">
                 <div className="absolute top-0 right-0 w-44 h-44 rounded-full bg-white/5 -translate-y-1/2 translate-x-1/2" />
                 <div className="flex items-center gap-4 relative z-10">
                     <div className="w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center shadow-lg"><IndianRupee size={22} color="#fff" /></div>
                     <div>
                         <h1 className="text-[22px] font-bold text-white tracking-tight m-0">Group B — Salary Management</h1>
-                        <p className="text-[12px] text-white/55 italic m-0">{authSchool.schoolName} • Junior Faculty</p>
+                        <p className="text-[12px] text-white/55 italic m-0">{authSchool.schoolName} • Support Staff</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-3 relative z-10">
                     <div className="relative">
                         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#4A6B80]" />
                         <input className="pl-9 pr-3 py-2.5 rounded-xl border border-[#C8DCEC] bg-white/90 text-[13px] text-[#162535] w-60 outline-none focus:border-[#27435B] focus:bg-white"
-                            placeholder="Search teacher..." value={search} onChange={e => setSearch(e.target.value)} />
+                            placeholder="Search staff..." value={search} onChange={e => setSearch(e.target.value)} />
                     </div>
-                    <button onClick={() => { setSelectedTeacher(""); setBonus(0); setDeduction(0); setLeaveDays(0); setShowModal(true); }}
+                    <button onClick={() => { setSelectedStaff(""); setBonus(0); setDeduction(0); setLeaveDays(0); setShowModal(true); }}
                         className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/20 hover:bg-white/30 text-white text-[13.5px] font-semibold transition-all border border-white/20">
                         <Plus size={15} /> Add Salary
                     </button>
                 </div>
             </div>
 
-            {/* Stats */}
+            {/* ── STATS ── */}
             <div className="grid grid-cols-4 gap-4 mb-5">
                 {[
-                    { label: "Total Teachers",  val: schoolTeachers.length,                                     icon: Users,        color: "from-[#27435B] to-[#1C3044]" },
-                    { label: "Pending Payment", val: schoolTeachers.filter(t => t.status === "PENDING").length, icon: AlertTriangle, color: "from-[#B08A00] to-[#7A5E00]" },
-                    { label: "Paid This Month", val: schoolTeachers.filter(t => t.status === "PAID").length,    icon: BadgeCheck,    color: "from-[#1E7E4E] to-[#155A36]" },
-                    { label: "Total Payout",    val: `₹${schoolTeachers.reduce((s, t) => s + Number(t.netSalary || 0), 0).toLocaleString("en-IN")}`, icon: Banknote, color: "from-[#3A5E78] to-[#27435B]" },
+                    { label: "Total Staff",     val: salaryList.length,                                     icon: Users,        color: "from-[#27435B] to-[#1C3044]" },
+                    { label: "Pending Payment", val: salaryList.filter(r => r.status === "PENDING").length, icon: AlertTriangle, color: "from-[#B08A00] to-[#7A5E00]" },
+                    { label: "Paid This Month", val: salaryList.filter(r => r.status === "PAID").length,    icon: BadgeCheck,    color: "from-[#1E7E4E] to-[#155A36]" },
+                    { label: "Total Payout",    val: `₹${salaryList.reduce((s, r) => s + Number(r.netSalary || 0), 0).toLocaleString("en-IN")}`, icon: Banknote, color: "from-[#3A5E78] to-[#27435B]" },
                 ].map((s, i) => (
                     <div key={i} className={`bg-gradient-to-br ${s.color} rounded-2xl p-5 shadow-lg`}>
                         <div className="flex items-center gap-3">
@@ -350,12 +390,12 @@ export default function GroupBSalary() {
                 ))}
             </div>
 
-            {/* Salary Table */}
+            {/* ── SALARY TABLE ── */}
             <div className="bg-white/85 backdrop-blur-sm rounded-2xl shadow-lg overflow-hidden mb-5 border border-white/60">
                 <div className="bg-gradient-to-r from-[#27435B] to-[#1C3044] px-6 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <ListOrdered size={15} color="#fff" />
-                        <span className="text-white font-bold text-[14px]">Group B Teachers — Salary Records</span>
+                        <span className="text-white font-bold text-[14px]">Group B Staff — Salary Records</span>
                         <span className="ml-1 text-white/50 text-[11px]">{monthName(nowM)} {nowY}</span>
                     </div>
                     <div className="flex items-center gap-3">
@@ -393,55 +433,54 @@ export default function GroupBSalary() {
                     <table className="w-full text-[13px]">
                         <thead>
                             <tr className="bg-[#EAF1F6] border-b border-[#C8DCEC]">
-                                {["Name","Email","Department","Designation","Basic Salary","Bonus","Deductions","Leave Days","Net Salary","Status","Actions"].map(h => (
+                                {["Name", "Email", "Role", "Basic Salary", "Bonus", "Deductions", "Leave Days", "Net Salary", "Status", "Actions"].map(h => (
                                     <th key={h} className="px-4 py-3 text-left text-[11px] font-bold text-[#27435B] uppercase tracking-wide whitespace-nowrap">{h}</th>
                                 ))}
                             </tr>
                         </thead>
                         <tbody>
                             {filtered.length === 0 ? (
-                                <tr><td colSpan={11} className="text-center py-12 text-[#4A6B80]">
+                                <tr><td colSpan={10} className="text-center py-12 text-[#4A6B80]">
                                     <div className="flex flex-col items-center gap-3">
-                                        <div className="w-14 h-14 rounded-2xl bg-[#EAF1F6] flex items-center justify-center"><GraduationCap size={24} color="#8AAFC4" /></div>
+                                        <div className="w-14 h-14 rounded-2xl bg-[#EAF1F6] flex items-center justify-center"><Wrench size={24} color="#8AAFC4" /></div>
                                         <p className="text-[13px] font-semibold">No salary records yet</p>
-                                        <p className="text-[11px] text-[#8AAFC4]">Click "Add Salary" to create one</p>
+                                        <p className="text-[11px] text-[#8AAFC4]">Add Group B staff first, then click "Add Salary"</p>
                                     </div>
                                 </td></tr>
-                            ) : filtered.map((t, idx) => (
-                                <tr key={t.id || idx} className={`border-b border-[#EAF1F6] hover:bg-[#F5FAFE] transition-colors ${t._isPlaceholder ? "bg-[#FAFCFE]" : ""}`}>
-                                    <td className="px-4 py-3 font-semibold text-[#1A2E3D]">{t.teacher?.firstName} {t.teacher?.lastName}</td>
-                                    <td className="px-4 py-3 text-[#4A6B80] text-[12px]">{t.teacher?.user?.email}</td>
-                                    <td className="px-4 py-3"><span className="bg-[#EAF1F6] text-[#27435B] text-[11px] font-bold px-2.5 py-1 rounded-full">{t.teacher?.department || "—"}</span></td>
-                                    <td className="px-4 py-3 text-[#4A6B80] text-[12px]">{t.teacher?.designation || "—"}</td>
-                                    <td className="px-4 py-3 font-semibold text-[#27435B]">₹{Number(t.basicSalary || 0).toLocaleString("en-IN")}</td>
-                                    <td className="px-4 py-3 text-[#1E7E4E] font-semibold">{t._isPlaceholder ? "₹0" : `₹${Number(t.bonus || 0).toLocaleString("en-IN")}`}</td>
-                                    <td className="px-4 py-3 text-[#B83232] font-semibold">{t._isPlaceholder ? "₹0" : `₹${Number(t.deductions || 0).toLocaleString("en-IN")}`}</td>
-                                    <td className="px-4 py-3 text-[#4A6B80]">{t._isPlaceholder ? "0 days" : `${t.leaveDays ?? 0} days`}</td>
+                            ) : filtered.map((r, idx) => (
+                                <tr key={r.id || idx} className={`border-b border-[#EAF1F6] hover:bg-[#F5FAFE] transition-colors ${r._isPlaceholder ? "bg-[#FAFCFE]" : ""}`}>
+                                    <td className="px-4 py-3 font-semibold text-[#1A2E3D]">{rowName(r)}</td>
+                                    <td className="px-4 py-3 text-[#4A6B80] text-[12px]">{rowEmail(r)}</td>
+                                    <td className="px-4 py-3"><span className="bg-[#EAF1F6] text-[#27435B] text-[11px] font-bold px-2.5 py-1 rounded-full">{rowRole(r)}</span></td>
+                                    <td className="px-4 py-3 font-semibold text-[#27435B]">₹{Number(r.basicSalary || 0).toLocaleString("en-IN")}</td>
+                                    <td className="px-4 py-3 text-[#1E7E4E] font-semibold">{r._isPlaceholder ? "₹0" : `₹${Number(r.bonus || 0).toLocaleString("en-IN")}`}</td>
+                                    <td className="px-4 py-3 text-[#B83232] font-semibold">{r._isPlaceholder ? "₹0" : `₹${Number(r.deductions || 0).toLocaleString("en-IN")}`}</td>
+                                    <td className="px-4 py-3 text-[#4A6B80]">{r._isPlaceholder ? "0 days" : `${r.leaveDays ?? 0} days`}</td>
                                     <td className="px-4 py-3">
                                         <div className="flex flex-col gap-1.5">
-                                            <span className="font-bold text-[#1A2E3D]">₹{Number(t._isPlaceholder ? t.basicSalary : t.netSalary || 0).toLocaleString("en-IN")}</span>
-                                            {!t._isPlaceholder && (t.status === "PENDING" ? (
-                                                <button onClick={() => requestPay(t.salaryId || t.id)} className="text-[11px] font-bold px-3 py-1 rounded-lg bg-gradient-to-r from-[#27435B] to-[#1C3044] text-white hover:opacity-80 transition-opacity">Pay Now</button>
-                                            ) : t.status === "HOLD" ? (
-                                                <button onClick={() => requestPay(t.salaryId || t.id)} className="text-[11px] font-bold px-3 py-1 rounded-lg bg-gradient-to-r from-orange-500 to-orange-700 text-white hover:opacity-80 transition-opacity">Pay (Hold)</button>
+                                            <span className="font-bold text-[#1A2E3D]">₹{Number(r._isPlaceholder ? r.basicSalary : r.netSalary || 0).toLocaleString("en-IN")}</span>
+                                            {!r._isPlaceholder && (r.status === "PENDING" ? (
+                                                <button onClick={() => requestPay(r.salaryId || r.id)} className="text-[11px] font-bold px-3 py-1 rounded-lg bg-gradient-to-r from-[#27435B] to-[#1C3044] text-white hover:opacity-80 transition-opacity">Pay Now</button>
+                                            ) : r.status === "HOLD" ? (
+                                                <button onClick={() => requestPay(r.salaryId || r.id)} className="text-[11px] font-bold px-3 py-1 rounded-lg bg-gradient-to-r from-orange-500 to-orange-700 text-white hover:opacity-80 transition-opacity">Pay (Hold)</button>
                                             ) : (
                                                 <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-green-100 text-green-700 w-fit">✓ Paid</span>
                                             ))}
                                         </div>
                                     </td>
                                     <td className="px-4 py-3">
-                                        {t._isPlaceholder
+                                        {r._isPlaceholder
                                             ? <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-[#EAF1F6] text-[#8AAFC4]">Not Created</span>
-                                            : <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${statusStyle(t.status)}`}>{t.status || "PENDING"}</span>
+                                            : <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${statusStyle(r.status)}`}>{r.status || "PENDING"}</span>
                                         }
                                     </td>
                                     <td className="px-4 py-3">
                                         <div className="flex items-center gap-1">
                                             {[
-                                                { icon: Pencil,  fn: () => t._isPlaceholder ? createThenEdit(t) : openEditModal(t),   color: "text-[#27435B] hover:bg-[#EAF1F6]",  disabled: false },
-                                                { icon: Trash2,  fn: () => openDeleteModal(t),  color: t._isPlaceholder ? "text-[#C8DCEC] cursor-not-allowed" : "text-red-500 hover:bg-red-50",  disabled: t._isPlaceholder },
-                                                { icon: History, fn: () => openHistoryModal(t), color: "text-[#4A6B80] hover:bg-[#EAF1F6]",  disabled: false },
-                                                { icon: Eye,     fn: () => !t._isPlaceholder && openSlipModal(t), color: t._isPlaceholder ? "text-[#C8DCEC] cursor-not-allowed" : "text-[#27435B] hover:bg-[#EAF1F6]", disabled: t._isPlaceholder },
+                                                { icon: Pencil,  fn: () => r._isPlaceholder ? createThenEdit(r) : openEditModal(r),   color: "text-[#27435B] hover:bg-[#EAF1F6]",  disabled: false },
+                                                { icon: Trash2,  fn: () => openDeleteModal(r),  color: r._isPlaceholder ? "text-[#C8DCEC] cursor-not-allowed" : "text-red-500 hover:bg-red-50",  disabled: r._isPlaceholder },
+                                                { icon: History, fn: () => openHistoryModal(r), color: "text-[#4A6B80] hover:bg-[#EAF1F6]",  disabled: false },
+                                                { icon: Eye,     fn: () => !r._isPlaceholder && openSlipModal(r), color: r._isPlaceholder ? "text-[#C8DCEC] cursor-not-allowed" : "text-[#27435B] hover:bg-[#EAF1F6]", disabled: r._isPlaceholder },
                                             ].map(({ icon: Ic, fn, color, disabled }, i) => (
                                                 <button key={i} onClick={disabled ? undefined : fn} disabled={disabled}
                                                     className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${color}`}>
@@ -457,7 +496,7 @@ export default function GroupBSalary() {
                 </div>
             </div>
 
-            {/* History Table */}
+            {/* ── HISTORY TABLE ── */}
             <div className="bg-white/85 backdrop-blur-sm rounded-2xl shadow-lg overflow-hidden border border-white/60">
                 <div className="bg-gradient-to-r from-[#27435B] to-[#1C3044] px-6 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -483,7 +522,7 @@ export default function GroupBSalary() {
                     <table className="w-full text-[13px]">
                         <thead>
                             <tr className="bg-[#EAF1F6] border-b border-[#C8DCEC]">
-                                {["Name","Designation","Month / Year","Basic Salary","Bonus","Leave Days","Deductions","Net Salary","Status","Payment Date"].map(h => (
+                                {["Name", "Role", "Month / Year", "Basic Salary", "Bonus", "Leave Days", "Deductions", "Net Salary", "Status", "Payment Date"].map(h => (
                                     <th key={h} className="px-4 py-3 text-left text-[11px] font-bold text-[#27435B] uppercase tracking-wide whitespace-nowrap">{h}</th>
                                 ))}
                             </tr>
@@ -493,18 +532,18 @@ export default function GroupBSalary() {
                                 <tr><td colSpan={10} className="text-center py-10 text-[#4A6B80]">
                                     <div className="flex flex-col items-center gap-2"><ClipboardList size={22} color="#8AAFC4" /><p className="text-[13px] font-semibold">No history records</p></div>
                                 </td></tr>
-                            ) : filteredHistory.map((t, idx) => (
-                                <tr key={t.id || idx} className="border-b border-[#EAF1F6] hover:bg-[#F5FAFE] transition-colors">
-                                    <td className="px-4 py-3 font-semibold text-[#1A2E3D]">{t.teacher?.firstName} {t.teacher?.lastName}</td>
-                                    <td className="px-4 py-3 text-[#4A6B80] text-[12px]">{t.teacher?.designation || "—"}</td>
-                                    <td className="px-4 py-3 text-[#4A6B80] font-medium">{monthName(t.month)} {t.year}</td>
-                                    <td className="px-4 py-3 font-semibold text-[#27435B]">₹{Number(t.basicSalary || 0).toLocaleString("en-IN")}</td>
-                                    <td className="px-4 py-3 text-[#1E7E4E] font-semibold">₹{Number(t.bonus || 0).toLocaleString("en-IN")}</td>
-                                    <td className="px-4 py-3 text-[#4A6B80]">{t.leaveDays ?? 0} days</td>
-                                    <td className="px-4 py-3 text-[#B83232] font-semibold">₹{Number(t.deductions || 0).toLocaleString("en-IN")}</td>
-                                    <td className="px-4 py-3 font-bold text-[#1A2E3D]">₹{Number(t.netSalary || 0).toLocaleString("en-IN")}</td>
-                                    <td className="px-4 py-3"><span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${statusStyle(t.status)}`}>{t.status === "PAID" ? "✓ Paid" : t.status === "HOLD" ? "⏸ Hold" : t.status}</span></td>
-                                    <td className="px-4 py-3 text-[#4A6B80] text-[12px]">{t.paymentDate ? new Date(t.paymentDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—"}</td>
+                            ) : filteredHistory.map((r, idx) => (
+                                <tr key={r.id || idx} className="border-b border-[#EAF1F6] hover:bg-[#F5FAFE] transition-colors">
+                                    <td className="px-4 py-3 font-semibold text-[#1A2E3D]">{rowName(r)}</td>
+                                    <td className="px-4 py-3 text-[#4A6B80] text-[12px]">{rowRole(r)}</td>
+                                    <td className="px-4 py-3 text-[#4A6B80] font-medium">{monthName(r.month)} {r.year}</td>
+                                    <td className="px-4 py-3 font-semibold text-[#27435B]">₹{Number(r.basicSalary || 0).toLocaleString("en-IN")}</td>
+                                    <td className="px-4 py-3 text-[#1E7E4E] font-semibold">₹{Number(r.bonus || 0).toLocaleString("en-IN")}</td>
+                                    <td className="px-4 py-3 text-[#4A6B80]">{r.leaveDays ?? 0} days</td>
+                                    <td className="px-4 py-3 text-[#B83232] font-semibold">₹{Number(r.deductions || 0).toLocaleString("en-IN")}</td>
+                                    <td className="px-4 py-3 font-bold text-[#1A2E3D]">₹{Number(r.netSalary || 0).toLocaleString("en-IN")}</td>
+                                    <td className="px-4 py-3"><span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${statusStyle(r.status)}`}>{r.status === "PAID" ? "✓ Paid" : r.status === "HOLD" ? "⏸ Hold" : r.status}</span></td>
+                                    <td className="px-4 py-3 text-[#4A6B80] text-[12px]">{r.paymentDate ? new Date(r.paymentDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—"}</td>
                                 </tr>
                             ))}
                         </tbody>
@@ -512,7 +551,7 @@ export default function GroupBSalary() {
                 </div>
             </div>
 
-            {/* PAY CONFIRM MODAL */}
+            {/* ── PAY CONFIRM MODAL ── */}
             {payConfirmModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => { setPayConfirmModal(false); setPendingPayId(null); }}>
                     <div className="bg-white rounded-3xl w-full max-w-[420px] shadow-2xl" onClick={e => e.stopPropagation()}>
@@ -539,18 +578,19 @@ export default function GroupBSalary() {
                 </div>
             )}
 
-            {/* ADD SALARY MODAL */}
+            {/* ── ADD SALARY MODAL ── */}
             {showModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowModal(false)}>
                     <div className="bg-white rounded-3xl w-full max-w-[520px] max-h-[92vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
                         <div className="bg-gradient-to-r from-[#1A2E3D] via-[#27435B] to-[#3A5E78] rounded-t-3xl px-7 py-6 flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center"><Sparkles size={18} color="#fff" /></div>
-                                <div><div className="text-white font-bold text-[17px]">Add Salary Record</div><div className="text-white/55 text-[11.5px]">Group B • Junior Faculty</div></div>
+                                <div><div className="text-white font-bold text-[17px]">Add Salary Record</div><div className="text-white/55 text-[11.5px]">Group B • Support Staff</div></div>
                             </div>
                             <button onClick={() => setShowModal(false)} className="w-9 h-9 rounded-xl bg-white/15 hover:bg-white/25 flex items-center justify-center text-white transition-colors"><X size={16} /></button>
                         </div>
                         <div className="p-6 flex flex-col gap-5">
+                            {/* School info */}
                             <div>
                                 <p className="text-[10px] font-bold uppercase tracking-widest text-[#4A6B80] mb-2">School</p>
                                 <div className="flex items-center gap-3 bg-gradient-to-r from-[#EAF1F6] to-[#F5FAFE] border border-[#C8DCEC] rounded-2xl p-3.5">
@@ -558,36 +598,40 @@ export default function GroupBSalary() {
                                     <div><div className="text-[13.5px] font-semibold text-[#1A2E3D]">{authSchool.schoolName}</div><div className="text-[10.5px] text-[#4A6B80] mt-0.5">Auto-detected from your login session</div></div>
                                 </div>
                             </div>
+                            {/* Staff selector */}
                             <div>
-                                <p className="text-[10px] font-bold uppercase tracking-widest text-[#4A6B80] mb-2">Select Junior Teacher</p>
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-[#4A6B80] mb-2">Select Group B Staff Member</p>
                                 <div className="relative">
                                     <User size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#4A6B80]" />
-                                    <select value={selectedTeacher} onChange={e => setSelectedTeacher(e.target.value)}
+                                    <select value={selectedStaff} onChange={e => setSelectedStaff(e.target.value)}
                                         className="w-full pl-9 pr-3 py-2.5 border border-[#C8DCEC] rounded-xl text-[13.5px] text-[#1A2E3D] bg-white outline-none focus:border-[#27435B] appearance-none cursor-pointer">
-                                        <option value="">— Choose a junior teacher —</option>
-                                        {dropdownTeachers.map(t => (
-                                            <option key={t.id} value={t.id}>{t.firstName} {t.lastName} — {t.designation}</option>
+                                        <option value="">— Choose a staff member —</option>
+                                        {dropdownStaff.map(s => (
+                                            <option key={s.id} value={s.id}>{s.firstName} {s.lastName} — {s.role}</option>
                                         ))}
                                     </select>
                                 </div>
-                                {dropdownTeachers.length === 0 && <p className="text-[11px] text-amber-600 mt-1.5">⚠ No junior teachers found. Teachers with designation "Junior Teacher" will appear here.</p>}
+                                {dropdownStaff.length === 0 && (
+                                    <p className="text-[11px] text-amber-600 mt-1.5">⚠ No Group B staff found. Add staff with Group Type "Group B" first.</p>
+                                )}
                             </div>
-                            {teacherDetail && (
+                            {/* Staff detail card */}
+                            {staffDetail && (
                                 <div className="bg-gradient-to-br from-[#EAF1F6] to-[#F5FAFE] border border-[#C8DCEC] rounded-2xl p-4">
                                     <div className="flex items-center gap-3 mb-3">
                                         <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#27435B] to-[#1C3044] flex items-center justify-center flex-shrink-0"><User size={18} color="#fff" /></div>
                                         <div>
-                                            <div className="text-[15px] font-bold text-[#1A2E3D]">{teacherDetail.firstName} {teacherDetail.lastName}</div>
-                                            <div className="text-[11.5px] text-[#4A6B80]">{teacherDetail.designation}</div>
+                                            <div className="text-[15px] font-bold text-[#1A2E3D]">{staffDetail.firstName} {staffDetail.lastName}</div>
+                                            <div className="text-[11.5px] text-[#4A6B80]">{staffDetail.role}</div>
                                         </div>
                                         <span className="ml-auto text-[10px] font-bold bg-[#27435B]/10 text-[#27435B] px-2.5 py-1 rounded-full">AUTO-FILLED ✓</span>
                                     </div>
                                     <div className="grid grid-cols-2 gap-2.5">
                                         {[
-                                            { icon: Mail,        label: "Email",        val: teacherDetail.user?.email || "—" },
-                                            { icon: BookOpen,    label: "Department",   val: teacherDetail.department || "—" },
-                                            { icon: IndianRupee, label: "Basic Salary", val: `₹${Number(teacherDetail.salary || 0).toLocaleString("en-IN")}` },
-                                            { icon: GraduationCap, label: "Qualification", val: teacherDetail.qualification || "—" },
+                                            { icon: Mail,        label: "Email",        val: staffDetail.email || "—" },
+                                            { icon: Wrench,      label: "Role",         val: staffDetail.role || "—" },
+                                            { icon: IndianRupee, label: "Basic Salary", val: `₹${Number(staffDetail.basicSalary || 0).toLocaleString("en-IN")}` },
+                                            { icon: Building2,   label: "Group",        val: staffDetail.groupType || "Group B" },
                                         ].map((f, i) => (
                                             <div key={i} className="bg-white border border-[#C8DCEC] rounded-xl p-2.5">
                                                 <div className="flex items-center gap-1.5 text-[9.5px] font-bold text-[#4A6B80] uppercase tracking-wide mb-1"><f.icon size={10} />{f.label}</div>
@@ -597,27 +641,29 @@ export default function GroupBSalary() {
                                     </div>
                                 </div>
                             )}
+                            {/* Bonus / Leave / Deduction inputs */}
                             <div className="grid grid-cols-3 gap-3">
                                 {[
-                                    { label: "Bonus (₹)", color: "text-[#1E7E4E]", prefix: "+", val: bonus, set: setBonus },
-                                    { label: "Leave Days", color: "text-[#B08A00]", prefix: "L", val: leaveDays, set: setLeaveDays },
-                                    { label: "Extra Deduction (₹)", color: "text-[#B83232]", prefix: "-", val: deduction, set: setDeduction },
+                                    { label: "Bonus (₹)",            color: "text-[#1E7E4E]", prefix: "+", val: bonus,     set: setBonus },
+                                    { label: "Leave Days",           color: "text-[#B08A00]", prefix: "L", val: leaveDays, set: setLeaveDays },
+                                    { label: "Extra Deduction (₹)",  color: "text-[#B83232]", prefix: "-", val: deduction, set: setDeduction },
                                 ].map((f, i) => (
                                     <div key={i} className="flex flex-col gap-1">
                                         <label className={`text-[11px] font-bold ${f.color} uppercase tracking-wide`}>{f.label}</label>
-                                        <div className={`flex items-center border border-[#C8DCEC] rounded-xl overflow-hidden bg-white focus-within:border-[#27435B]`}>
+                                        <div className="flex items-center border border-[#C8DCEC] rounded-xl overflow-hidden bg-white focus-within:border-[#27435B]">
                                             <span className={`px-3 text-[13px] font-bold ${f.color}`}>{f.prefix}</span>
                                             <input type="number" min={0} value={f.val} onChange={e => f.set(e.target.value)} className="flex-1 py-2.5 pr-3 text-[13.5px] font-semibold text-[#1A2E3D] outline-none bg-transparent" />
                                         </div>
                                     </div>
                                 ))}
                             </div>
-                            {leaveDays > 0 && teacherDetail && (
+                            {leaveDays > 0 && staffDetail && (
                                 <div className="bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-2.5 text-[12px] text-amber-700 flex items-center gap-2">
                                     <ClipboardList size={13} />
-                                    <span><span className="font-bold">{leaveDays} leave day(s)</span> × ₹{Math.round((Number(teacherDetail.salary||0)*12)/365).toLocaleString("en-IN")}/day = <span className="font-bold">₹{leaveDedPreview.toLocaleString("en-IN")}</span> auto-deducted</span>
+                                    <span><span className="font-bold">{leaveDays} leave day(s)</span> × ₹{Math.round((Number(staffDetail.basicSalary||0)*12)/365).toLocaleString("en-IN")}/day = <span className="font-bold">₹{leaveDedPreview.toLocaleString("en-IN")}</span> auto-deducted</span>
                                 </div>
                             )}
+                            {/* Net preview */}
                             <div className="bg-gradient-to-r from-[#27435B] to-[#1A2E3D] rounded-2xl px-5 py-3.5 flex items-center justify-between">
                                 <div><div className="text-[10.5px] font-bold uppercase tracking-wider text-white/55">Net Salary Preview</div><div className="text-[10.5px] text-white/35 mt-0.5">Basic + Bonus − All Deductions</div></div>
                                 <div className="text-[22px] font-bold text-white">₹{Math.max(0, netPreview).toLocaleString("en-IN")}</div>
@@ -633,22 +679,25 @@ export default function GroupBSalary() {
                 </div>
             )}
 
-            {/* EDIT MODAL */}
+            {/* ── EDIT MODAL ── */}
             {editModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setEditModal(false)}>
                     <div className="bg-white rounded-3xl w-full max-w-[520px] shadow-2xl" onClick={e => e.stopPropagation()}>
                         <div className="bg-gradient-to-r from-[#1A2E3D] to-[#27435B] rounded-t-3xl px-6 py-5 flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <div className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center"><Pencil size={16} color="#fff" /></div>
-                                <div><div className="text-white font-bold text-[16px]">Edit Salary Record</div><div className="text-white/55 text-[11px]">{selectedSalary?.teacher?.firstName} {selectedSalary?.teacher?.lastName} • {monthName(selectedSalary?.month)} {selectedSalary?.year}</div></div>
+                                <div>
+                                    <div className="text-white font-bold text-[16px]">Edit Salary Record</div>
+                                    <div className="text-white/55 text-[11px]">{rowName(selectedSalary || {})} • {monthName(selectedSalary?.month)} {selectedSalary?.year}</div>
+                                </div>
                             </div>
                             <button onClick={() => setEditModal(false)} className="w-8 h-8 rounded-xl bg-white/15 hover:bg-white/25 flex items-center justify-center text-white transition-colors"><X size={15} /></button>
                         </div>
                         <div className="mx-6 mt-5 bg-[#EAF1F6] border border-[#C8DCEC] rounded-2xl p-4">
                             <div className="grid grid-cols-3 gap-3">
                                 {[
-                                    { label: "Teacher",      val: `${selectedSalary?.teacher?.firstName||""} ${selectedSalary?.teacher?.lastName||""}` },
-                                    { label: "Designation",  val: selectedSalary?.teacher?.designation || "—" },
+                                    { label: "Staff Member", val: rowName(selectedSalary || {}) },
+                                    { label: "Role",         val: rowRole(selectedSalary || {}) },
                                     { label: "Basic Salary", val: `₹${Number(selectedSalary?.basicSalary||0).toLocaleString("en-IN")}` },
                                 ].map((f,i) => (
                                     <div key={i}>
@@ -661,8 +710,8 @@ export default function GroupBSalary() {
                         <div className="p-6 flex flex-col gap-4">
                             <div className="grid grid-cols-3 gap-3">
                                 {[
-                                    { label: "Bonus (₹)", color: "text-[#1E7E4E]", prefix: "+", val: bonus, set: setBonus },
-                                    { label: "Leave Days", color: "text-[#B08A00]", prefix: "L", val: leaveDays, set: setLeaveDays },
+                                    { label: "Bonus (₹)",           color: "text-[#1E7E4E]", prefix: "+", val: bonus,     set: setBonus },
+                                    { label: "Leave Days",          color: "text-[#B08A00]", prefix: "L", val: leaveDays, set: setLeaveDays },
                                     { label: "Extra Deduction (₹)", color: "text-[#B83232]", prefix: "-", val: deduction, set: setDeduction },
                                 ].map((f, i) => (
                                     <div key={i} className="flex flex-col gap-1">
@@ -688,7 +737,7 @@ export default function GroupBSalary() {
                 </div>
             )}
 
-            {/* DELETE MODAL */}
+            {/* ── DELETE MODAL ── */}
             {deleteModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setDeleteModal(false)}>
                     <div className="bg-white rounded-3xl w-full max-w-[400px] shadow-2xl" onClick={e => e.stopPropagation()}>
@@ -704,14 +753,17 @@ export default function GroupBSalary() {
                 </div>
             )}
 
-            {/* HISTORY MODAL */}
+            {/* ── HISTORY MODAL ── */}
             {historyModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setHistoryModal(false)}>
                     <div className="bg-white rounded-3xl w-full max-w-[640px] max-h-[80vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
                         <div className="bg-gradient-to-r from-[#1A2E3D] to-[#27435B] rounded-t-3xl px-6 py-5 flex items-center justify-between sticky top-0 z-10">
                             <div className="flex items-center gap-3">
                                 <div className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center"><History size={16} color="#fff" /></div>
-                                <div><div className="text-white font-bold text-[16px]">Salary History</div><div className="text-white/55 text-[11px]">{selectedSalary?.teacher?.firstName} {selectedSalary?.teacher?.lastName} — All Months</div></div>
+                                <div>
+                                    <div className="text-white font-bold text-[16px]">Salary History</div>
+                                    <div className="text-white/55 text-[11px]">{rowName(selectedSalary || {})} — All Months</div>
+                                </div>
                             </div>
                             <button onClick={() => setHistoryModal(false)} className="w-8 h-8 rounded-xl bg-white/15 hover:bg-white/25 flex items-center justify-center text-white transition-colors"><X size={15} /></button>
                         </div>
@@ -745,7 +797,7 @@ export default function GroupBSalary() {
                 </div>
             )}
 
-            {/* PAYSLIP MODAL */}
+            {/* ── PAYSLIP MODAL ── */}
             {slipModal && selectedSalary && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setSlipModal(false)}>
                     <div className="bg-white rounded-3xl w-full max-w-[560px] max-h-[90vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
@@ -759,14 +811,26 @@ export default function GroupBSalary() {
                         <div className="p-6">
                             <div className="bg-[#EAF1F6] rounded-2xl p-4 mb-4 grid grid-cols-2 gap-3">
                                 {[
-                                    { label: "Employee",    val: `${selectedSalary.teacher?.firstName||""} ${selectedSalary.teacher?.lastName||""}` },
-                                    { label: "Designation", val: selectedSalary.teacher?.designation || "—" },
-                                    { label: "Pay Period",  val: `${monthName(selectedSalary.month)} ${selectedSalary.year}` },
-                                    { label: "Department",  val: selectedSalary.teacher?.department || "—" },
+                                    { label: "Employee",   val: rowName(selectedSalary) },
+                                    { label: "Role",       val: rowRole(selectedSalary) },
+                                    { label: "Pay Period", val: `${monthName(selectedSalary.month)} ${selectedSalary.year}` },
+                                    { label: "Group",      val: "Group B" },
                                 ].map((f,i) => (
                                     <div key={i}>
                                         <div className="text-[10px] font-bold text-[#527a91] uppercase tracking-wide mb-0.5">{f.label}</div>
                                         <div className="text-[13px] font-semibold text-[#1A2E3D]">{f.val}</div>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="grid grid-cols-3 gap-3 mb-4">
+                                {[
+                                    { label: "Basic Salary", val: `₹${Number(selectedSalary.basicSalary||0).toLocaleString("en-IN")}`, color: "text-[#1A2E3D]" },
+                                    { label: "Bonus",        val: `+₹${Number(selectedSalary.bonus||0).toLocaleString("en-IN")}`,       color: "text-green-600" },
+                                    { label: "Deductions",   val: `-₹${Number(selectedSalary.deductions||0).toLocaleString("en-IN")}`,  color: "text-red-500" },
+                                ].map((f,i) => (
+                                    <div key={i} className="bg-[#F5FAFE] border border-[#EAF1F6] rounded-xl p-3">
+                                        <div className="text-[9.5px] font-bold text-[#8AAFC4] uppercase tracking-wide mb-1">{f.label}</div>
+                                        <div className={`text-[13px] font-semibold ${f.color}`}>{f.val}</div>
                                     </div>
                                 ))}
                             </div>
@@ -784,18 +848,32 @@ export default function GroupBSalary() {
                 </div>
             )}
 
-            {/* Hidden PDF Template */}
+            {/* Hidden PDF template */}
             <div ref={pdfRef} style={{ position: "absolute", left: "-9999px", top: 0 }}>
                 <div style={{ width: "794px", background: "#fff", fontFamily: "Arial, sans-serif" }}>
                     <div style={{ background: "linear-gradient(135deg,#1c3040,#3c5d74)", padding: "32px 40px 24px" }}>
                         <div style={{ display: "flex", justifyContent: "space-between" }}>
-                            <div><div style={{ fontSize: 22, fontWeight: 800, color: "#fff", marginBottom: 4 }}>{authSchool.schoolName}</div><div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)" }}>Group B — Junior Faculty</div></div>
-                            <div style={{ textAlign: "right" }}><div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,.5)", marginBottom: 5 }}>SALARY SLIP</div><div style={{ fontSize: 17, fontWeight: 700, color: "#fff" }}>{selectedSalary ? `${monthName(selectedSalary.month)} ${selectedSalary.year}` : ""}</div></div>
+                            <div>
+                                <div style={{ fontSize: 22, fontWeight: 800, color: "#fff", marginBottom: 4 }}>{authSchool.schoolName}</div>
+                                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)" }}>Group B — Support Staff</div>
+                            </div>
+                            <div style={{ textAlign: "right" }}>
+                                <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,.5)", marginBottom: 5 }}>SALARY SLIP</div>
+                                <div style={{ fontSize: 17, fontWeight: 700, color: "#fff" }}>{selectedSalary ? `${monthName(selectedSalary.month)} ${selectedSalary.year}` : ""}</div>
+                            </div>
                         </div>
                     </div>
                     <div style={{ padding: "28px 40px" }}>
+                        <div style={{ marginBottom: 20 }}>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: "#8AAFC4", textTransform: "uppercase", marginBottom: 4 }}>Employee</div>
+                            <div style={{ fontSize: 17, fontWeight: 700, color: "#1c3040" }}>{selectedSalary ? rowName(selectedSalary) : ""}</div>
+                            <div style={{ fontSize: 13, color: "#4A6B80" }}>{selectedSalary ? rowRole(selectedSalary) : ""}</div>
+                        </div>
                         <div style={{ background: "linear-gradient(135deg,#1c3040,#3c5d74)", borderRadius: 12, padding: "22px 32px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <div><div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "rgba(255,255,255,.6)", marginBottom: 4 }}>Net Salary Payable</div><div style={{ fontSize: 12, color: "rgba(255,255,255,.4)" }}>{selectedSalary ? `${monthName(selectedSalary.month)} ${selectedSalary.year}` : ""}</div></div>
+                            <div>
+                                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "rgba(255,255,255,.6)", marginBottom: 4 }}>Net Salary Payable</div>
+                                <div style={{ fontSize: 12, color: "rgba(255,255,255,.4)" }}>{selectedSalary ? `${monthName(selectedSalary.month)} ${selectedSalary.year}` : ""}</div>
+                            </div>
                             <div style={{ fontSize: 32, fontWeight: 800, color: "#fff" }}>₹{Number(selectedSalary?.netSalary || 0).toLocaleString("en-IN")}</div>
                         </div>
                     </div>

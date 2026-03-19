@@ -9,21 +9,24 @@ import GroupASalary from "./pages/Teachersfinance/GroupASalary";
 import GroupBSalary from "./pages/Teachersfinance/GroupBSalary";
 import GroupCSalary from "./pages/Teachersfinance/GroupCSalary";
 import GroupDSalary from "./pages/Teachersfinance/GroupDSalary";
+import Expense from "./pages/Expense/Expense";
  
 const FinanceRoutes = () => {
   return (
 <PageLayout>
-<Routes>
-<Route index                  element={<Navigate to="dashboard" replace />} />
-<Route path="dashboard"       element={<FinanceDashboard />} />
-<Route path="studentfinance"  element={<Studentfinance />} />
-<Route path="teachersfinance" element={<Teachersfinance />} />
-<Route path="group-a"         element={<GroupASalary />} />
-<Route path="group-b"         element={<GroupBSalary />} />
-<Route path="group-c"         element={<GroupCSalary />} />
-<Route path="group-d"         element={<GroupDSalary />} />
-<Route path="*"               element={<Navigate to="dashboard" replace />} />
-</Routes>
+  <Routes>
+    <Route index                  element={<Navigate to="dashboard" replace />} />
+    <Route path="dashboard"       element={<FinanceDashboard />} />
+    <Route path="studentfinance"  element={<Studentfinance />} />
+    <Route path="teachersfinance" element={<Teachersfinance />} />
+    <Route path="group-a"         element={<GroupASalary />} />
+    <Route path="group-b"         element={<GroupBSalary />} />
+    <Route path="group-c"         element={<GroupCSalary />} />
+    <Route path="group-d"         element={<GroupDSalary />} />
+    <Route path="/expenses"         element={<Expense />} />
+    
+    <Route path="*"               element={<Navigate to="dashboard" replace />} />
+  </Routes>
 </PageLayout>
   );
 };

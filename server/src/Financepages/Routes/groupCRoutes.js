@@ -1,18 +1,29 @@
-import express from "express";
+import { Router } from "express";
 import {
-  getAllGroupCStaff,
-  createGroupCStaff,
-  updateGroupCStaff,
-  deleteGroupCStaff,
-  paySalaryGroupC
+  getGroupCStaff,
+  createGroupCSalary,
+  getGroupCSalaryList,
+  getGroupCSalaryHistoryBySchool,
+  getGroupCStaffHistory,
+  updateGroupCSalary,
+  payGroupCSalary,
+  holdGroupCSalary,
+  deleteGroupCSalary,
 } from "../Controls/groupCController.js";
 
-const router = express.Router();
+const router = Router();
 
-router.get("/list/all", getAllGroupCStaff);
-router.post("/create", createGroupCStaff);
-router.put("/update/:id", updateGroupCStaff);
-router.delete("/delete/:id", deleteGroupCStaff);
-router.patch("/pay/:id", paySalaryGroupC);
+// ── Staff list (from StaffProfile, groupType = "Group C") ──────────────────
+router.get("/staff/:schoolId", getGroupCStaff);
+
+// ── Salary CRUD ───────────────────────────────────────────────────────────
+router.post("/salary/create",                     createGroupCSalary);
+router.get("/salary/list/:schoolId",              getGroupCSalaryList);
+router.get("/salary/history-by-school/:schoolId", getGroupCSalaryHistoryBySchool);
+router.get("/salary/history/:staffId",            getGroupCStaffHistory);
+router.put("/salary/update/:salaryId",            updateGroupCSalary);
+router.patch("/salary/pay/:salaryId",             payGroupCSalary);
+router.patch("/salary/hold/:salaryId",            holdGroupCSalary);
+router.delete("/salary/delete/:salaryId",         deleteGroupCSalary);
 
 export default router;

@@ -29,7 +29,7 @@ import ReadmissionPage from "./pages/classes/ReadmissionPage";
 import AdminAwardsPage from "./pages/awardspage/Adminawardspage.jsx";
 import ExamsPage from "./pages/Exams/Examspage.jsx";
 import ActivitiesList from "./pages/activities/ActivitiesList";
-
+import StaffList from "./pages/Staff/StaffList.jsx";
 function AdminRoutes() {
   return (
     <PageLayout>
@@ -59,6 +59,9 @@ function AdminRoutes() {
         <Route path="classes/courses"       element={<CoursesPage />} />
         <Route path="classes/promotion"     element={<PromotionPage />} />
         <Route path="classes/readmission"   element={<ReadmissionPage />} />
+        {/* Staff */}
+        <Route path="/staff"                 element={<StaffList />} />
+        {/* <Route path="staff/add"             element={<StaffAdd />} /> */}
 
         {/* Other */}
         <Route path="attendance"            element={<AttendanceList />} />

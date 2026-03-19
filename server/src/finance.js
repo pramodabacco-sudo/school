@@ -28,9 +28,8 @@ finance.use("/api/finance", expenseRoutes);
 
 finance.use("/api/finance", studentFinanceRoutes);
 
-finance.use("/api/groupb/salary", groupBRoutes);
-
-finance.use("/api/groupc/salary", groupCRoutes);
+finance.use("/api/groupb", groupBRoutes);
+finance.use("/api/groupc", groupCRoutes);
 
 finance.use("/api/groupd/salary", groupDRoutes);
 

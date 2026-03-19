@@ -23,6 +23,7 @@ const NAV = [
   { icon: BookOpen,        label: "Classes",     to: "/admin/classes" },
   { icon: Users,           label: "Students",    to: "/admin/students" },
   { icon: GraduationCap,   label: "Teachers",    to: "/admin/teachers" },
+  { icon: Users,           label: "Staff",       to: "/admin/staff" },
   { icon: CalendarDays,    label: "Holidays",    to: "/admin/holidays" },
   { icon: ClipboardCheck,  label: "Attendance",  to: "/admin/attendance" },
   { icon: Trophy,          label: "Activities",  to: "/admin/activities" },

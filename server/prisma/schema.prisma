@@ -313,6 +313,7 @@ model School {
   activityEvents        ActivityEvent[]
   Award                 Award[]
   liveClasses           LiveClass[]
+  StaffProfile          StaffProfile[]
 
   @@index([universityId])
   @@index([type])
@@ -516,6 +517,7 @@ model User {
   createdTeams             EventTeam[]
   recordedResults          EventResult[]
   StudentAward             StudentAward[]
+  StaffProfile             StaffProfile?
 
   @@unique([email, schoolId])
   @@index([role])
@@ -766,10 +768,10 @@ model TeacherProfile {
   teacherAttendances   TeacherAttendance[]
   TeacherMonthlySalary TeacherMonthlySalary[]
   GroupBStaffSalary    GroupBStaffSalary[]
-  timetableEntries TimetableEntry[]
-  syllabusCreated  SubjectSyllabus[]        @relation("SyllabusCreatedBy")
-  syllabusUpdated  SubjectSyllabus[]        @relation("SyllabusUpdatedBy")
-  portionProgress  SectionPortionProgress[]
+  timetableEntries     TimetableEntry[]
+  syllabusCreated      SubjectSyllabus[]          @relation("SyllabusCreatedBy")
+  syllabusUpdated      SubjectSyllabus[]          @relation("SyllabusUpdatedBy")
+  portionProgress      SectionPortionProgress[]
   liveClasses          LiveClass[]
 
   @@index([schoolId])
@@ -1399,6 +1401,48 @@ enum SalaryStatus {
   HOLD
 }
 
+model StaffProfile {
+  id String @id @default(uuid())
+
+  // 👤 Basic Info
+  firstName String
+  lastName  String
+  phone     String?
+  email     String?
+
+  // 🧑‍🔧 Dynamic Role (NO ENUM)
+  role      String // Example: "Plumber", "Peon", "Watchman"
+  groupType String // "Group B" / "Group C"
+
+  // 💰 Salary
+  basicSalary Float?
+
+  // 📅 Dates
+  joiningDate DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // 📌 Status
+  status String @default("ACTIVE")
+
+  // 🏦 Optional Bank Info
+  bankAccountNo String?
+  bankName      String?
+  ifscCode      String?
+
+  // 🔗 School Relation
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id])
+
+  // 🔗 Optional login (same like teacher)
+  userId         String?             @unique
+  user           User?               @relation(fields: [userId], references: [id])
+  groupBSalaries GroupBStaffSalary[]
+  groupCSalaries GroupCStaffSalary[]
+
+  @@map("staff_profiles")
+}
+
 model StudentList {
   id Int @id @default(autoincrement())
 
@@ -1421,18 +1465,57 @@ model StudentList {
   @@map("student_list")
 }
 
-// GROUP B STAFF (Junior Faculty)
+// GROUP B STAFF
 
 model GroupBStaffSalary {
   id String @id @default(uuid())
 
-  teacherId String
-  teacher   TeacherProfile @relation(fields: [teacherId], references: [id])
+  // ✅ Now links to StaffProfile (not TeacherProfile)
+  staffId String
+  staff   StaffProfile @relation(fields: [staffId], references: [id])
 
   schoolId String
 
-  teacherName  String
-  teacherEmail String
+  // Snapshot fields (so payslip works even if staff is edited later)
+  staffName  String
+  staffEmail String
+  staffRole  String
+
+  month Int
+  year  Int
+
+  basicSalary    Decimal @db.Decimal(10, 2)
+  bonus          Decimal @default(0) @db.Decimal(10, 2)
+  deductions     Decimal @default(0) @db.Decimal(10, 2)
+  netSalary      Decimal @db.Decimal(10, 2)
+  leaveDays      Int     @default(0)
+  leaveDeduction Decimal @default(0) @db.Decimal(10, 2)
+
+  status      SalaryStatus @default(PENDING)
+  paymentDate DateTime?
+
+  createdAt        DateTime        @default(now())
+  TeacherProfile   TeacherProfile? @relation(fields: [teacherProfileId], references: [id])
+  teacherProfileId String?
+
+  @@unique([staffId, month, year])
+  @@index([schoolId])
+  @@map("group_b_staff_salary")
+}
+
+model GroupCStaffSalary {
+  id String @id @default(uuid())
+
+  // ✅ Now links to StaffProfile
+  staffId String
+  staff   StaffProfile @relation(fields: [staffId], references: [id])
+
+  schoolId String
+
+  // Snapshot fields
+  staffName  String
+  staffEmail String
+  staffRole  String
 
   month Int
   year  Int
@@ -1449,24 +1532,9 @@ model GroupBStaffSalary {
 
   createdAt DateTime @default(now())
 
-  @@unique([teacherId, month, year])
+  @@unique([staffId, month, year])
   @@index([schoolId])
-  @@map("group_b_staff_salary")
-}
-
-model GroupCStaffSalary {
-  id Int @id @default(autoincrement())
-
-  name        String
-  designation String
-  school      String
-  department  String?
-
-  basicSalary Decimal
-  allowances  Decimal
-
-  status     String  @default("Active")
-  salaryPaid Boolean @default(false)
+  @@map("group_c_staff_salary")
 }
 
 model GroupDStaffSalary {

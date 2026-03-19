@@ -1,10 +1,10 @@
 import { Router } from "express";
 import {
-  getJuniorTeachersBySchool,
+  getGroupBStaff,
   createGroupBSalary,
   getGroupBSalaryList,
   getGroupBSalaryHistoryBySchool,
-  getGroupBTeacherHistory,
+  getGroupBStaffHistory,
   updateGroupBSalary,
   payGroupBSalary,
   holdGroupBSalary,
@@ -13,17 +13,17 @@ import {
 
 const router = Router();
 
-// Junior teachers dropdown
-router.get("/junior-teachers/:schoolId", getJuniorTeachersBySchool);
+// ── Staff list (from StaffProfile, groupType = "Group B") ──────────────────
+router.get("/staff/:schoolId", getGroupBStaff);
 
-// Salary CRUD
-router.post("/salary/create",                      createGroupBSalary);
-router.get("/salary/list/:schoolId",               getGroupBSalaryList);
-router.get("/salary/history-by-school/:schoolId",  getGroupBSalaryHistoryBySchool);
-router.get("/salary/history/:teacherId",           getGroupBTeacherHistory);
-router.put("/salary/update/:salaryId",             updateGroupBSalary);
-router.patch("/salary/pay/:salaryId",              payGroupBSalary);
-router.patch("/salary/hold/:salaryId",             holdGroupBSalary);
-router.delete("/salary/delete/:salaryId",          deleteGroupBSalary);
+// ── Salary CRUD ───────────────────────────────────────────────────────────
+router.post("/salary/create",                     createGroupBSalary);
+router.get("/salary/list/:schoolId",              getGroupBSalaryList);
+router.get("/salary/history-by-school/:schoolId", getGroupBSalaryHistoryBySchool);
+router.get("/salary/history/:staffId",            getGroupBStaffHistory);
+router.put("/salary/update/:salaryId",            updateGroupBSalary);
+router.patch("/salary/pay/:salaryId",             payGroupBSalary);
+router.patch("/salary/hold/:salaryId",            holdGroupBSalary);
+router.delete("/salary/delete/:salaryId",         deleteGroupBSalary);
 
 export default router;

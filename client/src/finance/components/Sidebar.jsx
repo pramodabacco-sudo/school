@@ -8,6 +8,7 @@ const NAV = [
   { icon: LayoutDashboard, label: "Dashboard", to: "/finance/dashboard" },
   { icon: GraduationCap, label: "Student", to: "/finance/studentfinance" },
   { icon: Wallet, label: "Staff", to: "/finance/teachersfinance" },
+  { icon: Wallet, label: "Expenses", to: "/finance/expenses" },
 ];
 
 const initials = (name = "AU") =>

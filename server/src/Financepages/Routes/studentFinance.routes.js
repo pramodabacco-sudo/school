@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 router.post("/addStudentFinance", async (req, res) => {
   try {
 
-    console.log("POST BODY 👉", req.body);
+    // console.log("POST BODY 👉", req.body);
 
     const {
       name, email, phone, course, fees, address,
@@ -37,7 +37,7 @@ router.post("/addStudentFinance", async (req, res) => {
       }
     });
 
-    console.log("Saved student 👉", student);
+    // console.log("Saved student 👉", student);
 
     res.json(student);
 
