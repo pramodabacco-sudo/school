@@ -262,8 +262,7 @@ const ln  = pick(LAST_NAMES, sn);
         address: `${sn}, ${fn} Nagar, Block ${(sn%10)+1}`,
         city: CITIES[ci], state: STATES[ci], zipCode: ZIPS[ci],
         bloodGroup: pick(BLOOD_GROUPS, sn),
-        parentName:  `${pick(PARENT_NAMES,sn)} ${ln}`,
-        parentEmail: `parent${pn}@gmail.com`,
+        parentName:  `${pick(PARENT_NAMES, sn + 11)} ${pick(LAST_NAMES, sn + 7)}`,        parentEmail: `parent${pn}@gmail.com`,
         parentPhone: `9${String(700000000+sn).slice(0,9)}`,
         emergencyContact: `9${String(600000000+sn).slice(0,9)}`,
       },
@@ -283,10 +282,11 @@ const ln  = pick(LAST_NAMES, sn);
     const pe  = `parent${pn}@gmail.com`;
     let par = await prisma.parent.findUnique({ where:{ email_schoolId:{ email: pe, schoolId: school.id } } });
     if (!par) par = await prisma.parent.create({ data:{
-      name: `${pick(PARENT_NAMES, sn + 7)} ${ln}`, email: pe, password,
-      phone: `9${String(700000000+sn).slice(0,9)}`,
-      occupation: pick(OCCS,sn), schoolId: school.id,
-    }});
+  name: `${pick(PARENT_NAMES, sn + 7)} ${pick(LAST_NAMES, pn + 5)}`,
+  email: pe, password,
+  phone: `9${String(700000000+sn).slice(0,9)}`,
+  occupation: pick(OCCS,sn), schoolId: school.id,
+  }});
 
     await prisma.studentParent.upsert({
       where:  { studentId_relation:{ studentId: stu.id, relation:"FATHER" } },
@@ -326,7 +326,7 @@ async function seedAssessments({ school, ay, allSections, subjects, allEnrollmen
     { name:"Mid Term",     termIdx:0, weightage:40,  maxMarks:100, passingMarks:35, startDate:"2025-09-01", isLocked:true,  isPublished:true  },
     { name:"Unit Test 2",  termIdx:1, weightage:10,  maxMarks:20,  passingMarks:7,  startDate:"2025-11-10", isLocked:true,  isPublished:true  },
     { name:"Final Exam",   termIdx:1, weightage:40,  maxMarks:100, passingMarks:35, startDate:"2026-01-15", isLocked:true,  isPublished:true  },
-    { name:"Annual Exam",  termIdx:2, weightage:100, maxMarks:100, passingMarks:35, startDate:"2026-03-01", isLocked:false, isPublished:false },
+    { name:"Annual Exam",  termIdx:2, weightage:100, maxMarks:100, passingMarks:35, startDate:"2026-03-01", isLocked:true, isPublished:true },
   ];
   const groups = [];
   for (const gd of GROUP_DEFS) {
@@ -1145,7 +1145,254 @@ async function seedAwards({ school, ay, allSections, allEnrollments, adminUser }
 
   console.log(`      ✅  ${awards.length} award types, ${awardCount} student awards`);
 }
+// ═══════════════════════════════════════════════════════════════════════════════
+//  STAFF PROFILE + SALARY SEEDER
+// ═══════════════════════════════════════════════════════════════════════════════
+async function seedStaffAndSalaries({ school, adminUser }) {
+  console.log(`\n   👷  Seeding staff profiles & salaries for ${school.name}…`);
 
+  const STAFF_DEFS = [
+    { firstName:"Ramu",    lastName:"Naik",    role:"Watchman",  groupType:"Group B", basicSalary:18000 },
+    { firstName:"Srinivas",lastName:"Hegde",   role:"Plumber",   groupType:"Group B", basicSalary:17000 },
+    { firstName:"Basanna", lastName:"Kamble",  role:"Peon",      groupType:"Group C", basicSalary:12000 },
+    { firstName:"Geetha",  lastName:"Lamani",  role:"Sweeper",   groupType:"Group C", basicSalary:11000 },
+    { firstName:"Kariappa",lastName:"Nayak",   role:"Security Guard", groupType:"Group B", basicSalary:19000 },
+  ];
+
+  const staffList = [];
+  for (let i = 0; i < STAFF_DEFS.length; i++) {
+    const def = STAFF_DEFS[i];
+    const existing = await prisma.staffProfile.findFirst({
+      where: { schoolId: school.id, firstName: def.firstName, lastName: def.lastName },
+    });
+    if (existing) { staffList.push(existing); continue; }
+
+    const staff = await prisma.staffProfile.create({
+      data: {
+        firstName:    def.firstName,
+        lastName:     def.lastName,
+        role:         def.role,
+        groupType:    def.groupType,
+        basicSalary:  def.basicSalary,
+        joiningDate:  new Date(`${2018 + (i % 5)}-06-01`),
+        status:       "ACTIVE",
+        phone:        `9${String(800000000 + i * 11111).slice(0, 9)}`,
+        schoolId:     school.id,
+      },
+    });
+    staffList.push(staff);
+  }
+
+  // ── Salary months: Jun 2025 – Mar 2026 ──────────────────────────────────
+  const SALARY_MONTHS = [
+    { month:6,  year:2025 }, { month:7,  year:2025 }, { month:8,  year:2025 },
+    { month:9,  year:2025 }, { month:10, year:2025 }, { month:11, year:2025 },
+    { month:12, year:2025 }, { month:1,  year:2026 }, { month:2,  year:2026 },
+    { month:3,  year:2026 },
+  ];
+
+  const CURRENT_MONTH = 3; // March 2026 — latest month is PENDING, rest PAID
+  let salaryCount = 0;
+
+  for (const staff of staffList) {
+    for (const { month, year } of SALARY_MONTHS) {
+      const isPast   = year < 2026 || (year === 2026 && month < CURRENT_MONTH);
+      const status   = isPast ? "PAID" : "PENDING";
+      const leaveDays = isPast ? (staff.role === "Peon" ? 1 : 0) : 0;
+      const perDay   = Number(staff.basicSalary) / 26;
+      const leaveDeduction = parseFloat((leaveDays * perDay).toFixed(2));
+      const bonus    = isPast ? (month === 10 ? 2000 : 0) : 0; // Diwali bonus
+      const netSalary = parseFloat((Number(staff.basicSalary) + bonus - leaveDeduction).toFixed(2));
+
+      if (staff.groupType === "Group B") {
+        const exists = await prisma.groupBStaffSalary.findUnique({
+          where: { staffId_month_year: { staffId: staff.id, month, year } },
+        });
+        if (!exists) {
+          await prisma.groupBStaffSalary.create({
+            data: {
+              staffId:       staff.id,
+              schoolId:      school.id,
+              staffName:     `${staff.firstName} ${staff.lastName}`,
+              staffEmail:    `${staff.firstName.toLowerCase()}@school.com`,
+              staffRole:     staff.role,
+              month, year,
+              basicSalary:   staff.basicSalary,
+              bonus,
+              deductions:    0,
+              netSalary,
+              leaveDays,
+              leaveDeduction,
+              status,
+              paymentDate:   isPast ? new Date(`${year}-${String(month).padStart(2,"0")}-28`) : null,
+            },
+          });
+          salaryCount++;
+        }
+      } else {
+        const exists = await prisma.groupCStaffSalary.findUnique({
+          where: { staffId_month_year: { staffId: staff.id, month, year } },
+        });
+        if (!exists) {
+          await prisma.groupCStaffSalary.create({
+            data: {
+              staffId:       staff.id,
+              schoolId:      school.id,
+              staffName:     `${staff.firstName} ${staff.lastName}`,
+              staffEmail:    `${staff.firstName.toLowerCase()}@school.com`,
+              staffRole:     staff.role,
+              month, year,
+              basicSalary:   staff.basicSalary,
+              bonus,
+              deductions:    0,
+              netSalary,
+              leaveDays,
+              leaveDeduction,
+              status,
+              paymentDate:   isPast ? new Date(`${year}-${String(month).padStart(2,"0")}-28`) : null,
+            },
+          });
+          salaryCount++;
+        }
+      }
+    }
+  }
+
+  console.log(`      ✅  ${staffList.length} staff, ${salaryCount} salary records`);
+  return staffList;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  TEACHER MONTHLY SALARY SEEDER
+// ═══════════════════════════════════════════════════════════════════════════════
+async function seedTeacherSalaries({ school, allTeachers }) {
+  console.log(`\n   💰  Seeding teacher salaries for ${school.name}…`);
+
+  const SALARY_MONTHS = [
+    { month:6,  year:2025 }, { month:7,  year:2025 }, { month:8,  year:2025 },
+    { month:9,  year:2025 }, { month:10, year:2025 }, { month:11, year:2025 },
+    { month:12, year:2025 }, { month:1,  year:2026 }, { month:2,  year:2026 },
+    { month:3,  year:2026 },
+  ];
+
+  const CURRENT_MONTH = 3;
+  let totalInserted = 0;
+
+  for (const teacher of allTeachers) {
+    // Fetch user to get email
+    const user = await prisma.user.findUnique({ where: { id: teacher.userId } });
+    const basicSalary = Number(teacher.salary ?? 30000);
+
+    for (const { month, year } of SALARY_MONTHS) {
+      const exists = await prisma.teacherMonthlySalary.findUnique({
+        where: { teacherId_month_year: { teacherId: teacher.id, month, year } },
+      });
+      if (exists) continue;
+
+      const isPast      = year < 2026 || (year === 2026 && month < CURRENT_MONTH);
+      const status      = isPast ? "PAID" : "PENDING";
+      const leaveDays   = isPast ? Math.floor(Math.random() * 2) : 0; // 0 or 1 leave days
+      const perDay      = basicSalary / 26;
+      const leaveDeduction = parseFloat((leaveDays * perDay).toFixed(2));
+      const bonus       = month === 10 ? 3000 : 0; // Diwali bonus in October
+      const deductions  = parseFloat((basicSalary * 0.12).toFixed(2)); // 12% PF
+      const netSalary   = parseFloat((basicSalary + bonus - deductions - leaveDeduction).toFixed(2));
+
+      await prisma.teacherMonthlySalary.create({
+        data: {
+          teacherId:     teacher.id,
+          schoolId:      school.id,
+          teacherName:   `${teacher.firstName} ${teacher.lastName}`,
+          teacherEmail:  user?.email ?? `${teacher.firstName.toLowerCase()}@school.com`,
+          month, year,
+          basicSalary,
+          bonus,
+          deductions,
+          netSalary,
+          leaveDays,
+          leaveDeduction,
+          status,
+          paymentDate: isPast ? new Date(`${year}-${String(month).padStart(2,"0")}-28`) : null,
+        },
+      });
+      totalInserted++;
+    }
+  }
+
+  console.log(`      ✅  ${totalInserted} teacher salary records`);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  EXPENSE SEEDER
+// ═══════════════════════════════════════════════════════════════════════════════
+async function seedExpenses() {
+  console.log(`\n   💸  Seeding expenses & categories…`);
+
+  const CATEGORY_DEFS = [
+    { name:"Maintenance",     icon:"🔧", color:"#E53E3E" },
+    { name:"Electricity",     icon:"⚡", color:"#D69E2E" },
+    { name:"Stationery",      icon:"📝", color:"#3182CE" },
+    { name:"Transport",       icon:"🚌", color:"#38A169" },
+    { name:"Salary",          icon:"💰", color:"#805AD5" },
+    { name:"Events",          icon:"🎉", color:"#DD6B20" },
+    { name:"Infrastructure",  icon:"🏗️", color:"#2B6CB0" },
+    { name:"Cleaning",        icon:"🧹", color:"#276749" },
+  ];
+
+  const categories = [];
+  for (const def of CATEGORY_DEFS) {
+    let cat = await prisma.expenseCategory.findFirst({ where: { name: def.name } });
+    if (!cat) {
+      cat = await prisma.expenseCategory.create({
+        data: { name: def.name, icon: def.icon, color: def.color },
+      });
+    }
+    categories.push(cat);
+  }
+
+  const EXPENSE_DEFS = [
+    { label:"Classroom whiteboard replacement",  amount:15000,  catIdx:0 },
+    { label:"Plumbing repairs – Block B",        amount:8500,   catIdx:0 },
+    { label:"Painting – Admin block",            amount:25000,  catIdx:0 },
+    { label:"Electricity bill – June 2025",      amount:32000,  catIdx:1 },
+    { label:"Electricity bill – September 2025", amount:28000,  catIdx:1 },
+    { label:"Electricity bill – December 2025",  amount:35000,  catIdx:1 },
+    { label:"Notebooks & pens – Term 1",         amount:12000,  catIdx:2 },
+    { label:"Printer cartridges",                amount:4500,   catIdx:2 },
+    { label:"Chart papers & craft supplies",     amount:3200,   catIdx:2 },
+    { label:"School bus fuel – Q1",              amount:45000,  catIdx:3 },
+    { label:"School bus fuel – Q2",              amount:42000,  catIdx:3 },
+    { label:"Bus driver salary – Oct 2025",      amount:18000,  catIdx:3 },
+    { label:"Teacher salaries – June 2025",      amount:850000, catIdx:4 },
+    { label:"Teacher salaries – July 2025",      amount:850000, catIdx:4 },
+    { label:"Support staff salaries – Q1",       amount:120000, catIdx:4 },
+    { label:"Annual Day event expenses",         amount:75000,  catIdx:5 },
+    { label:"Sports Day equipment",              amount:35000,  catIdx:5 },
+    { label:"Science Exhibition materials",      amount:22000,  catIdx:5 },
+    { label:"Projector installation",            amount:55000,  catIdx:6 },
+    { label:"Library book purchase",             amount:40000,  catIdx:6 },
+    { label:"CCTV maintenance",                  amount:12000,  catIdx:6 },
+    { label:"Cleaning supplies – Term 1",        amount:8000,   catIdx:7 },
+    { label:"Cleaning supplies – Term 2",        amount:7500,   catIdx:7 },
+  ];
+
+  let expenseCount = 0;
+  for (const def of EXPENSE_DEFS) {
+    const existing = await prisma.expense.findFirst({ where: { label: def.label } });
+    if (existing) continue;
+
+    const expense = await prisma.expense.create({
+      data: { label: def.label, amount: def.amount },
+    });
+
+    await prisma.expenseCategoryMap.create({
+      data: { categoryId: categories[def.catIdx].id, expenseId: expense.id },
+    });
+    expenseCount++;
+  }
+
+  console.log(`      ✅  ${categories.length} categories, ${expenseCount} expenses`);
+}
 // ═══════════════════════════════════════════════════════════════════════════════
 //  1.  HIGH SCHOOL  —  Grades 1–10, Sections A & B, 120 students/section
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1282,6 +1529,9 @@ async function seedSchool(university, password) {
   // NEW: Awards
   await seedAwards({ school, ay, allSections, allEnrollments, adminUser });
 
+
+   await seedStaffAndSalaries({ school, adminUser });
+  await seedTeacherSalaries({ school, allTeachers: allProfiles });
   return { school, totalStudents: STUDENT_CTR - stuStart, totalSections: allSections.length, totalTT };
 }
 
@@ -1457,6 +1707,8 @@ async function seedPUC(university, password) {
   await seedGallery({ school, ay, adminUser });
   await seedActivitiesAndEvents({ school, ay, allSections, allEnrollments, adminUser });
   await seedAwards({ school, ay, allSections, allEnrollments, adminUser });
+   await seedStaffAndSalaries({ school, adminUser });
+  await seedTeacherSalaries({ school, allTeachers: allProfiles });
 
   return { school, totalStudents: STUDENT_CTR - stuStart, totalSections: allSections.length, totalTT };
 }
@@ -1605,6 +1857,8 @@ async function seedDegree(university, password) {
   await seedGallery({ school, ay, adminUser });
   await seedActivitiesAndEvents({ school, ay, allSections, allEnrollments, adminUser });
   await seedAwards({ school, ay, allSections, allEnrollments, adminUser });
+    await seedStaffAndSalaries({ school, adminUser });
+  await seedTeacherSalaries({ school, allTeachers: allProfiles });
 
   return { school, totalStudents: STUDENT_CTR - stuStart, totalSections: allSections.length, totalTT };
 }
@@ -1641,7 +1895,7 @@ async function main() {
       create: { superAdminId: sa.id, schoolId: school.id },
     });
   }
-
+ await seedExpenses();
   const S = schoolResult.totalStudents;
   const P = pucResult.totalStudents;
   const D = degResult.totalStudents;
