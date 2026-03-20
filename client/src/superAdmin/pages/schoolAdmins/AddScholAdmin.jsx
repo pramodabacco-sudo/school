@@ -174,7 +174,7 @@ export default function AddSchoolAdminModal({ onClose, onSuccess, admin = null }
       <div
         className="fixed inset-0 z-40"
         style={{ background: "rgba(56,73,89,0.3)", backdropFilter: "blur(2px)" }}
-        onClick={onClose}
+        
       />
 
       <div

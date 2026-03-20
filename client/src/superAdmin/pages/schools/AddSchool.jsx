@@ -3,18 +3,18 @@ import React, { useState, useEffect } from "react";
 import { Building2, MapPin, X, ChevronRight, ChevronLeft, Check, Loader2, Info } from "lucide-react";
 import { createSchool, updateSchool } from "./components/SchoolsApi";
 
+// ✅ Fixed
 const SCHOOL_TYPES = [
-  { label: "Primary School (Class 1–5)", value: "SCHOOL" },
-  { label: "Upper Primary (Class 6–8)", value: "SCHOOL" },
-  { label: "High School (Class 9–10)", value: "SCHOOL" },
+  { label: "School (Class 1–10)",              value: "SCHOOL" },
   { label: "PUC / Pre-University (Class 11–12)", value: "PUC" },
-  { label: "Degree / Undergraduate", value: "DEGREE" },
-  { label: "Postgraduate", value: "POSTGRADUATE" },
-  { label: "Other", value: "OTHER" },
+  { label: "Diploma",                           value: "DIPLOMA" },
+  { label: "Degree / Undergraduate",            value: "DEGREE" },
+  { label: "Postgraduate",                      value: "POSTGRADUATE" },
+  { label: "Other",                             value: "OTHER" },
 ];
 
 const INIT = {
-  name: "", code: "", type: "PRIMARY", email: "", phone: "",
+  name: "", code: "", type: "SCHOOL", email: "", phone: "",
   address: "", city: "", state: "",
 };
 
@@ -176,7 +176,7 @@ export default function AddSchoolModal({ onClose, onSuccess, school = null }) {
       <div
         className="fixed inset-0 z-40"
         style={{ background: "rgba(56,73,89,0.3)", backdropFilter: "blur(2px)" }}
-        onClick={onClose}
+        
       />
 
       <div

@@ -1499,7 +1499,7 @@ async function seedSchool(university, password) {
   const totalTT = await writeTimetable(school, ay, subjects, tBySubject, allSections, wdDefs, satDefs, configId);
   console.log(`   ✅  ${totalTT} timetable entries`);
 
-  const COUNT = 120, stuStart = STUDENT_CTR;
+  const COUNT = 20, stuStart = STUDENT_CTR;
   console.log(`   👨‍🎓  Seeding ${COUNT} students × ${allSections.length} sections…`);
   const allEnrollments = [];
   for (const cs of allSections) {
@@ -1538,330 +1538,330 @@ async function seedSchool(university, password) {
 // ═══════════════════════════════════════════════════════════════════════════════
 //  2.  PUC
 // ═══════════════════════════════════════════════════════════════════════════════
-async function seedPUC(university, password) {
-  console.log("\n╔══════════════════════════════════════╗");
-  console.log("║   🎓  Springfield PUC                ║");
-  console.log("╚══════════════════════════════════════╝");
+// async function seedPUC(university, password) {
+//   console.log("\n╔══════════════════════════════════════╗");
+//   console.log("║   🎓  Springfield PUC                ║");
+//   console.log("╚══════════════════════════════════════╝");
 
-  const school = await prisma.school.upsert({
-    where:  { code:"SPRINGFIELD_PUC" }, update:{},
-    create: { name:"Springfield PUC", code:"SPRINGFIELD_PUC", type:"PUC",
-      address:"789 College Road", city:"Bengaluru", state:"Karnataka",
-      phone:"080-22222222", email:"puc@springfield.edu", universityId: university.id },
-  });
+//   const school = await prisma.school.upsert({
+//     where:  { code:"SPRINGFIELD_PUC" }, update:{},
+//     create: { name:"Springfield PUC", code:"SPRINGFIELD_PUC", type:"PUC",
+//       address:"789 College Road", city:"Bengaluru", state:"Karnataka",
+//       phone:"080-22222222", email:"puc@springfield.edu", universityId: university.id },
+//   });
 
-  const adminUser = await prisma.user.upsert({ where:{ email_schoolId:{ email:"admin2@gmail.com", schoolId: school.id } }, update:{},
-    create:{ name:"PUC Admin", email:"admin2@gmail.com", password, role:"ADMIN", schoolId: school.id }});
-  const fu2 = await prisma.user.upsert({ where:{ email_schoolId:{ email:"finance2@gmail.com", schoolId: school.id } }, update:{},
-    create:{ name:"Finance Admin", email:"finance2@gmail.com", password, role:"FINANCE", schoolId: school.id }});
-  await prisma.financeProfile.upsert({ where:{ userId: fu2.id }, update:{},
-    create:{ userId: fu2.id, schoolId: school.id, employeeCode:"FIN-002", designation:"Finance Officer", phone:"9000000002" }});
-  await prisma.schoolPromotionConfig.upsert({ where:{ schoolId: school.id }, update:{},
-    create:{ schoolId: school.id, skipGrades:[], lastGrade:"12", firstGrade:"11" }});
-  console.log("   ✅  Admin + Finance Admin");
+//   const adminUser = await prisma.user.upsert({ where:{ email_schoolId:{ email:"admin2@gmail.com", schoolId: school.id } }, update:{},
+//     create:{ name:"PUC Admin", email:"admin2@gmail.com", password, role:"ADMIN", schoolId: school.id }});
+//   const fu2 = await prisma.user.upsert({ where:{ email_schoolId:{ email:"finance2@gmail.com", schoolId: school.id } }, update:{},
+//     create:{ name:"Finance Admin", email:"finance2@gmail.com", password, role:"FINANCE", schoolId: school.id }});
+//   await prisma.financeProfile.upsert({ where:{ userId: fu2.id }, update:{},
+//     create:{ userId: fu2.id, schoolId: school.id, employeeCode:"FIN-002", designation:"Finance Officer", phone:"9000000002" }});
+//   await prisma.schoolPromotionConfig.upsert({ where:{ schoolId: school.id }, update:{},
+//     create:{ schoolId: school.id, skipGrades:[], lastGrade:"12", firstGrade:"11" }});
+//   console.log("   ✅  Admin + Finance Admin");
 
-  const ay = await prisma.academicYear.upsert({
-    where:  { name_schoolId:{ name:"2025-26", schoolId: school.id } }, update:{ isActive:true },
-    create: { name:"2025-26", startDate: new Date("2025-06-01"), endDate: new Date("2026-03-31"), isActive:true, schoolId: school.id },
-  });
+//   const ay = await prisma.academicYear.upsert({
+//     where:  { name_schoolId:{ name:"2025-26", schoolId: school.id } }, update:{ isActive:true },
+//     create: { name:"2025-26", startDate: new Date("2025-06-01"), endDate: new Date("2026-03-31"), isActive:true, schoolId: school.id },
+//   });
 
-  const sciStream  = await prisma.stream.upsert({ where:{ name_schoolId:{ name:"Science",  schoolId: school.id } }, update:{ hasCombinations:true  }, create:{ name:"Science",  code:"SCI", hasCombinations:true,  schoolId: school.id } });
-  const comStream  = await prisma.stream.upsert({ where:{ name_schoolId:{ name:"Commerce", schoolId: school.id } }, update:{ hasCombinations:true  }, create:{ name:"Commerce", code:"COM", hasCombinations:true,  schoolId: school.id } });
-  const artsStream = await prisma.stream.upsert({ where:{ name_schoolId:{ name:"Arts",     schoolId: school.id } }, update:{ hasCombinations:false }, create:{ name:"Arts",     code:"ART", hasCombinations:false, schoolId: school.id } });
+//   const sciStream  = await prisma.stream.upsert({ where:{ name_schoolId:{ name:"Science",  schoolId: school.id } }, update:{ hasCombinations:true  }, create:{ name:"Science",  code:"SCI", hasCombinations:true,  schoolId: school.id } });
+//   const comStream  = await prisma.stream.upsert({ where:{ name_schoolId:{ name:"Commerce", schoolId: school.id } }, update:{ hasCombinations:true  }, create:{ name:"Commerce", code:"COM", hasCombinations:true,  schoolId: school.id } });
+//   const artsStream = await prisma.stream.upsert({ where:{ name_schoolId:{ name:"Arts",     schoolId: school.id } }, update:{ hasCombinations:false }, create:{ name:"Arts",     code:"ART", hasCombinations:false, schoolId: school.id } });
 
-  const pcmb = await prisma.streamCombination.upsert({ where:{ name_streamId:{ name:"PCMB", streamId: sciStream.id  } }, update:{}, create:{ name:"PCMB", code:"PCMB", streamId: sciStream.id  } });
-  const pcmc = await prisma.streamCombination.upsert({ where:{ name_streamId:{ name:"PCMC", streamId: sciStream.id  } }, update:{}, create:{ name:"PCMC", code:"PCMC", streamId: sciStream.id  } });
-  const ceba = await prisma.streamCombination.upsert({ where:{ name_streamId:{ name:"CEBA", streamId: comStream.id  } }, update:{}, create:{ name:"CEBA", code:"CEBA", streamId: comStream.id  } });
-  const seba = await prisma.streamCombination.upsert({ where:{ name_streamId:{ name:"SEBA", streamId: comStream.id  } }, update:{}, create:{ name:"SEBA", code:"SEBA", streamId: comStream.id  } });
-  const hep  = await prisma.streamCombination.upsert({ where:{ name_streamId:{ name:"HEP",  streamId: artsStream.id } }, update:{}, create:{ name:"HEP",  code:"HEP",  streamId: artsStream.id } });
-  console.log("   ✅  Streams + combinations (PCMB, PCMC, CEBA, SEBA, HEP)");
+//   const pcmb = await prisma.streamCombination.upsert({ where:{ name_streamId:{ name:"PCMB", streamId: sciStream.id  } }, update:{}, create:{ name:"PCMB", code:"PCMB", streamId: sciStream.id  } });
+//   const pcmc = await prisma.streamCombination.upsert({ where:{ name_streamId:{ name:"PCMC", streamId: sciStream.id  } }, update:{}, create:{ name:"PCMC", code:"PCMC", streamId: sciStream.id  } });
+//   const ceba = await prisma.streamCombination.upsert({ where:{ name_streamId:{ name:"CEBA", streamId: comStream.id  } }, update:{}, create:{ name:"CEBA", code:"CEBA", streamId: comStream.id  } });
+//   const seba = await prisma.streamCombination.upsert({ where:{ name_streamId:{ name:"SEBA", streamId: comStream.id  } }, update:{}, create:{ name:"SEBA", code:"SEBA", streamId: comStream.id  } });
+//   const hep  = await prisma.streamCombination.upsert({ where:{ name_streamId:{ name:"HEP",  streamId: artsStream.id } }, update:{}, create:{ name:"HEP",  code:"HEP",  streamId: artsStream.id } });
+//   console.log("   ✅  Streams + combinations (PCMB, PCMC, CEBA, SEBA, HEP)");
 
-  const SUBJ_DEFS = [
-    { name:"Physics",            code:"PUC-PHY"  },
-    { name:"Chemistry",          code:"PUC-CHE"  },
-    { name:"Mathematics",        code:"PUC-MATH" },
-    { name:"Biology",            code:"PUC-BIO"  },
-    { name:"Computer Science",   code:"PUC-CS"   },
-    { name:"English",            code:"PUC-ENG"  },
-    { name:"Economics",          code:"PUC-ECO"  },
-    { name:"Commerce",           code:"PUC-COM"  },
-    { name:"Accountancy",        code:"PUC-ACC"  },
-    { name:"Business Studies",   code:"PUC-BUS"  },
-    { name:"Statistics",         code:"PUC-STAT" },
-    { name:"History",            code:"PUC-HIS"  },
-    { name:"Political Science",  code:"PUC-POL"  },
-    { name:"Sociology",          code:"PUC-SOC"  },
-  ];
-  const subjects = [];
-  for (const d of SUBJ_DEFS)
-    subjects.push(await prisma.subject.upsert({
-      where:  { code_schoolId:{ code: d.code, schoolId: school.id } },
-      update: { name: d.name }, create: { name: d.name, code: d.code, schoolId: school.id },
-    }));
-  console.log(`   ✅  ${subjects.length} subjects`);
+//   const SUBJ_DEFS = [
+//     { name:"Physics",            code:"PUC-PHY"  },
+//     { name:"Chemistry",          code:"PUC-CHE"  },
+//     { name:"Mathematics",        code:"PUC-MATH" },
+//     { name:"Biology",            code:"PUC-BIO"  },
+//     { name:"Computer Science",   code:"PUC-CS"   },
+//     { name:"English",            code:"PUC-ENG"  },
+//     { name:"Economics",          code:"PUC-ECO"  },
+//     { name:"Commerce",           code:"PUC-COM"  },
+//     { name:"Accountancy",        code:"PUC-ACC"  },
+//     { name:"Business Studies",   code:"PUC-BUS"  },
+//     { name:"Statistics",         code:"PUC-STAT" },
+//     { name:"History",            code:"PUC-HIS"  },
+//     { name:"Political Science",  code:"PUC-POL"  },
+//     { name:"Sociology",          code:"PUC-SOC"  },
+//   ];
+//   const subjects = [];
+//   for (const d of SUBJ_DEFS)
+//     subjects.push(await prisma.subject.upsert({
+//       where:  { code_schoolId:{ code: d.code, schoolId: school.id } },
+//       update: { name: d.name }, create: { name: d.name, code: d.code, schoolId: school.id },
+//     }));
+//   console.log(`   ✅  ${subjects.length} subjects`);
 
-  const tStart = TEACHER_CTR;
-  const { allProfiles, tBySubject } = await createTeachers(school, password, {
-    subjectDefs: SUBJ_DEFS,
-    defs: [
-      {n:1,  fn:"Rajan",   ln:"Nair",         dept:"Physics",          si:0  },
-      {n:2,  fn:"Savitha", ln:"Menon",         dept:"Physics",          si:0  },
-      {n:3,  fn:"Arun",    ln:"Kumar",         dept:"Physics",          si:0  },
-      {n:4,  fn:"Lakshmi", ln:"Sharma",        dept:"Chemistry",        si:1  },
-      {n:5,  fn:"Suresh",  ln:"Pillai",        dept:"Chemistry",        si:1  },
-      {n:6,  fn:"Usha",    ln:"Rao",           dept:"Chemistry",        si:1  },
-      {n:7,  fn:"Praveen", ln:"Iyer",          dept:"Mathematics",      si:2  },
-      {n:8,  fn:"Geetha",  ln:"Verma",         dept:"Mathematics",      si:2  },
-      {n:9,  fn:"Ramesh",  ln:"Patel",         dept:"Mathematics",      si:2  },
-      {n:10, fn:"Nalini",  ln:"Reddy",         dept:"Biology",          si:3  },
-      {n:11, fn:"Shankar", ln:"Singh",         dept:"Biology",          si:3  },
-      {n:12, fn:"Vidya",   ln:"Joshi",         dept:"Biology",          si:3  },
-      {n:13, fn:"Meera",   ln:"Bose",          dept:"Computer Science", si:4  },
-      {n:14, fn:"Anil",    ln:"Shah",          dept:"Computer Science", si:4  },
-      {n:15, fn:"Sundar",  ln:"Ghosh",         dept:"Computer Science", si:4  },
-      {n:16, fn:"Pradeep", ln:"Gupta",         dept:"English",          si:5  },
-      {n:17, fn:"Hema",    ln:"Nambiar",       dept:"English",          si:5  },
-      {n:18, fn:"Karthik", ln:"Desai",         dept:"English",          si:5  },
-      {n:19, fn:"Anand",   ln:"Iyer",          dept:"Economics",        si:6  },
-      {n:20, fn:"Preeti",  ln:"Mishra",        dept:"Economics",        si:6  },
-      {n:21, fn:"Girish",  ln:"Shetty",        dept:"Economics",        si:6  },
-      {n:22, fn:"Mohan",   ln:"Das",           dept:"Commerce",         si:7  },
-      {n:23, fn:"Kavitha", ln:"Hegde",         dept:"Commerce",         si:7  },
-      {n:24, fn:"Ravi",    ln:"Naidu",         dept:"Commerce",         si:7  },
-      {n:25, fn:"Seema",   ln:"Kamath",        dept:"Accountancy",      si:8  },
-      {n:26, fn:"Vinod",   ln:"Chandra",       dept:"Accountancy",      si:8  },
-      {n:27, fn:"Rekha",   ln:"Tiwari",        dept:"Accountancy",      si:8  },
-      {n:28, fn:"Girish",  ln:"Kulkarni",      dept:"Business Studies", si:9  },
-      {n:29, fn:"Nisha",   ln:"Dubey",         dept:"Business Studies", si:9  },
-      {n:30, fn:"Satish",  ln:"Pandey",        dept:"Statistics",       si:10 },
-      {n:31, fn:"Swati",   ln:"Trivedi",       dept:"Statistics",       si:10 },
-      {n:32, fn:"Hemant",  ln:"Rajan",         dept:"History",          si:11 },
-      {n:33, fn:"Archana", ln:"Krishnan",      dept:"History",          si:11 },
-      {n:34, fn:"Deepak",  ln:"Subramaniam",   dept:"Political Science",si:12 },
-      {n:35, fn:"Padma",   ln:"Balaji",        dept:"Political Science",si:12 },
-      {n:36, fn:"Kiran",   ln:"Gowda",         dept:"Sociology",        si:13 },
-      {n:37, fn:"Sunita",  ln:"Yadav",         dept:"Sociology",        si:13 },
-    ],
-  });
-  console.log(`   ✅  ${allProfiles.length} teachers  (teacher${tStart}@gmail.com … teacher${TEACHER_CTR-1}@gmail.com)`);
+//   const tStart = TEACHER_CTR;
+//   const { allProfiles, tBySubject } = await createTeachers(school, password, {
+//     subjectDefs: SUBJ_DEFS,
+//     defs: [
+//       {n:1,  fn:"Rajan",   ln:"Nair",         dept:"Physics",          si:0  },
+//       {n:2,  fn:"Savitha", ln:"Menon",         dept:"Physics",          si:0  },
+//       {n:3,  fn:"Arun",    ln:"Kumar",         dept:"Physics",          si:0  },
+//       {n:4,  fn:"Lakshmi", ln:"Sharma",        dept:"Chemistry",        si:1  },
+//       {n:5,  fn:"Suresh",  ln:"Pillai",        dept:"Chemistry",        si:1  },
+//       {n:6,  fn:"Usha",    ln:"Rao",           dept:"Chemistry",        si:1  },
+//       {n:7,  fn:"Praveen", ln:"Iyer",          dept:"Mathematics",      si:2  },
+//       {n:8,  fn:"Geetha",  ln:"Verma",         dept:"Mathematics",      si:2  },
+//       {n:9,  fn:"Ramesh",  ln:"Patel",         dept:"Mathematics",      si:2  },
+//       {n:10, fn:"Nalini",  ln:"Reddy",         dept:"Biology",          si:3  },
+//       {n:11, fn:"Shankar", ln:"Singh",         dept:"Biology",          si:3  },
+//       {n:12, fn:"Vidya",   ln:"Joshi",         dept:"Biology",          si:3  },
+//       {n:13, fn:"Meera",   ln:"Bose",          dept:"Computer Science", si:4  },
+//       {n:14, fn:"Anil",    ln:"Shah",          dept:"Computer Science", si:4  },
+//       {n:15, fn:"Sundar",  ln:"Ghosh",         dept:"Computer Science", si:4  },
+//       {n:16, fn:"Pradeep", ln:"Gupta",         dept:"English",          si:5  },
+//       {n:17, fn:"Hema",    ln:"Nambiar",       dept:"English",          si:5  },
+//       {n:18, fn:"Karthik", ln:"Desai",         dept:"English",          si:5  },
+//       {n:19, fn:"Anand",   ln:"Iyer",          dept:"Economics",        si:6  },
+//       {n:20, fn:"Preeti",  ln:"Mishra",        dept:"Economics",        si:6  },
+//       {n:21, fn:"Girish",  ln:"Shetty",        dept:"Economics",        si:6  },
+//       {n:22, fn:"Mohan",   ln:"Das",           dept:"Commerce",         si:7  },
+//       {n:23, fn:"Kavitha", ln:"Hegde",         dept:"Commerce",         si:7  },
+//       {n:24, fn:"Ravi",    ln:"Naidu",         dept:"Commerce",         si:7  },
+//       {n:25, fn:"Seema",   ln:"Kamath",        dept:"Accountancy",      si:8  },
+//       {n:26, fn:"Vinod",   ln:"Chandra",       dept:"Accountancy",      si:8  },
+//       {n:27, fn:"Rekha",   ln:"Tiwari",        dept:"Accountancy",      si:8  },
+//       {n:28, fn:"Girish",  ln:"Kulkarni",      dept:"Business Studies", si:9  },
+//       {n:29, fn:"Nisha",   ln:"Dubey",         dept:"Business Studies", si:9  },
+//       {n:30, fn:"Satish",  ln:"Pandey",        dept:"Statistics",       si:10 },
+//       {n:31, fn:"Swati",   ln:"Trivedi",       dept:"Statistics",       si:10 },
+//       {n:32, fn:"Hemant",  ln:"Rajan",         dept:"History",          si:11 },
+//       {n:33, fn:"Archana", ln:"Krishnan",      dept:"History",          si:11 },
+//       {n:34, fn:"Deepak",  ln:"Subramaniam",   dept:"Political Science",si:12 },
+//       {n:35, fn:"Padma",   ln:"Balaji",        dept:"Political Science",si:12 },
+//       {n:36, fn:"Kiran",   ln:"Gowda",         dept:"Sociology",        si:13 },
+//       {n:37, fn:"Sunita",  ln:"Yadav",         dept:"Sociology",        si:13 },
+//     ],
+//   });
+//   console.log(`   ✅  ${allProfiles.length} teachers  (teacher${tStart}@gmail.com … teacher${TEACHER_CTR-1}@gmail.com)`);
 
-  const { configId, wdDefs, satDefs } = await createTimetableConfig(school, ay);
+//   const { configId, wdDefs, satDefs } = await createTimetableConfig(school, ay);
 
-  const SECTION_DEFS = [
-    { stream:sciStream,  combo:pcmb, grade:"11", sec:"A", name:"11-A Science/PCMB"   },
-    { stream:sciStream,  combo:pcmb, grade:"11", sec:"B", name:"11-B Science/PCMB"   },
-    { stream:sciStream,  combo:pcmb, grade:"12", sec:"A", name:"12-A Science/PCMB"   },
-    { stream:sciStream,  combo:pcmb, grade:"12", sec:"B", name:"12-B Science/PCMB"   },
-    { stream:sciStream,  combo:pcmc, grade:"11", sec:"C", name:"11-C Science/PCMC"   },
-    { stream:sciStream,  combo:pcmc, grade:"11", sec:"D", name:"11-D Science/PCMC"   },
-    { stream:sciStream,  combo:pcmc, grade:"12", sec:"C", name:"12-C Science/PCMC"   },
-    { stream:sciStream,  combo:pcmc, grade:"12", sec:"D", name:"12-D Science/PCMC"   },
-    { stream:comStream,  combo:ceba, grade:"11", sec:"A", name:"11-A Commerce/CEBA"  },
-    { stream:comStream,  combo:ceba, grade:"11", sec:"B", name:"11-B Commerce/CEBA"  },
-    { stream:comStream,  combo:ceba, grade:"12", sec:"A", name:"12-A Commerce/CEBA"  },
-    { stream:comStream,  combo:ceba, grade:"12", sec:"B", name:"12-B Commerce/CEBA"  },
-    { stream:comStream,  combo:seba, grade:"11", sec:"C", name:"11-C Commerce/SEBA"  },
-    { stream:comStream,  combo:seba, grade:"12", sec:"C", name:"12-C Commerce/SEBA"  },
-    { stream:artsStream, combo:hep,  grade:"11", sec:"A", name:"11-A Arts/HEP"       },
-    { stream:artsStream, combo:hep,  grade:"11", sec:"B", name:"11-B Arts/HEP"       },
-    { stream:artsStream, combo:hep,  grade:"12", sec:"A", name:"12-A Arts/HEP"       },
-    { stream:artsStream, combo:hep,  grade:"12", sec:"B", name:"12-B Arts/HEP"       },
-  ];
+//   const SECTION_DEFS = [
+//     { stream:sciStream,  combo:pcmb, grade:"11", sec:"A", name:"11-A Science/PCMB"   },
+//     { stream:sciStream,  combo:pcmb, grade:"11", sec:"B", name:"11-B Science/PCMB"   },
+//     { stream:sciStream,  combo:pcmb, grade:"12", sec:"A", name:"12-A Science/PCMB"   },
+//     { stream:sciStream,  combo:pcmb, grade:"12", sec:"B", name:"12-B Science/PCMB"   },
+//     { stream:sciStream,  combo:pcmc, grade:"11", sec:"C", name:"11-C Science/PCMC"   },
+//     { stream:sciStream,  combo:pcmc, grade:"11", sec:"D", name:"11-D Science/PCMC"   },
+//     { stream:sciStream,  combo:pcmc, grade:"12", sec:"C", name:"12-C Science/PCMC"   },
+//     { stream:sciStream,  combo:pcmc, grade:"12", sec:"D", name:"12-D Science/PCMC"   },
+//     { stream:comStream,  combo:ceba, grade:"11", sec:"A", name:"11-A Commerce/CEBA"  },
+//     { stream:comStream,  combo:ceba, grade:"11", sec:"B", name:"11-B Commerce/CEBA"  },
+//     { stream:comStream,  combo:ceba, grade:"12", sec:"A", name:"12-A Commerce/CEBA"  },
+//     { stream:comStream,  combo:ceba, grade:"12", sec:"B", name:"12-B Commerce/CEBA"  },
+//     { stream:comStream,  combo:seba, grade:"11", sec:"C", name:"11-C Commerce/SEBA"  },
+//     { stream:comStream,  combo:seba, grade:"12", sec:"C", name:"12-C Commerce/SEBA"  },
+//     { stream:artsStream, combo:hep,  grade:"11", sec:"A", name:"11-A Arts/HEP"       },
+//     { stream:artsStream, combo:hep,  grade:"11", sec:"B", name:"11-B Arts/HEP"       },
+//     { stream:artsStream, combo:hep,  grade:"12", sec:"A", name:"12-A Arts/HEP"       },
+//     { stream:artsStream, combo:hep,  grade:"12", sec:"B", name:"12-B Arts/HEP"       },
+//   ];
 
-  const allSections = []; let ctIdx = 0;
-  for (let i = 0; i < SECTION_DEFS.length; i++) {
-    const def = SECTION_DEFS[i];
-    let cs = await prisma.classSection.findFirst({
-      where:{ grade: def.grade, section: def.sec, schoolId: school.id, streamId: def.stream.id, combinationId: def.combo.id },
-    });
-    if (!cs) cs = await prisma.classSection.create({
-      data:{ grade: def.grade, section: def.sec, name: def.name, schoolId: school.id, streamId: def.stream.id, combinationId: def.combo.id },
-    });
-    const ct = allProfiles[ctIdx++ % allProfiles.length];
-    await prisma.classSectionAcademicYear.upsert({
-      where:  { classSectionId_academicYearId:{ classSectionId: cs.id, academicYearId: ay.id } },
-      update: { classTeacherId: ct.id, isActive:true },
-      create: { classSectionId: cs.id, academicYearId: ay.id, classTeacherId: ct.id, isActive:true },
-    });
-    await linkSubjectsAndTeachers({ cs, subjects, tBySubject, ay, gi:i, si:0 });
-    allSections.push({ id: cs.id, grade: def.grade, section: def.sec, name: def.name });
-  }
-  console.log(`   ✅  ${allSections.length} class sections`);
+//   const allSections = []; let ctIdx = 0;
+//   for (let i = 0; i < SECTION_DEFS.length; i++) {
+//     const def = SECTION_DEFS[i];
+//     let cs = await prisma.classSection.findFirst({
+//       where:{ grade: def.grade, section: def.sec, schoolId: school.id, streamId: def.stream.id, combinationId: def.combo.id },
+//     });
+//     if (!cs) cs = await prisma.classSection.create({
+//       data:{ grade: def.grade, section: def.sec, name: def.name, schoolId: school.id, streamId: def.stream.id, combinationId: def.combo.id },
+//     });
+//     const ct = allProfiles[ctIdx++ % allProfiles.length];
+//     await prisma.classSectionAcademicYear.upsert({
+//       where:  { classSectionId_academicYearId:{ classSectionId: cs.id, academicYearId: ay.id } },
+//       update: { classTeacherId: ct.id, isActive:true },
+//       create: { classSectionId: cs.id, academicYearId: ay.id, classTeacherId: ct.id, isActive:true },
+//     });
+//     await linkSubjectsAndTeachers({ cs, subjects, tBySubject, ay, gi:i, si:0 });
+//     allSections.push({ id: cs.id, grade: def.grade, section: def.sec, name: def.name });
+//   }
+//   console.log(`   ✅  ${allSections.length} class sections`);
 
-  const totalTT = await writeTimetable(school, ay, subjects, tBySubject, allSections, wdDefs, satDefs, configId);
-  console.log(`   ✅  ${totalTT} timetable entries`);
+//   const totalTT = await writeTimetable(school, ay, subjects, tBySubject, allSections, wdDefs, satDefs, configId);
+//   console.log(`   ✅  ${totalTT} timetable entries`);
 
-  const COUNT = 110, stuStart = STUDENT_CTR;
-  console.log(`   👨‍🎓  Seeding ${COUNT} students × ${allSections.length} sections…`);
-  const allEnrollments = [];
-  for (const cs of allSections) {
-    const enrs = await seedStudents({ school, ay, cs, count: COUNT, baseAge:16, password });
-    allEnrollments.push(...enrs);
-    process.stdout.write(`      ✅  ${cs.name}  (${COUNT} students)\n`);
-  }
+//   const COUNT = 110, stuStart = STUDENT_CTR;
+//   console.log(`   👨‍🎓  Seeding ${COUNT} students × ${allSections.length} sections…`);
+//   const allEnrollments = [];
+//   for (const cs of allSections) {
+//     const enrs = await seedStudents({ school, ay, cs, count: COUNT, baseAge:16, password });
+//     allEnrollments.push(...enrs);
+//     process.stdout.write(`      ✅  ${cs.name}  (${COUNT} students)\n`);
+//   }
 
-  await seedAssessments({ school, ay, allSections, subjects, allEnrollments });
-  await seedAttendance({ school, ay, allSections, allEnrollments, adminUser });
-  await seedTeacherAttendance({ school, ay, allTeachers: allProfiles, adminUser });
-  await seedHolidays({ school, ay, adminUser });
-  // await seedGallery({ school, ay, adminUser });
-  await seedActivitiesAndEvents({ school, ay, allSections, allEnrollments, adminUser });
-  await seedAwards({ school, ay, allSections, allEnrollments, adminUser });
-   await seedStaffAndSalaries({ school, adminUser });
-  await seedTeacherSalaries({ school, allTeachers: allProfiles });
+//   await seedAssessments({ school, ay, allSections, subjects, allEnrollments });
+//   await seedAttendance({ school, ay, allSections, allEnrollments, adminUser });
+//   await seedTeacherAttendance({ school, ay, allTeachers: allProfiles, adminUser });
+//   await seedHolidays({ school, ay, adminUser });
+//   // await seedGallery({ school, ay, adminUser });
+//   await seedActivitiesAndEvents({ school, ay, allSections, allEnrollments, adminUser });
+//   await seedAwards({ school, ay, allSections, allEnrollments, adminUser });
+//    await seedStaffAndSalaries({ school, adminUser });
+//   await seedTeacherSalaries({ school, allTeachers: allProfiles });
 
-  return { school, totalStudents: STUDENT_CTR - stuStart, totalSections: allSections.length, totalTT };
-}
+//   return { school, totalStudents: STUDENT_CTR - stuStart, totalSections: allSections.length, totalTT };
+// }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  3.  DEGREE
 // ═══════════════════════════════════════════════════════════════════════════════
-async function seedDegree(university, password) {
-  console.log("\n╔══════════════════════════════════════╗");
-  console.log("║   🎓  Springfield Degree College     ║");
-  console.log("╚══════════════════════════════════════╝");
+// async function seedDegree(university, password) {
+//   console.log("\n╔══════════════════════════════════════╗");
+//   console.log("║   🎓  Springfield Degree College     ║");
+//   console.log("╚══════════════════════════════════════╝");
 
-  const school = await prisma.school.upsert({
-    where:  { code:"SPRINGFIELD_DEG" }, update:{},
-    create: { name:"Springfield Degree College", code:"SPRINGFIELD_DEG", type:"DEGREE",
-      address:"101 University Avenue", city:"Bengaluru", state:"Karnataka",
-      phone:"080-33333333", email:"degree@springfield.edu", universityId: university.id },
-  });
+//   const school = await prisma.school.upsert({
+//     where:  { code:"SPRINGFIELD_DEG" }, update:{},
+//     create: { name:"Springfield Degree College", code:"SPRINGFIELD_DEG", type:"DEGREE",
+//       address:"101 University Avenue", city:"Bengaluru", state:"Karnataka",
+//       phone:"080-33333333", email:"degree@springfield.edu", universityId: university.id },
+//   });
 
-  const adminUser = await prisma.user.upsert({ where:{ email_schoolId:{ email:"admin3@gmail.com", schoolId: school.id } }, update:{},
-    create:{ name:"Degree Admin", email:"admin3@gmail.com", password, role:"ADMIN", schoolId: school.id }});
-  const fu3 = await prisma.user.upsert({ where:{ email_schoolId:{ email:"finance3@gmail.com", schoolId: school.id } }, update:{},
-    create:{ name:"Finance Admin", email:"finance3@gmail.com", password, role:"FINANCE", schoolId: school.id }});
-  await prisma.financeProfile.upsert({ where:{ userId: fu3.id }, update:{},
-    create:{ userId: fu3.id, schoolId: school.id, employeeCode:"FIN-003", designation:"Finance Officer", phone:"9000000003" }});
-  await prisma.schoolPromotionConfig.upsert({ where:{ schoolId: school.id }, update:{},
-    create:{ schoolId: school.id, skipGrades:[], lastGrade:"Semester 8", firstGrade:"Semester 1" }});
-  console.log("   ✅  Admin + Finance Admin");
+//   const adminUser = await prisma.user.upsert({ where:{ email_schoolId:{ email:"admin3@gmail.com", schoolId: school.id } }, update:{},
+//     create:{ name:"Degree Admin", email:"admin3@gmail.com", password, role:"ADMIN", schoolId: school.id }});
+//   const fu3 = await prisma.user.upsert({ where:{ email_schoolId:{ email:"finance3@gmail.com", schoolId: school.id } }, update:{},
+//     create:{ name:"Finance Admin", email:"finance3@gmail.com", password, role:"FINANCE", schoolId: school.id }});
+//   await prisma.financeProfile.upsert({ where:{ userId: fu3.id }, update:{},
+//     create:{ userId: fu3.id, schoolId: school.id, employeeCode:"FIN-003", designation:"Finance Officer", phone:"9000000003" }});
+//   await prisma.schoolPromotionConfig.upsert({ where:{ schoolId: school.id }, update:{},
+//     create:{ schoolId: school.id, skipGrades:[], lastGrade:"Semester 8", firstGrade:"Semester 1" }});
+//   console.log("   ✅  Admin + Finance Admin");
 
-  const ay = await prisma.academicYear.upsert({
-    where:  { name_schoolId:{ name:"2025-26", schoolId: school.id } }, update:{ isActive:true },
-    create: { name:"2025-26", startDate: new Date("2025-08-01"), endDate: new Date("2026-05-31"), isActive:true, schoolId: school.id },
-  });
+//   const ay = await prisma.academicYear.upsert({
+//     where:  { name_schoolId:{ name:"2025-26", schoolId: school.id } }, update:{ isActive:true },
+//     create: { name:"2025-26", startDate: new Date("2025-08-01"), endDate: new Date("2026-05-31"), isActive:true, schoolId: school.id },
+//   });
 
-  const beCourse = await prisma.course.upsert({ where:{ name_schoolId:{ name:"BE", schoolId: school.id } }, update:{ hasBranches:true  }, create:{ name:"BE", code:"BE", type:"DEGREE_COURSE", totalSemesters:8, hasBranches:true,  schoolId: school.id } });
-  const baCourse = await prisma.course.upsert({ where:{ name_schoolId:{ name:"BA", schoolId: school.id } }, update:{ hasBranches:false }, create:{ name:"BA", code:"BA", type:"DEGREE_COURSE", totalSemesters:6, hasBranches:false, schoolId: school.id } });
+//   const beCourse = await prisma.course.upsert({ where:{ name_schoolId:{ name:"BE", schoolId: school.id } }, update:{ hasBranches:true  }, create:{ name:"BE", code:"BE", type:"DEGREE_COURSE", totalSemesters:8, hasBranches:true,  schoolId: school.id } });
+//   const baCourse = await prisma.course.upsert({ where:{ name_schoolId:{ name:"BA", schoolId: school.id } }, update:{ hasBranches:false }, create:{ name:"BA", code:"BA", type:"DEGREE_COURSE", totalSemesters:6, hasBranches:false, schoolId: school.id } });
 
-  const beBranches = [];
-  for (const d of [{ name:"Computer Science & Engineering", code:"CSE" },{ name:"Electronics & Communication", code:"ECE" },{ name:"Mechanical Engineering", code:"ME" }])
-    beBranches.push(await prisma.courseBranch.upsert({ where:{ name_courseId:{ name: d.name, courseId: beCourse.id } }, update:{}, create:{ name: d.name, code: d.code, courseId: beCourse.id } }));
-  console.log(`   ✅  Courses: BE (CSE/ECE/ME), BA`);
+//   const beBranches = [];
+//   for (const d of [{ name:"Computer Science & Engineering", code:"CSE" },{ name:"Electronics & Communication", code:"ECE" },{ name:"Mechanical Engineering", code:"ME" }])
+//     beBranches.push(await prisma.courseBranch.upsert({ where:{ name_courseId:{ name: d.name, courseId: beCourse.id } }, update:{}, create:{ name: d.name, code: d.code, courseId: beCourse.id } }));
+//   console.log(`   ✅  Courses: BE (CSE/ECE/ME), BA`);
 
-  const SUBJ_DEFS = [
-    { name:"Engineering Mathematics", code:"DEG-MATH" },
-    { name:"Physics",                 code:"DEG-PHY"  },
-    { name:"Programming in C",        code:"DEG-PROG" },
-    { name:"Data Structures",         code:"DEG-DS"   },
-    { name:"Digital Electronics",     code:"DEG-DE"   },
-    { name:"Engineering Drawing",     code:"DEG-DRAW" },
-    { name:"Communication Skills",    code:"DEG-COMM" },
-  ];
-  const subjects = [];
-  for (const d of SUBJ_DEFS)
-    subjects.push(await prisma.subject.upsert({
-      where:  { code_schoolId:{ code: d.code, schoolId: school.id } },
-      update: { name: d.name }, create: { name: d.name, code: d.code, schoolId: school.id },
-    }));
-  console.log(`   ✅  ${subjects.length} subjects`);
+//   const SUBJ_DEFS = [
+//     { name:"Engineering Mathematics", code:"DEG-MATH" },
+//     { name:"Physics",                 code:"DEG-PHY"  },
+//     { name:"Programming in C",        code:"DEG-PROG" },
+//     { name:"Data Structures",         code:"DEG-DS"   },
+//     { name:"Digital Electronics",     code:"DEG-DE"   },
+//     { name:"Engineering Drawing",     code:"DEG-DRAW" },
+//     { name:"Communication Skills",    code:"DEG-COMM" },
+//   ];
+//   const subjects = [];
+//   for (const d of SUBJ_DEFS)
+//     subjects.push(await prisma.subject.upsert({
+//       where:  { code_schoolId:{ code: d.code, schoolId: school.id } },
+//       update: { name: d.name }, create: { name: d.name, code: d.code, schoolId: school.id },
+//     }));
+//   console.log(`   ✅  ${subjects.length} subjects`);
 
-  const tStart = TEACHER_CTR;
-  const { allProfiles, tBySubject } = await createTeachers(school, password, {
-    subjectDefs: SUBJ_DEFS,
-    defs: [
-      {n:1,  fn:"Venkat",  ln:"Rao",       dept:"Mathematics",     si:0},
-      {n:2,  fn:"Archana", ln:"Sharma",    dept:"Mathematics",     si:0},
-      {n:3,  fn:"Shiva",   ln:"Kumar",     dept:"Mathematics",     si:0},
-      {n:4,  fn:"Sridhar", ln:"Nair",      dept:"Physics",         si:1},
-      {n:5,  fn:"Mala",    ln:"Pillai",    dept:"Physics",         si:1},
-      {n:6,  fn:"Ganesh",  ln:"Menon",     dept:"Physics",         si:1},
-      {n:7,  fn:"Rahul",   ln:"Iyer",      dept:"Computer Science",si:2},
-      {n:8,  fn:"Nisha",   ln:"Bose",      dept:"Computer Science",si:2},
-      {n:9,  fn:"Kartik",  ln:"Singh",     dept:"Computer Science",si:2},
-      {n:10, fn:"Divya",   ln:"Gupta",     dept:"Computer Science",si:3},
-      {n:11, fn:"Suresh",  ln:"Reddy",     dept:"Computer Science",si:3},
-      {n:12, fn:"Ananya",  ln:"Patel",     dept:"Computer Science",si:3},
-      {n:13, fn:"Vivek",   ln:"Verma",     dept:"Electronics",     si:4},
-      {n:14, fn:"Padma",   ln:"Joshi",     dept:"Electronics",     si:4},
-      {n:15, fn:"Rajiv",   ln:"Desai",     dept:"Electronics",     si:4},
-      {n:16, fn:"Uday",    ln:"Nambiar",   dept:"Mechanical",      si:5},
-      {n:17, fn:"Sudha",   ln:"Ghosh",     dept:"Mechanical",      si:5},
-      {n:18, fn:"Kiran",   ln:"Trivedi",   dept:"Mechanical",      si:5},
-      {n:19, fn:"Rekha",   ln:"Kulkarni",  dept:"Communication",   si:6},
-      {n:20, fn:"Anand",   ln:"Shah",      dept:"Communication",   si:6},
-      {n:21, fn:"Preethi", ln:"Das",       dept:"Communication",   si:6},
-    ],
-  });
-  console.log(`   ✅  ${allProfiles.length} teachers  (teacher${tStart}@gmail.com … teacher${TEACHER_CTR-1}@gmail.com)`);
+//   const tStart = TEACHER_CTR;
+//   const { allProfiles, tBySubject } = await createTeachers(school, password, {
+//     subjectDefs: SUBJ_DEFS,
+//     defs: [
+//       {n:1,  fn:"Venkat",  ln:"Rao",       dept:"Mathematics",     si:0},
+//       {n:2,  fn:"Archana", ln:"Sharma",    dept:"Mathematics",     si:0},
+//       {n:3,  fn:"Shiva",   ln:"Kumar",     dept:"Mathematics",     si:0},
+//       {n:4,  fn:"Sridhar", ln:"Nair",      dept:"Physics",         si:1},
+//       {n:5,  fn:"Mala",    ln:"Pillai",    dept:"Physics",         si:1},
+//       {n:6,  fn:"Ganesh",  ln:"Menon",     dept:"Physics",         si:1},
+//       {n:7,  fn:"Rahul",   ln:"Iyer",      dept:"Computer Science",si:2},
+//       {n:8,  fn:"Nisha",   ln:"Bose",      dept:"Computer Science",si:2},
+//       {n:9,  fn:"Kartik",  ln:"Singh",     dept:"Computer Science",si:2},
+//       {n:10, fn:"Divya",   ln:"Gupta",     dept:"Computer Science",si:3},
+//       {n:11, fn:"Suresh",  ln:"Reddy",     dept:"Computer Science",si:3},
+//       {n:12, fn:"Ananya",  ln:"Patel",     dept:"Computer Science",si:3},
+//       {n:13, fn:"Vivek",   ln:"Verma",     dept:"Electronics",     si:4},
+//       {n:14, fn:"Padma",   ln:"Joshi",     dept:"Electronics",     si:4},
+//       {n:15, fn:"Rajiv",   ln:"Desai",     dept:"Electronics",     si:4},
+//       {n:16, fn:"Uday",    ln:"Nambiar",   dept:"Mechanical",      si:5},
+//       {n:17, fn:"Sudha",   ln:"Ghosh",     dept:"Mechanical",      si:5},
+//       {n:18, fn:"Kiran",   ln:"Trivedi",   dept:"Mechanical",      si:5},
+//       {n:19, fn:"Rekha",   ln:"Kulkarni",  dept:"Communication",   si:6},
+//       {n:20, fn:"Anand",   ln:"Shah",      dept:"Communication",   si:6},
+//       {n:21, fn:"Preethi", ln:"Das",       dept:"Communication",   si:6},
+//     ],
+//   });
+//   console.log(`   ✅  ${allProfiles.length} teachers  (teacher${tStart}@gmail.com … teacher${TEACHER_CTR-1}@gmail.com)`);
 
-  const { configId, wdDefs, satDefs } = await createTimetableConfig(school, ay);
+//   const { configId, wdDefs, satDefs } = await createTimetableConfig(school, ay);
 
-  const BE_SEMS = ["Semester 1","Semester 2","Semester 3","Semester 4","Semester 5","Semester 6","Semester 7","Semester 8"];
-  const BA_SEMS = ["Semester 1","Semester 2","Semester 3","Semester 4","Semester 5","Semester 6"];
-  const allSections = []; let ctIdx = 0;
+//   const BE_SEMS = ["Semester 1","Semester 2","Semester 3","Semester 4","Semester 5","Semester 6","Semester 7","Semester 8"];
+//   const BA_SEMS = ["Semester 1","Semester 2","Semester 3","Semester 4","Semester 5","Semester 6"];
+//   const allSections = []; let ctIdx = 0;
 
-  for (let bi = 0; bi < beBranches.length; bi++) {
-    const branch = beBranches[bi];
-    for (let gi = 0; gi < BE_SEMS.length; gi++) {
-      const sem = BE_SEMS[gi], section = "A", name = `BE-${branch.code} ${sem}-A`;
-      let cs = await prisma.classSection.findFirst({ where:{ grade: sem, section, schoolId: school.id, branchId: branch.id } });
-      if (!cs) cs = await prisma.classSection.create({ data:{ grade: sem, section, name, schoolId: school.id, courseId: beCourse.id, branchId: branch.id } });
-      const ct = allProfiles[ctIdx++ % allProfiles.length];
-      await prisma.classSectionAcademicYear.upsert({
-        where:  { classSectionId_academicYearId:{ classSectionId: cs.id, academicYearId: ay.id } },
-        update: { classTeacherId: ct.id, isActive:true },
-        create: { classSectionId: cs.id, academicYearId: ay.id, classTeacherId: ct.id, isActive:true },
-      });
-      await linkSubjectsAndTeachers({ cs, subjects, tBySubject, ay, gi, si: bi });
-      allSections.push({ id: cs.id, grade: sem, section, name });
-    }
-  }
+//   for (let bi = 0; bi < beBranches.length; bi++) {
+//     const branch = beBranches[bi];
+//     for (let gi = 0; gi < BE_SEMS.length; gi++) {
+//       const sem = BE_SEMS[gi], section = "A", name = `BE-${branch.code} ${sem}-A`;
+//       let cs = await prisma.classSection.findFirst({ where:{ grade: sem, section, schoolId: school.id, branchId: branch.id } });
+//       if (!cs) cs = await prisma.classSection.create({ data:{ grade: sem, section, name, schoolId: school.id, courseId: beCourse.id, branchId: branch.id } });
+//       const ct = allProfiles[ctIdx++ % allProfiles.length];
+//       await prisma.classSectionAcademicYear.upsert({
+//         where:  { classSectionId_academicYearId:{ classSectionId: cs.id, academicYearId: ay.id } },
+//         update: { classTeacherId: ct.id, isActive:true },
+//         create: { classSectionId: cs.id, academicYearId: ay.id, classTeacherId: ct.id, isActive:true },
+//       });
+//       await linkSubjectsAndTeachers({ cs, subjects, tBySubject, ay, gi, si: bi });
+//       allSections.push({ id: cs.id, grade: sem, section, name });
+//     }
+//   }
 
-  for (let gi = 0; gi < BA_SEMS.length; gi++) {
-    const sem = BA_SEMS[gi];
-    for (const section of ["A","B"]) {
-      const name = `BA ${sem}-${section}`;
-      let cs = await prisma.classSection.findFirst({ where:{ grade: sem, section, schoolId: school.id, courseId: baCourse.id, branchId: null } });
-      if (!cs) cs = await prisma.classSection.create({ data:{ grade: sem, section, name, schoolId: school.id, courseId: baCourse.id } });
-      const ct = allProfiles[ctIdx++ % allProfiles.length];
-      await prisma.classSectionAcademicYear.upsert({
-        where:  { classSectionId_academicYearId:{ classSectionId: cs.id, academicYearId: ay.id } },
-        update: { classTeacherId: ct.id, isActive:true },
-        create: { classSectionId: cs.id, academicYearId: ay.id, classTeacherId: ct.id, isActive:true },
-      });
-      await linkSubjectsAndTeachers({ cs, subjects, tBySubject, ay, gi, si:0 });
-      allSections.push({ id: cs.id, grade: sem, section, name });
-    }
-  }
-  console.log(`   ✅  ${allSections.length} class sections  (BE: 24, BA: 12)`);
+//   for (let gi = 0; gi < BA_SEMS.length; gi++) {
+//     const sem = BA_SEMS[gi];
+//     for (const section of ["A","B"]) {
+//       const name = `BA ${sem}-${section}`;
+//       let cs = await prisma.classSection.findFirst({ where:{ grade: sem, section, schoolId: school.id, courseId: baCourse.id, branchId: null } });
+//       if (!cs) cs = await prisma.classSection.create({ data:{ grade: sem, section, name, schoolId: school.id, courseId: baCourse.id } });
+//       const ct = allProfiles[ctIdx++ % allProfiles.length];
+//       await prisma.classSectionAcademicYear.upsert({
+//         where:  { classSectionId_academicYearId:{ classSectionId: cs.id, academicYearId: ay.id } },
+//         update: { classTeacherId: ct.id, isActive:true },
+//         create: { classSectionId: cs.id, academicYearId: ay.id, classTeacherId: ct.id, isActive:true },
+//       });
+//       await linkSubjectsAndTeachers({ cs, subjects, tBySubject, ay, gi, si:0 });
+//       allSections.push({ id: cs.id, grade: sem, section, name });
+//     }
+//   }
+//   console.log(`   ✅  ${allSections.length} class sections  (BE: 24, BA: 12)`);
 
-  const totalTT = await writeTimetable(school, ay, subjects, tBySubject, allSections, wdDefs, satDefs, configId);
-  console.log(`   ✅  ${totalTT} timetable entries`);
+//   const totalTT = await writeTimetable(school, ay, subjects, tBySubject, allSections, wdDefs, satDefs, configId);
+//   console.log(`   ✅  ${totalTT} timetable entries`);
 
-  const COUNT = 100, stuStart = STUDENT_CTR;
-  console.log(`   👨‍🎓  Seeding ${COUNT} students × ${allSections.length} sections…`);
-  const allEnrollments = [];
-  for (const cs of allSections) {
-    const enrs = await seedStudents({ school, ay, cs, count: COUNT, baseAge:18, password });
-    allEnrollments.push(...enrs);
-    process.stdout.write(`      ✅  ${cs.name}  (${COUNT} students)\n`);
-  }
+//   const COUNT = 100, stuStart = STUDENT_CTR;
+//   console.log(`   👨‍🎓  Seeding ${COUNT} students × ${allSections.length} sections…`);
+//   const allEnrollments = [];
+//   for (const cs of allSections) {
+//     const enrs = await seedStudents({ school, ay, cs, count: COUNT, baseAge:18, password });
+//     allEnrollments.push(...enrs);
+//     process.stdout.write(`      ✅  ${cs.name}  (${COUNT} students)\n`);
+//   }
 
-  await seedAssessments({ school, ay, allSections, subjects, allEnrollments });
-  await seedAttendance({ school, ay, allSections, allEnrollments, adminUser });
-  await seedTeacherAttendance({ school, ay, allTeachers: allProfiles, adminUser });
-  await seedHolidays({ school, ay, adminUser });
-  // await seedGallery({ school, ay, adminUser });
-  await seedActivitiesAndEvents({ school, ay, allSections, allEnrollments, adminUser });
-  await seedAwards({ school, ay, allSections, allEnrollments, adminUser });
-    await seedStaffAndSalaries({ school, adminUser });
-  await seedTeacherSalaries({ school, allTeachers: allProfiles });
+//   await seedAssessments({ school, ay, allSections, subjects, allEnrollments });
+//   await seedAttendance({ school, ay, allSections, allEnrollments, adminUser });
+//   await seedTeacherAttendance({ school, ay, allTeachers: allProfiles, adminUser });
+//   await seedHolidays({ school, ay, adminUser });
+//   // await seedGallery({ school, ay, adminUser });
+//   await seedActivitiesAndEvents({ school, ay, allSections, allEnrollments, adminUser });
+//   await seedAwards({ school, ay, allSections, allEnrollments, adminUser });
+//     await seedStaffAndSalaries({ school, adminUser });
+//   await seedTeacherSalaries({ school, allTeachers: allProfiles });
 
-  return { school, totalStudents: STUDENT_CTR - stuStart, totalSections: allSections.length, totalTT };
-}
+//   return { school, totalStudents: STUDENT_CTR - stuStart, totalSections: allSections.length, totalTT };
+// }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  MAIN
@@ -1885,10 +1885,10 @@ async function main() {
   console.log("👑  Super Admin ready  (superadmin@gmail.com)");
 
   const schoolResult = await seedSchool(university, password);
-  const pucResult    = await seedPUC(university, password);
-  const degResult    = await seedDegree(university, password);
+  // const pucResult    = await seedPUC(university, password);
+  // const degResult    = await seedDegree(university, password);
 
-  for (const { school } of [schoolResult, pucResult, degResult]) {
+  for (const { school } of [schoolResult]) {
     await prisma.superAdminSchoolAccess.upsert({
       where:  { superAdminId_schoolId:{ superAdminId: sa.id, schoolId: school.id } },
       update: {},
@@ -1897,9 +1897,9 @@ async function main() {
   }
  await seedExpenses();
   const S = schoolResult.totalStudents;
-  const P = pucResult.totalStudents;
-  const D = degResult.totalStudents;
-  const total = S + P + D;
+  // const P = pucResult.totalStudents;
+  // const D = degResult.totalStudents;
+  const total = S;
 
   console.log(`
 ╔═══════════════════════════════════════════════════════════════════════════════╗

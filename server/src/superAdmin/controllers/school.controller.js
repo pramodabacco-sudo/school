@@ -7,13 +7,7 @@ const prisma = new PrismaClient();
 
 // ✅ Valid SchoolType enum values — must match schema.prisma exactly
 const VALID_SCHOOL_TYPES = [
-  "PRIMARY",
-  "UPPER_PRIMARY",
-  "HIGH_SCHOOL",
-  "PUC",
-  "DEGREE",
-  "POSTGRADUATE",
-  "OTHER",
+  "SCHOOL", "PUC", "DIPLOMA", "DEGREE", "POSTGRADUATE", "OTHER",
 ];
 
 /**
