@@ -1,12 +1,12 @@
 // client/src/admin/pages/activities/ActivitiesList.jsx
-// Redesigned to match Gallery.jsx design system
+// Redesigned to match Gallery.jsx design system — fully responsive + datetime support
 
 import React, { useState, useEffect, useCallback } from "react";
 import {
   Trophy, Users, Plus, X, Edit2, Trash2, Loader2,
   CheckCircle, AlertCircle, Search, Star, Swords,
   Music, BookOpen, ChevronRight, Dumbbell, Brain,
-  Calendar, MapPin, Archive, RefreshCw, FolderOpen,
+  Calendar, MapPin, Archive, RefreshCw, FolderOpen, Clock,
 } from "lucide-react";
 import { getToken } from "../../../auth/storage.js";
 
@@ -47,10 +47,19 @@ const apiFetch = async (url, opts = {}) => {
   return json;
 };
 
+/* ── Helpers ── */
+function formatDateTime(isoStr) {
+  if (!isoStr) return null;
+  const d = new Date(isoStr);
+  const date = d.toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric" });
+  const time = d.toLocaleTimeString("en-GB", { hour:"2-digit", minute:"2-digit" });
+  return { date, time, hasTime: isoStr.length > 10 };
+}
+
 /* ── Skeleton pulse (Gallery-style) ── */
 function Pulse({ w = "100%", h = 13, r = 8 }) {
   return (
-    <div className="animate-pulse" style={{ width:w, height:h, borderRadius:r, background:`${C.mist}55` }}/>
+    <div className="animate-pulse" style={{ width:w, height:h, borderRadius:r, background:`${C.mist}55`, flexShrink:0 }}/>
   );
 }
 
@@ -66,7 +75,7 @@ function useToast() {
 }
 function Toast({ toasts }) {
   return (
-    <div style={{ position:"fixed", top:20, right:20, zIndex:50, display:"flex", flexDirection:"column", gap:8, pointerEvents:"none" }}>
+    <div style={{ position:"fixed", top:20, right:20, zIndex:50, display:"flex", flexDirection:"column", gap:8, pointerEvents:"none", maxWidth:"calc(100vw - 40px)" }}>
       {toasts.map(t => (
         <div key={t.id} style={{
           display:"flex", alignItems:"center", gap:8,
@@ -83,22 +92,23 @@ function Toast({ toasts }) {
   );
 }
 
-/* ── Modal (Gallery-style) ── */
+/* ── Modal (Gallery-style, responsive) ── */
 function Modal({ title, subtitle, icon: Icon, onClose, children, wide }) {
   return (
     <div
-      style={{ position:"fixed", inset:0, zIndex:40, display:"flex", alignItems:"center", justifyContent:"center", padding:16, background:"rgba(0,0,0,0.40)", backdropFilter:"blur(4px)" }}
+      style={{ position:"fixed", inset:0, zIndex:40, display:"flex", alignItems:"center", justifyContent:"center", padding:"16px 12px", background:"rgba(0,0,0,0.40)", backdropFilter:"blur(4px)" }}
       onClick={onClose}
     >
       <div
-        style={{ background:C.white, borderRadius:20, border:`1.5px solid ${C.borderLight}`, boxShadow:"0 20px 60px rgba(56,73,89,0.18)", width:"100%", maxWidth: wide ? 680 : 480, maxHeight:"90vh", overflowY:"auto" }}
+        className="modal-box"
+        style={{ background:C.white, borderRadius:20, border:`1.5px solid ${C.borderLight}`, boxShadow:"0 20px 60px rgba(56,73,89,0.18)", width:"100%", maxWidth: wide ? 680 : 480, maxHeight:"92vh", overflowY:"auto" }}
         onClick={e => e.stopPropagation()}
       >
-        {/* Modal header — Gallery style */}
-        <div style={{ padding:"18px 22px", borderBottom:`1.5px solid ${C.borderLight}`, display:"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, background:C.white, zIndex:10, borderRadius:"20px 20px 0 0" }}>
+        {/* Modal header */}
+        <div style={{ padding:"16px 20px", borderBottom:`1.5px solid ${C.borderLight}`, display:"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, background:C.white, zIndex:10, borderRadius:"20px 20px 0 0" }}>
           <div style={{ display:"flex", alignItems:"center", gap:10 }}>
             {Icon && (
-              <div style={{ width:34, height:34, borderRadius:10, background:`${C.sky}22`, border:`1.5px solid ${C.sky}33`, display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <div style={{ width:34, height:34, borderRadius:10, background:`${C.sky}22`, border:`1.5px solid ${C.sky}33`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
                 <Icon size={15} color={C.sky}/>
               </div>
             )}
@@ -109,12 +119,12 @@ function Modal({ title, subtitle, icon: Icon, onClose, children, wide }) {
           </div>
           <button
             onClick={onClose}
-            style={{ width:30, height:30, borderRadius:8, border:`1px solid ${C.borderLight}`, background:C.bg, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:C.textLight }}
+            style={{ width:30, height:30, borderRadius:8, border:`1px solid ${C.borderLight}`, background:C.bg, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:C.textLight, flexShrink:0 }}
           >
             <X size={14}/>
           </button>
         </div>
-        <div style={{ padding:"20px 22px" }}>{children}</div>
+        <div style={{ padding:"20px" }}>{children}</div>
       </div>
     </div>
   );
@@ -171,6 +181,7 @@ function PrimaryBtn({ children, onClick, loading, disabled, small }) {
         color:"#fff", fontSize: small ? 12 : 13, fontWeight:700,
         cursor:(loading || disabled) ? "not-allowed" : "pointer",
         opacity:(loading || disabled) ? 0.65 : 1, flexShrink:0,
+        whiteSpace:"nowrap",
       }}
       onMouseEnter={e => { if (!loading && !disabled) e.currentTarget.style.opacity = "0.88"; }}
       onMouseLeave={e => { if (!loading && !disabled) e.currentTarget.style.opacity = "1"; }}
@@ -192,7 +203,7 @@ function OutlineBtn({ children, onClick, small, danger }) {
         background: danger ? "#fef2f2" : C.white,
         color: danger ? "#991b1b" : C.text,
         fontSize: small ? 12 : 13, fontWeight:600,
-        cursor:"pointer",
+        cursor:"pointer", flexShrink:0, whiteSpace:"nowrap",
       }}
       onMouseEnter={e => (e.currentTarget.style.background = danger ? "#fee2e2" : C.bg)}
       onMouseLeave={e => (e.currentTarget.style.background = danger ? "#fef2f2" : C.white)}
@@ -260,10 +271,10 @@ function ClassPicker({ classSections, selected, onToggle }) {
   );
 }
 
-/* ── Form row helper ── */
+/* ── Form row helper — collapses on mobile ── */
 function FormRow({ children, cols = 1 }) {
   return (
-    <div style={{ display:"grid", gridTemplateColumns:`repeat(${cols}, 1fr)`, gap:12 }}>
+    <div className={`form-row form-row-${cols}`}>
       {children}
     </div>
   );
@@ -375,17 +386,26 @@ function ActivityFormModal({ editing, academicYears, classSections, onClose, onS
 }
 
 /* ══════════════════════════════════════════════════════════════
-   EVENT FORM MODAL
+   EVENT FORM MODAL — with datetime-local support
 ══════════════════════════════════════════════════════════════ */
 function EventFormModal({ editing, academicYears, classSections, onClose, onSaved, pushToast }) {
   const isEdit = !!editing;
+
+  /* Normalise stored ISO string → datetime-local value (YYYY-MM-DDTHH:mm) */
+  const toLocalInput = (iso) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    const pad = n => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
   const [form, setForm] = useState({
     name:                editing?.name                ?? "",
     description:         editing?.description        ?? "",
     eventType:           editing?.eventType          ?? "COMPETITION",
     participationMode:   editing?.participationMode  ?? "TEAM",
     status:              editing?.status             ?? "DRAFT",
-    eventDate:           editing?.eventDate          ? editing.eventDate.slice(0, 10) : "",
+    eventDate:           toLocalInput(editing?.eventDate),
     venue:               editing?.venue              ?? "",
     academicYearId:      editing?.academicYearId     ?? (academicYears.find(y => y.isActive)?.id ?? ""),
     maxTeamsPerClass:    editing?.maxTeamsPerClass    ?? "",
@@ -402,6 +422,8 @@ function EventFormModal({ editing, academicYears, classSections, onClose, onSave
     try {
       const body = {
         ...form,
+        /* Convert datetime-local back to ISO string for the server */
+        eventDate:           form.eventDate ? new Date(form.eventDate).toISOString() : null,
         classSectionIds:     form.classIds,
         maxTeamsPerClass:    form.maxTeamsPerClass    ? parseInt(form.maxTeamsPerClass)    : null,
         maxStudentsPerClass: form.maxStudentsPerClass ? parseInt(form.maxStudentsPerClass) : null,
@@ -462,10 +484,22 @@ function EventFormModal({ editing, academicYears, classSections, onClose, onSave
           />
         </div>
         <FormDivider/>
+        {/* ── Date + Time (datetime-local) + Venue on same row ── */}
         <FormRow cols={2}>
           <div>
-            <Label>Event Date</Label>
-            <Input type="date" value={form.eventDate} onChange={e => set("eventDate", e.target.value)}/>
+            <Label>
+              <span style={{ display:"flex", alignItems:"center", gap:5 }}>
+                <Calendar size={11}/> Event Date &amp; Time
+              </span>
+            </Label>
+            <Input
+              type="datetime-local"
+              value={form.eventDate}
+              onChange={e => set("eventDate", e.target.value)}
+            />
+            <p style={{ margin:"5px 0 0", fontSize:10, color:C.textLight }}>
+              Date and time are both saved
+            </p>
           </div>
           <div>
             <Label>Venue</Label>
@@ -503,7 +537,7 @@ function EventFormModal({ editing, academicYears, classSections, onClose, onSave
             </p>
           )}
         </div>
-        <div style={{ display:"flex", gap:10, paddingTop:4, borderTop:`1.5px solid ${C.borderLight}`, marginTop:4 }}>
+        <div style={{ display:"flex", gap:10, paddingTop:4, borderTop:`1.5px solid ${C.borderLight}`, marginTop:4, flexWrap:"wrap" }}>
           <PrimaryBtn onClick={save} loading={saving}>
             <CheckCircle size={13}/> {isEdit ? "Save Changes" : "Create Event"}
           </PrimaryBtn>
@@ -511,6 +545,87 @@ function EventFormModal({ editing, academicYears, classSections, onClose, onSave
         </div>
       </div>
     </Modal>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   EVENT CARD — used on mobile / tablet instead of table row
+══════════════════════════════════════════════════════════════ */
+function EventCard({ ev, onEdit, onArchive }) {
+  const et = EVENT_TYPE_META[ev.eventType]  ?? EVENT_TYPE_META.COMPETITION;
+  const st = EVENT_STATUS_META[ev.status]   ?? EVENT_STATUS_META.DRAFT;
+  const classes = ev.eligibleClasses?.map(ec => ec.classSection?.name).filter(Boolean) ?? [];
+  const dt = formatDateTime(ev.eventDate);
+
+  return (
+    <div className="act-card" style={{ borderRadius:16, padding:16, background:C.white, border:`1.5px solid ${C.borderLight}`, boxShadow:"0 2px 8px rgba(56,73,89,0.06)" }}>
+      {/* Title row */}
+      <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:10, gap:8 }}>
+        <div style={{ flex:1, minWidth:0 }}>
+          <h3 style={{ margin:0, fontWeight:700, fontSize:14, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{ev.name}</h3>
+          {ev.venue && (
+            <p style={{ margin:"3px 0 0", fontSize:11, color:C.textLight, display:"flex", alignItems:"center", gap:3 }}>
+              <MapPin size={9}/>{ev.venue}
+            </p>
+          )}
+        </div>
+        <div className="row-actions" style={{ display:"flex", gap:4, flexShrink:0 }}>
+          <button onClick={onEdit}
+            style={{ width:28, height:28, borderRadius:8, border:`1px solid ${C.borderLight}`, background:C.bg, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}
+            onMouseEnter={e => (e.currentTarget.style.background = `${C.sky}18`)}
+            onMouseLeave={e => (e.currentTarget.style.background = C.bg)}>
+            <Edit2 size={12} color={C.textLight}/>
+          </button>
+          <button onClick={onArchive}
+            style={{ width:28, height:28, borderRadius:8, border:"1px solid #fecaca", background:"#fef2f2", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}
+            onMouseEnter={e => (e.currentTarget.style.background = "#fee2e2")}
+            onMouseLeave={e => (e.currentTarget.style.background = "#fef2f2")}>
+            <Archive size={12} color="#ef4444"/>
+          </button>
+        </div>
+      </div>
+
+      {/* Badges row */}
+      <div style={{ display:"flex", flexWrap:"wrap", gap:5, marginBottom:10 }}>
+        <span style={{ fontSize:11, padding:"3px 9px", borderRadius:20, fontWeight:600, background:et.color + "18", color:et.color }}>{et.label}</span>
+        <span style={{ fontSize:11, padding:"3px 9px", borderRadius:20, fontWeight:600, background:`${C.mist}`, color:C.text, textTransform:"capitalize" }}>{ev.participationMode?.toLowerCase()}</span>
+        <span style={{ fontSize:11, padding:"3px 9px", borderRadius:20, fontWeight:600, background:st.color + "18", color:st.color }}>{st.label}</span>
+      </div>
+
+      {/* Meta row */}
+      <div style={{ display:"flex", flexWrap:"wrap", gap:12, paddingTop:10, borderTop:`1px solid ${C.borderLight}`, alignItems:"center" }}>
+        {dt && (
+          <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+            <Calendar size={10} color={C.textLight}/>
+            <span style={{ fontSize:11, color:C.textLight }}>{dt.date}</span>
+            {dt.hasTime && (
+              <>
+                <Clock size={10} color={C.textLight} style={{ marginLeft:2 }}/>
+                <span style={{ fontSize:11, color:C.textLight }}>{dt.time}</span>
+              </>
+            )}
+          </div>
+        )}
+        {classes.length > 0 && (
+          <div style={{ display:"flex", gap:4, flexWrap:"wrap" }}>
+            {classes.slice(0, 2).map(c => (
+              <span key={c} style={{ fontSize:11, padding:"2px 6px", borderRadius:6, background:`${C.sky}15`, color:C.sky, fontWeight:500 }}>{c}</span>
+            ))}
+            {classes.length > 2 && <span style={{ fontSize:11, color:C.textLight }}>+{classes.length - 2}</span>}
+          </div>
+        )}
+        <div style={{ marginLeft:"auto", display:"flex", gap:14 }}>
+          <div style={{ textAlign:"center" }}>
+            <p style={{ margin:0, fontSize:14, fontWeight:800, color:C.text }}>{ev._count?.teams ?? 0}</p>
+            <p style={{ margin:0, fontSize:10, color:C.textLight }}>Teams</p>
+          </div>
+          <div style={{ textAlign:"center" }}>
+            <p style={{ margin:0, fontSize:14, fontWeight:800, color:C.text }}>{ev._count?.participants ?? 0}</p>
+            <p style={{ margin:0, fontSize:10, color:C.textLight }}>Participants</p>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -578,6 +693,7 @@ export default function ActivitiesList() {
 
   return (
     <>
+      {/* ── Responsive CSS ── */}
       <style>{`
         @keyframes fadeUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
         .fade-up { animation: fadeUp 0.45s ease both; }
@@ -587,10 +703,60 @@ export default function ActivitiesList() {
         .ev-row:hover { background: ${C.sky}08 !important; }
         .ev-row:hover .row-actions { opacity:1 !important; }
         .row-actions { opacity:0; transition:opacity 0.15s; }
+
+        /* form-row responsive grid */
+        .form-row { display:grid; gap:12; }
+        .form-row-1 { grid-template-columns: 1fr; }
+        .form-row-2 { grid-template-columns: repeat(2, 1fr); }
+        .form-row-3 { grid-template-columns: repeat(3, 1fr); }
+
+        /* Events desktop table — hidden below 900px */
+        .ev-table { display:block; }
+        .ev-cards  { display:none; }
+
+        /* Tabs scroll on small screens */
+        .tab-bar { display:inline-flex; padding:4px; borderRadius:12px; background:${C.bg}; border:1.5px solid ${C.borderLight}; flex-shrink:0; }
+
+        /* Page header action buttons */
+        .header-actions { display:flex; gap:10; align-items:center; flex-wrap:wrap; }
+
+        /* Card toolbar */
+        .card-toolbar { padding:14px 18px; border-bottom:1.5px solid ${C.borderLight}; display:flex; align-items:center; gap:12; flex-wrap:wrap; background:linear-gradient(90deg,${C.bg} 0%,${C.white} 100%); }
+
+        /* stats grid */
+        .stats-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:14; margin-bottom:24px; }
+
+        /* acts grid */
+        .acts-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:16; }
+
+        /* ── Tablet (≤900px): events switch to cards ── */
+        @media (max-width: 900px) {
+          .ev-table { display:none !important; }
+          .ev-cards  { display:flex; flex-direction:column; gap:12; }
+        }
+
+        /* ── Mobile (≤640px) ── */
+        @media (max-width: 640px) {
+          .form-row-2 { grid-template-columns: 1fr !important; }
+          .form-row-3 { grid-template-columns: 1fr !important; }
+          .stats-grid { grid-template-columns: repeat(2, 1fr) !important; gap:10px; }
+          .acts-grid  { grid-template-columns: 1fr !important; }
+          .header-actions { gap:6px; }
+          .header-actions .hide-mobile { display:none !important; }
+          .card-toolbar { padding:10px 12px; gap:8px; }
+          .acts-page { padding:16px 12px !important; }
+          .modal-box { border-radius:16px !important; }
+          .tab-bar { overflow-x:auto; max-width:100%; }
+        }
+
+        /* ── Touch: always show row-actions ── */
+        @media (hover: none) {
+          .row-actions { opacity:1 !important; }
+        }
       `}</style>
       <Toast toasts={toasts}/>
 
-      <div style={{ minHeight:"100vh", background:C.bg, padding:"28px 30px", fontFamily:"'Inter', sans-serif", backgroundImage:`radial-gradient(ellipse at 0% 0%, ${C.mist}40 0%, transparent 55%)` }}>
+      <div className="acts-page" style={{ minHeight:"100vh", background:C.bg, padding:"28px 30px", fontFamily:"'Inter', sans-serif", backgroundImage:`radial-gradient(ellipse at 0% 0%, ${C.mist}40 0%, transparent 55%)` }}>
 
         {/* ── Page Header ── */}
         <div className="fade-up" style={{ marginBottom:28 }}>
@@ -598,7 +764,7 @@ export default function ActivitiesList() {
             <div>
               <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:5 }}>
                 <div style={{ width:4, height:28, borderRadius:99, background:`linear-gradient(180deg, ${C.sky}, ${C.deep})`, flexShrink:0 }}/>
-                <h1 style={{ margin:0, fontSize:"clamp(20px,4vw,28px)", fontWeight:900, color:C.text, letterSpacing:"-0.6px" }}>
+                <h1 style={{ margin:0, fontSize:"clamp(18px,4vw,28px)", fontWeight:900, color:C.text, letterSpacing:"-0.6px" }}>
                   Activities & Events
                 </h1>
               </div>
@@ -606,33 +772,33 @@ export default function ActivitiesList() {
                 Manage clubs, sports, and school programs
               </p>
             </div>
-            <div style={{ display:"flex", gap:10 }}>
+            <div className="header-actions">
               <button onClick={refresh}
-                style={{ width:40, height:40, borderRadius:12, border:`1.5px solid ${C.borderLight}`, background:C.white, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:C.textLight }}
+                style={{ width:40, height:40, borderRadius:12, border:`1.5px solid ${C.borderLight}`, background:C.white, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:C.textLight, flexShrink:0 }}
                 onMouseEnter={e => (e.currentTarget.style.background = `${C.mist}55`)}
                 onMouseLeave={e => (e.currentTarget.style.background = C.white)}>
                 <RefreshCw size={14} className={loading ? "animate-spin" : ""}/>
               </button>
               <OutlineBtn onClick={() => setModal({ type:"activity", data:null })}>
-                <Plus size={13}/> New Activity
+                <Plus size={13}/> <span className="hide-mobile">New</span> Activity
               </OutlineBtn>
               <PrimaryBtn onClick={() => setModal({ type:"event", data:null })}>
-                <Plus size={13}/> New Event
+                <Plus size={13}/> <span className="hide-mobile">New</span> Event
               </PrimaryBtn>
             </div>
           </div>
         </div>
 
         {/* ── Stats ── */}
-        <div className="fade-up" style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(180px, 1fr))", gap:14, marginBottom:24 }}>
+        <div className="fade-up stats-grid">
           {stats.map(({ label, value, Icon, color }) => (
-            <div key={label} style={{ borderRadius:16, padding:"18px 20px", background:C.white, borderLeft:`4px solid ${color}`, boxShadow:"0 2px 12px rgba(56,73,89,0.07)" }}>
+            <div key={label} style={{ borderRadius:16, padding:"16px 18px", background:C.white, borderLeft:`4px solid ${color}`, boxShadow:"0 2px 12px rgba(56,73,89,0.07)" }}>
               <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                 <div>
                   <p style={{ margin:0, fontSize:11, fontWeight:700, color:C.textLight, textTransform:"uppercase", letterSpacing:"0.05em" }}>{label}</p>
-                  <p style={{ margin:"6px 0 0", fontSize:28, fontWeight:900, color }}>{loading ? "—" : value}</p>
+                  <p style={{ margin:"6px 0 0", fontSize:26, fontWeight:900, color }}>{loading ? "—" : value}</p>
                 </div>
-                <Icon size={34} color={color} style={{ opacity:0.15 }}/>
+                <Icon size={30} color={color} style={{ opacity:0.15 }}/>
               </div>
             </div>
           ))}
@@ -642,17 +808,18 @@ export default function ActivitiesList() {
         <div className="fade-up" style={{ background:C.white, borderRadius:20, border:`1.5px solid ${C.borderLight}`, boxShadow:"0 2px 20px rgba(56,73,89,0.07)", overflow:"hidden" }}>
 
           {/* Card header: tabs + search + year filter */}
-          <div style={{ padding:"14px 18px", borderBottom:`1.5px solid ${C.borderLight}`, display:"flex", alignItems:"center", gap:12, flexWrap:"wrap", background:`linear-gradient(90deg, ${C.bg} 0%, ${C.white} 100%)` }}>
-            {/* Tab switcher (Gallery pill style) */}
-            <div style={{ display:"inline-flex", padding:4, borderRadius:12, background:C.bg, border:`1.5px solid ${C.borderLight}`, flexShrink:0 }}>
+          <div className="card-toolbar">
+            {/* Tab switcher */}
+            <div className="tab-bar" style={{ display:"inline-flex", padding:4, borderRadius:12, background:C.bg, border:`1.5px solid ${C.borderLight}`, flexShrink:0 }}>
               {tabs.map(t => (
                 <button key={t.key} onClick={() => setTab(t.key)}
                   style={{
                     display:"flex", alignItems:"center", gap:6,
-                    padding:"7px 16px", borderRadius:8, border:"none", cursor:"pointer",
+                    padding:"7px 14px", borderRadius:8, border:"none", cursor:"pointer",
                     fontSize:13, fontWeight:700, transition:"all 0.18s",
                     background: tab === t.key ? C.deep : "transparent",
                     color:      tab === t.key ? "#fff" : C.textLight,
+                    whiteSpace:"nowrap",
                   }}>
                   {t.label}
                   <span style={{ fontSize:11, padding:"1px 6px", borderRadius:20, fontWeight:700, background: tab === t.key ? "rgba(255,255,255,0.2)" : C.mist, color: tab === t.key ? "#fff" : C.textLight }}>
@@ -663,7 +830,7 @@ export default function ActivitiesList() {
             </div>
 
             {/* Search */}
-            <div style={{ position:"relative", flex:1, minWidth:200 }}>
+            <div style={{ position:"relative", flex:1, minWidth:160 }}>
               <Search size={13} style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", color:C.textLight }}/>
               <input
                 style={{ width:"100%", paddingLeft:34, paddingRight:12, paddingTop:8, paddingBottom:8, borderRadius:10, border:`1.5px solid ${C.border}`, background:C.bg, fontSize:13, color:C.text, outline:"none", boxSizing:"border-box" }}
@@ -676,13 +843,13 @@ export default function ActivitiesList() {
 
             {/* Year filter */}
             <select
-              style={{ padding:"8px 14px", borderRadius:10, border:`1.5px solid ${C.border}`, background:C.bg, fontSize:13, color:C.text, outline:"none", flexShrink:0 }}
+              style={{ padding:"8px 12px", borderRadius:10, border:`1.5px solid ${C.border}`, background:C.bg, fontSize:13, color:C.text, outline:"none", flexShrink:0, maxWidth:160, minWidth:100 }}
               value={filterYear} onChange={e => setFilterYear(e.target.value)}
               onFocus={ev => (ev.target.style.borderColor = C.sky)}
               onBlur={ev  => (ev.target.style.borderColor = C.border)}
             >
               <option value="">All Years</option>
-              {academicYears.map(y => <option key={y.id} value={y.id}>{y.name}{y.isActive ? " (Active)" : ""}</option>)}
+              {academicYears.map(y => <option key={y.id} value={y.id}>{y.name}{y.isActive ? " ✓" : ""}</option>)}
             </select>
           </div>
 
@@ -692,7 +859,7 @@ export default function ActivitiesList() {
 
               /* Skeleton */
               tab === "activities" ? (
-                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(240px, 1fr))", gap:16 }}>
+                <div className="acts-grid">
                   {[...Array(6)].map((_, i) => (
                     <div key={i} style={{ borderRadius:16, border:`1.5px solid ${C.borderLight}`, padding:18, display:"flex", flexDirection:"column", gap:10 }}>
                       <Pulse h={16} w="65%"/> <Pulse h={11} w="45%"/>
@@ -704,10 +871,13 @@ export default function ActivitiesList() {
                   ))}
                 </div>
               ) : (
-                <div style={{ display:"flex", flexDirection:"column", gap:1 }}>
+                <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
                   {[...Array(5)].map((_, i) => (
-                    <div key={i} style={{ display:"flex", gap:16, padding:"14px 4px", borderBottom:`1px solid ${C.bg}`, alignItems:"center" }}>
-                      <Pulse h={14} w="22%"/> <Pulse h={20} w={80} r={20}/> <Pulse h={20} w={70} r={20}/> <Pulse h={20} w={80} r={20}/> <Pulse h={12} w="10%"/> <Pulse h={12} w="8%"/>
+                    <div key={i} style={{ borderRadius:16, border:`1.5px solid ${C.borderLight}`, padding:16, display:"flex", flexDirection:"column", gap:10 }}>
+                      <div style={{ display:"flex", gap:12, alignItems:"center" }}>
+                        <Pulse h={14} w="35%"/> <Pulse h={20} w={80} r={20}/> <Pulse h={20} w={70} r={20}/>
+                      </div>
+                      <Pulse h={12} w="20%"/>
                     </div>
                   ))}
                 </div>
@@ -728,7 +898,7 @@ export default function ActivitiesList() {
                   </PrimaryBtn>
                 </div>
               ) : (
-                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(240px, 1fr))", gap:16 }}>
+                <div className="acts-grid">
                   {filtActs.map(act => {
                     const cat = CATEGORY_META[act.category] ?? CATEGORY_META.OTHER;
                     return (
@@ -740,7 +910,6 @@ export default function ActivitiesList() {
                             <h3 style={{ margin:0, fontWeight:700, fontSize:14, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{act.name}</h3>
                             <p style={{ margin:"3px 0 0", fontSize:11, color:C.textLight }}>{act.academicYear?.name}</p>
                           </div>
-                          {/* Action buttons — appear on hover */}
                           <div className="row-actions" style={{ display:"flex", gap:4, flexShrink:0 }}>
                             <button onClick={() => setModal({ type:"activity", data:act })}
                               style={{ width:28, height:28, borderRadius:8, border:`1px solid ${C.borderLight}`, background:C.bg, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}
@@ -796,7 +965,7 @@ export default function ActivitiesList() {
 
             ) : (
 
-              /* ── Events table ── */
+              /* ── Events ── */
               filtEvts.length === 0 ? (
                 <div style={{ padding:"60px 20px", textAlign:"center" }}>
                   <div style={{ width:60, height:60, borderRadius:18, background:`${C.sky}18`, border:`1px solid ${C.sky}33`, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px" }}>
@@ -809,107 +978,129 @@ export default function ActivitiesList() {
                   </PrimaryBtn>
                 </div>
               ) : (
-                <div style={{ borderRadius:14, overflow:"hidden", border:`1.5px solid ${C.borderLight}` }}>
-                  {/* Table header */}
-                  <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr 1fr 1fr 1fr 1fr 56px 56px 60px", gap:0, padding:"10px 16px", background:`${C.bg}`, borderBottom:`1.5px solid ${C.borderLight}` }}>
-                    {["Event", "Type", "Mode", "Status", "Date", "Classes", "Teams", "Participants", ""].map(h => (
-                      <p key={h} style={{ margin:0, fontSize:10, fontWeight:700, color:C.textLight, textTransform:"uppercase", letterSpacing:"0.05em" }}>{h}</p>
-                    ))}
+                <>
+                  {/* ── Desktop table (≥900px) ── */}
+                  <div className="ev-table" style={{ borderRadius:14, overflow:"hidden", border:`1.5px solid ${C.borderLight}` }}>
+                    {/* Table header */}
+                    <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr 1fr 1fr 1.4fr 1fr 56px 56px 60px", gap:0, padding:"10px 16px", background:`${C.bg}`, borderBottom:`1.5px solid ${C.borderLight}` }}>
+                      {["Event", "Type", "Mode", "Status", "Date & Time", "Classes", "Teams", "People", ""].map(h => (
+                        <p key={h} style={{ margin:0, fontSize:10, fontWeight:700, color:C.textLight, textTransform:"uppercase", letterSpacing:"0.05em" }}>{h}</p>
+                      ))}
+                    </div>
+
+                    {/* Rows */}
+                    {filtEvts.map((ev, i) => {
+                      const et      = EVENT_TYPE_META[ev.eventType]  ?? EVENT_TYPE_META.COMPETITION;
+                      const st      = EVENT_STATUS_META[ev.status]   ?? EVENT_STATUS_META.DRAFT;
+                      const classes = ev.eligibleClasses?.map(ec => ec.classSection?.name).filter(Boolean) ?? [];
+                      const dt      = formatDateTime(ev.eventDate);
+                      return (
+                        <div key={ev.id}
+                          className="ev-row"
+                          style={{ display:"grid", gridTemplateColumns:"2fr 1fr 1fr 1fr 1.4fr 1fr 56px 56px 60px", gap:0, padding:"12px 16px", borderBottom: i < filtEvts.length - 1 ? `1px solid ${C.bg}` : "none", alignItems:"center", transition:"background 0.15s" }}>
+
+                          {/* Name + venue */}
+                          <div>
+                            <p style={{ margin:0, fontWeight:700, fontSize:13, color:C.text }}>{ev.name}</p>
+                            {ev.venue && (
+                              <p style={{ margin:"2px 0 0", fontSize:11, color:C.textLight, display:"flex", alignItems:"center", gap:3 }}>
+                                <MapPin size={9}/>{ev.venue}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Type */}
+                          <div>
+                            <span style={{ fontSize:11, padding:"3px 9px", borderRadius:20, fontWeight:600, background:et.color + "18", color:et.color }}>
+                              {et.label}
+                            </span>
+                          </div>
+
+                          {/* Mode */}
+                          <div>
+                            <span style={{ fontSize:11, padding:"3px 9px", borderRadius:20, fontWeight:600, background:C.mist, color:C.text, textTransform:"capitalize" }}>
+                              {ev.participationMode?.toLowerCase()}
+                            </span>
+                          </div>
+
+                          {/* Status */}
+                          <div>
+                            <span style={{ fontSize:11, padding:"3px 9px", borderRadius:20, fontWeight:600, background:st.color + "18", color:st.color }}>
+                              {st.label}
+                            </span>
+                          </div>
+
+                          {/* Date & Time */}
+                          <div>
+                            {dt ? (
+                              <div style={{ display:"flex", flexDirection:"column", gap:1 }}>
+                                <span style={{ fontSize:11, color:C.textLight, display:"flex", alignItems:"center", gap:4 }}>
+                                  <Calendar size={10}/>{dt.date}
+                                </span>
+                                {dt.hasTime && (
+                                  <span style={{ fontSize:11, color:C.sky, display:"flex", alignItems:"center", gap:4, fontWeight:600 }}>
+                                    <Clock size={10}/>{dt.time}
+                                  </span>
+                                )}
+                              </div>
+                            ) : <span style={{ fontSize:11, color:C.textLight }}>—</span>}
+                          </div>
+
+                          {/* Classes */}
+                          <div style={{ display:"flex", flexWrap:"wrap", gap:4 }}>
+                            {classes.length === 0
+                              ? <span style={{ fontSize:11, color:C.textLight }}>All</span>
+                              : <>
+                                  {classes.slice(0, 2).map(c => (
+                                    <span key={c} style={{ fontSize:11, padding:"2px 6px", borderRadius:6, background:`${C.sky}15`, color:C.sky, fontWeight:500 }}>{c}</span>
+                                  ))}
+                                  {classes.length > 2 && <span style={{ fontSize:11, color:C.textLight }}>+{classes.length - 2}</span>}
+                                </>
+                            }
+                          </div>
+
+                          {/* Teams */}
+                          <div style={{ textAlign:"center" }}>
+                            <p style={{ margin:0, fontSize:14, fontWeight:800, color:C.text }}>{ev._count?.teams ?? 0}</p>
+                          </div>
+
+                          {/* Participants */}
+                          <div style={{ textAlign:"center" }}>
+                            <p style={{ margin:0, fontSize:14, fontWeight:800, color:C.text }}>{ev._count?.participants ?? 0}</p>
+                          </div>
+
+                          {/* Actions */}
+                          <div className="row-actions" style={{ display:"flex", gap:4, justifyContent:"flex-end" }}>
+                            <button onClick={() => setModal({ type:"event", data:ev })}
+                              style={{ width:28, height:28, borderRadius:8, border:`1px solid ${C.borderLight}`, background:C.bg, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}
+                              onMouseEnter={e => (e.currentTarget.style.background = `${C.sky}18`)}
+                              onMouseLeave={e => (e.currentTarget.style.background = C.bg)}>
+                              <Edit2 size={12} color={C.textLight}/>
+                            </button>
+                            <button onClick={() => archive("event", ev.id)}
+                              style={{ width:28, height:28, borderRadius:8, border:"1px solid #fecaca", background:"#fef2f2", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}
+                              onMouseEnter={e => (e.currentTarget.style.background = "#fee2e2")}
+                              onMouseLeave={e => (e.currentTarget.style.background = "#fef2f2")}>
+                              <Archive size={12} color="#ef4444"/>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
 
-                  {/* Rows */}
-                  {filtEvts.map((ev, i) => {
-                    const et      = EVENT_TYPE_META[ev.eventType]  ?? EVENT_TYPE_META.COMPETITION;
-                    const st      = EVENT_STATUS_META[ev.status]   ?? EVENT_STATUS_META.DRAFT;
-                    const classes = ev.eligibleClasses?.map(ec => ec.classSection?.name).filter(Boolean) ?? [];
-                    return (
-                      <div key={ev.id}
-                        className="ev-row"
-                        style={{ display:"grid", gridTemplateColumns:"2fr 1fr 1fr 1fr 1fr 1fr 56px 56px 60px", gap:0, padding:"12px 16px", borderBottom: i < filtEvts.length - 1 ? `1px solid ${C.bg}` : "none", alignItems:"center", transition:"background 0.15s" }}>
-
-                        {/* Name + venue */}
-                        <div>
-                          <p style={{ margin:0, fontWeight:700, fontSize:13, color:C.text }}>{ev.name}</p>
-                          {ev.venue && (
-                            <p style={{ margin:"2px 0 0", fontSize:11, color:C.textLight, display:"flex", alignItems:"center", gap:3 }}>
-                              <MapPin size={9}/>{ev.venue}
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Type */}
-                        <div>
-                          <span style={{ fontSize:11, padding:"3px 9px", borderRadius:20, fontWeight:600, background:et.color + "18", color:et.color }}>
-                            {et.label}
-                          </span>
-                        </div>
-
-                        {/* Mode */}
-                        <div>
-                          <span style={{ fontSize:11, padding:"3px 9px", borderRadius:20, fontWeight:600, background:C.mist, color:C.text, textTransform:"capitalize" }}>
-                            {ev.participationMode?.toLowerCase()}
-                          </span>
-                        </div>
-
-                        {/* Status */}
-                        <div>
-                          <span style={{ fontSize:11, padding:"3px 9px", borderRadius:20, fontWeight:600, background:st.color + "18", color:st.color }}>
-                            {st.label}
-                          </span>
-                        </div>
-
-                        {/* Date */}
-                        <div>
-                          {ev.eventDate ? (
-                            <span style={{ fontSize:11, color:C.textLight, display:"flex", alignItems:"center", gap:4 }}>
-                              <Calendar size={10}/>
-                              {new Date(ev.eventDate).toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric" })}
-                            </span>
-                          ) : <span style={{ fontSize:11, color:C.textLight }}>—</span>}
-                        </div>
-
-                        {/* Classes */}
-                        <div style={{ display:"flex", flexWrap:"wrap", gap:4 }}>
-                          {classes.length === 0
-                            ? <span style={{ fontSize:11, color:C.textLight }}>All</span>
-                            : <>
-                                {classes.slice(0, 2).map(c => (
-                                  <span key={c} style={{ fontSize:11, padding:"2px 6px", borderRadius:6, background:`${C.sky}15`, color:C.sky, fontWeight:500 }}>{c}</span>
-                                ))}
-                                {classes.length > 2 && <span style={{ fontSize:11, color:C.textLight }}>+{classes.length - 2}</span>}
-                              </>
-                          }
-                        </div>
-
-                        {/* Teams */}
-                        <div style={{ textAlign:"center" }}>
-                          <p style={{ margin:0, fontSize:14, fontWeight:800, color:C.text }}>{ev._count?.teams ?? 0}</p>
-                        </div>
-
-                        {/* Participants */}
-                        <div style={{ textAlign:"center" }}>
-                          <p style={{ margin:0, fontSize:14, fontWeight:800, color:C.text }}>{ev._count?.participants ?? 0}</p>
-                        </div>
-
-                        {/* Actions */}
-                        <div className="row-actions" style={{ display:"flex", gap:4, justifyContent:"flex-end" }}>
-                          <button onClick={() => setModal({ type:"event", data:ev })}
-                            style={{ width:28, height:28, borderRadius:8, border:`1px solid ${C.borderLight}`, background:C.bg, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}
-                            onMouseEnter={e => (e.currentTarget.style.background = `${C.sky}18`)}
-                            onMouseLeave={e => (e.currentTarget.style.background = C.bg)}>
-                            <Edit2 size={12} color={C.textLight}/>
-                          </button>
-                          <button onClick={() => archive("event", ev.id)}
-                            style={{ width:28, height:28, borderRadius:8, border:"1px solid #fecaca", background:"#fef2f2", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}
-                            onMouseEnter={e => (e.currentTarget.style.background = "#fee2e2")}
-                            onMouseLeave={e => (e.currentTarget.style.background = "#fef2f2")}>
-                            <Archive size={12} color="#ef4444"/>
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                  {/* ── Mobile / Tablet cards (≤900px) ── */}
+                  <div className="ev-cards acts-grid">
+                    {filtEvts.map(ev => (
+                      <EventCard
+                        key={ev.id}
+                        ev={ev}
+                        onEdit={() => setModal({ type:"event", data:ev })}
+                        onArchive={() => archive("event", ev.id)}
+                      />
+                    ))}
+                  </div>
+                </>
               )
             )}
           </div>

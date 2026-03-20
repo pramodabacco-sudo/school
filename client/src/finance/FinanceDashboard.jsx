@@ -13,7 +13,36 @@ const fmt = (n) =>
     style: "currency", currency: "INR", maximumFractionDigits: 0,
   }).format(n || 0);
 
-// ── Progress Bar ──────────────────────────────────────────────────────────────
+// ── Responsive hook (measures actual container, not window) ──────────────────
+// This avoids false breakpoints caused by the sidebar eating into page width.
+function useContainerBreakpoint() {
+  const ref = React.useRef(null);
+  const getBreakpoint = (w) => {
+    if (w < 400) return "xs";
+    if (w < 560) return "sm";
+    if (w < 720) return "md";
+    if (w < 960) return "lg";
+    return "xl";
+  };
+  const [bp, setBp] = useState("lg");
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        setBp(getBreakpoint(entry.contentRect.width));
+      }
+    });
+    ro.observe(el);
+    setBp(getBreakpoint(el.getBoundingClientRect().width));
+    return () => ro.disconnect();
+  }, []);
+
+  return [ref, bp];
+}
+
+// ── Progress Bar ─────────────────────────────────────────────────────────────
 function ProgressBar({ value, color }) {
   return (
     <div style={{ background: "#e8f0f5", borderRadius: 99, height: 5, overflow: "hidden", marginTop: 5 }}>
@@ -57,8 +86,8 @@ function SectionCard({ title, total, items = [], color, iconName, badge }) {
         }}>
           <ResolveIcon name={iconName} size={15} color={color} />
         </div>
-        <div style={{ flex: 1, textAlign: "left" }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: "#1c3040" }}>{title}</div>
+        <div style={{ flex: 1, textAlign: "left", minWidth: 0 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#1c3040", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{title}</div>
           <div style={{ fontSize: 10.5, color: "#7a9ab0", marginTop: 1 }}>
             {items.length} {items.length === 1 ? "entry" : "entries"}
           </div>
@@ -66,10 +95,10 @@ function SectionCard({ title, total, items = [], color, iconName, badge }) {
         {badge && (
           <span style={{
             fontSize: 9, fontWeight: 800, padding: "2px 6px", borderRadius: 99,
-            background: badge.bg, color: badge.color, letterSpacing: ".4px",
+            background: badge.bg, color: badge.color, letterSpacing: ".4px", flexShrink: 0,
           }}>{badge.text}</span>
         )}
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#1c3040", fontFamily: "'DM Mono',monospace", minWidth: 80, textAlign: "right" }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "#1c3040", fontFamily: "'DM Mono',monospace", flexShrink: 0, marginLeft: 4 }}>
           {fmt(total)}
         </div>
         <ChevronDown size={14} color="#7a9ab0"
@@ -85,12 +114,13 @@ function SectionCard({ title, total, items = [], color, iconName, badge }) {
               display: "flex", alignItems: "center", justifyContent: "space-between",
               padding: "5px 0",
               borderBottom: i < items.length - 1 ? "1px dashed #edf2f5" : "none",
+              gap: 8,
             }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
                 <div style={{ width: 5, height: 5, borderRadius: "50%", background: color, flexShrink: 0 }} />
-                <span style={{ fontSize: 11.5, color: "#3a5a70" }}>{it.label}</span>
+                <span style={{ fontSize: 11.5, color: "#3a5a70", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.label}</span>
               </div>
-              <span style={{ fontSize: 11.5, fontWeight: 600, color: "#1c3040", fontFamily: "'DM Mono',monospace" }}>
+              <span style={{ fontSize: 11.5, fontWeight: 600, color: "#1c3040", fontFamily: "'DM Mono',monospace", flexShrink: 0 }}>
                 {fmt(it.amount)}
               </span>
             </div>
@@ -107,11 +137,11 @@ function ColHeader({ IconComp, title, sub }) {
     <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 2 }}>
       <div style={{
         width: 32, height: 32, borderRadius: 8, background: "#172a38",
-        display: "flex", alignItems: "center", justifyContent: "center",
+        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
       }}>
         <IconComp size={15} color="#fff" />
       </div>
-      <div>
+      <div style={{ minWidth: 0 }}>
         <div style={{ fontSize: 13.5, fontWeight: 800, color: "#1c3040" }}>{title}</div>
         <div style={{ fontSize: 10.5, color: "#7a9ab0", fontWeight: 500 }}>{sub}</div>
       </div>
@@ -124,11 +154,12 @@ function StatusChip({ label, count, color, IconComp }) {
   return (
     <div style={{
       flex: 1, background: color + "10", borderRadius: 10,
-      padding: "9px 12px", border: `1px solid ${color}20`,
+      padding: "9px 8px", border: `1px solid ${color}20`,
+      minWidth: 0,
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
         <IconComp size={12} color={color} />
-        <span style={{ fontSize: 9.5, fontWeight: 700, color, textTransform: "uppercase", letterSpacing: ".5px" }}>{label}</span>
+        <span style={{ fontSize: 9, fontWeight: 700, color, textTransform: "uppercase", letterSpacing: ".5px", whiteSpace: "nowrap" }}>{label}</span>
       </div>
       <div style={{ fontSize: 20, fontWeight: 800, color, fontFamily: "'DM Mono',monospace" }}>{count}</div>
     </div>
@@ -146,10 +177,13 @@ export default function FinanceDashboard() {
   const [loading,         setLoading]         = useState(true);
   const [fetchErrors,     setFetchErrors]     = useState({});
 
-  useEffect(() => {
-    // ── Read auth the same way GroupASalary does ──────────────────────────
-    const token = localStorage.getItem("token");
+  const [rootRef, bp] = useContainerBreakpoint();
+  const isMobile  = bp === "xs" || bp === "sm";
+  const isTablet  = bp === "md";
+  const isDesktop = bp === "lg" || bp === "xl";
 
+  useEffect(() => {
+    const token = localStorage.getItem("token");
     let school = "";
     try {
       const raw = localStorage.getItem("auth");
@@ -160,10 +194,7 @@ export default function FinanceDashboard() {
           auth.user?.school?.id ||
           auth.schoolId         || "";
       }
-    } catch {
-      school = "";
-    }
-    // fallback: some apps also store it flat
+    } catch { school = ""; }
     if (!school) school = localStorage.getItem("selectedSchoolId") || "";
 
     const safe = async (key, fn) => {
@@ -173,6 +204,8 @@ export default function FinanceDashboard() {
 
     const doFetch = async (url, opts = {}) => {
       const res = await fetch(url, opts);
+      // Treat 404 as "not implemented yet" — return null silently instead of throwing
+      if (res.status === 404) return null;
       if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
       return res.json();
     };
@@ -184,6 +217,7 @@ export default function FinanceDashboard() {
       safe("expenses", () =>
         doFetch(`${API_URL}/api/finance/list`)
       ),
+      // /api/finance/revenue is optional — falls back to totalFees if 404
       safe("revenue", () =>
         doFetch(`${API_URL}/api/finance/revenue`, { credentials: "include" })
       ),
@@ -220,23 +254,12 @@ export default function FinanceDashboard() {
   }, []);
 
   // ── Derived values ─────────────────────────────────────────────────────────
-  // Total fees billed across all students
-  const totalFees = studentData.reduce((s, r) => s + Number(r.fees || 0), 0);
+  const totalFees    = studentData.reduce((s, r) => s + Number(r.fees || 0), 0);
+  const paidFees     = studentData.reduce((s, r) => s + Number(r.paidAmount || 0), 0);
+  const pendingFees  = Math.max(totalFees - paidFees, 0);
 
-  // Fees actually collected = sum of paidAmount for ALL students (regardless of status)
-  // Only use paidAmount — never fall back to fees (that would count unbilled amounts)
-  const paidFees = studentData.reduce((s, r) => s + Number(r.paidAmount || 0), 0);
-
-  // Pending = what hasn't been paid yet
-  const pendingFees = Math.max(totalFees - paidFees, 0);
-
-  // Count: PAID = fully paid, PARTIAL = partially paid, PENDING = nothing paid
-  const paidCount    = studentData.filter(r =>
-    (r.paymentStatus || r.status || "").toUpperCase() === "PAID"
-  ).length;
-  const partialCount = studentData.filter(r =>
-    (r.paymentStatus || r.status || "").toUpperCase() === "PARTIAL"
-  ).length;
+  const paidCount    = studentData.filter(r => (r.paymentStatus || r.status || "").toUpperCase() === "PAID").length;
+  const partialCount = studentData.filter(r => (r.paymentStatus || r.status || "").toUpperCase() === "PARTIAL").length;
   const pendingCount = studentData.length - paidCount - partialCount;
 
   const teachTotal  = teacherSalaries.reduce((s, t) => s + Number(t.netSalary || 0), 0);
@@ -248,34 +271,39 @@ export default function FinanceDashboard() {
   const totalRevenue  = baseRevenue.length
     ? baseRevenue.reduce((s, r) => s + (r.amount || 0), 0)
     : totalFees;
-  const netBalance    = totalRevenue - totalExpenses - allSalaries;
-  const pctCollected  = totalFees > 0 ? Math.round((paidFees / totalFees) * 100) : 0;
+  const netBalance   = totalRevenue - totalExpenses - allSalaries;
+  const pctCollected = totalFees > 0 ? Math.round((paidFees / totalFees) * 100) : 0;
 
   const teachItems = teacherSalaries.map(t => ({
-    label: `${
-      [t.teacher?.firstName, t.teacher?.lastName].filter(Boolean).join(" ") ||
-      t.teacherName ||
-      t.name        ||
-      "Teacher"
-    } — ${t.status || "PENDING"}`,
+    label: `${[t.teacher?.firstName, t.teacher?.lastName].filter(Boolean).join(" ") || t.teacherName || t.name || "Teacher"} — ${t.status || "PENDING"}`,
     amount: Number(t.netSalary || 0),
   }));
   const gbItems = groupBSalaries.map(t => ({
-    label:  `${t.staffName || "Staff"} (${t.staffRole || "Group B"}) — ${t.status || "PENDING"}`,
+    label: `${t.staffName || "Staff"} (${t.staffRole || "Group B"}) — ${t.status || "PENDING"}`,
     amount: Number(t.netSalary || 0),
   }));
   const gcItems = groupCSalaries.map(t => ({
-    label:  `${t.staffName || "Staff"} (${t.staffRole || "Group C"}) — ${t.status || "PENDING"}`,
+    label: `${t.staffName || "Staff"} (${t.staffRole || "Group C"}) — ${t.status || "PENDING"}`,
     amount: Number(t.netSalary || 0),
   }));
 
   const now    = new Date();
-  const months = ["January","February","March","April","May","June","July",
-                  "August","September","October","November","December"];
+  const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
   const COLORS = ["#172a38","#c8960c","#2e7d5a","#3c5d74","#a0522d","#1a6e8e"];
 
+  // ── Responsive layout helpers ──────────────────────────────────────────────
+  const pad = isMobile ? "14px 14px 28px" : isTablet ? "16px 18px 28px" : "20px 24px 32px";
+
+  const kpiCols = isMobile ? "1fr 1fr" : "repeat(4,1fr)";
+
+  // 3-col on desktop, 2-col on tablet, 1-col on mobile
+  const bodyCols = isDesktop ? "1fr 1fr 1fr" : isTablet ? "1fr 1fr" : "1fr";
+
+  // Bottom strip: 2-col on mobile, else 5-col
+  const stripCols = isMobile ? "1fr 1fr" : "repeat(5,1fr)";
+
   if (loading) return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "60px 0" }}>
+    <div ref={rootRef} style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "60px 0", width: "100%", minWidth: 0 }}>
       <div style={{ textAlign: "center" }}>
         <div style={{ width: 36, height: 36, border: "3px solid #3c5d74", borderTopColor: "transparent", borderRadius: "50%", animation: "fdSpin 0.9s linear infinite", margin: "0 auto 10px" }} />
         <p style={{ color: "#3c5d74", fontFamily: "sans-serif", fontWeight: 600, fontSize: 12 }}>Loading…</p>
@@ -285,24 +313,34 @@ export default function FinanceDashboard() {
   );
 
   return (
-    /* 
-      NO min-height, NO fixed background, NO outer padding that fights the layout.
-      The parent layout (sidebar wrapper) owns the page shell.
-      This component only owns its own content area.
-    */
-    <div style={{ width: "100%", fontFamily: "'DM Sans', sans-serif", background: "#d1e2ed" }}>
+    <div
+      ref={rootRef}
+      style={{
+        width: "100%",
+        minWidth: 0,
+        overflow: "hidden",
+        fontFamily: "'DM Sans', sans-serif",
+        background: "#d1e2ed",
+        minHeight: "100vh",
+      }}
+    >
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@500;600;700&display=swap');
         .fd-root * { box-sizing: border-box; }
       `}</style>
 
-      <div className="fd-root" style={{ padding: "20px 24px 32px" }}>
+      <div className="fd-root" style={{ padding: pad }}>
 
-        {/* ── Page title row ──────────────────────────────────────────────── */}
+        {/* ── Page title row ───────────────────────────────────────────────── */}
         <div style={{
           background: "linear-gradient(135deg, #172a38 0%, #1e3a4f 100%)",
-          borderRadius: 16, padding: "18px 24px", marginBottom: 18,
-          display: "flex", alignItems: "center", justifyContent: "space-between",
+          borderRadius: 16, padding: isMobile ? "14px 16px" : "18px 24px",
+          marginBottom: 16,
+          display: "flex",
+          flexDirection: isMobile ? "column" : "row",
+          alignItems: isMobile ? "flex-start" : "center",
+          justifyContent: "space-between",
+          gap: isMobile ? 12 : 0,
           boxShadow: "0 4px 20px rgba(23,42,56,.22)",
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
@@ -310,7 +348,7 @@ export default function FinanceDashboard() {
               width: 42, height: 42, borderRadius: 12,
               background: "rgba(255,255,255,.1)",
               display: "flex", alignItems: "center", justifyContent: "center",
-              border: "1px solid rgba(255,255,255,.15)",
+              border: "1px solid rgba(255,255,255,.15)", flexShrink: 0,
             }}>
               <IndianRupee size={20} color="#ffd166" />
             </div>
@@ -318,7 +356,7 @@ export default function FinanceDashboard() {
               <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.8, color: "rgba(255,255,255,.45)", textTransform: "uppercase", marginBottom: 2 }}>
                 Finance Module
               </div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: "#fff" }}>Financial Dashboard</div>
+              <div style={{ fontSize: isMobile ? 18 : 22, fontWeight: 800, color: "#fff" }}>Financial Dashboard</div>
               <div style={{ fontSize: 11.5, color: "rgba(255,255,255,.5)", marginTop: 2, fontWeight: 500 }}>
                 {months[now.getMonth()]} {now.getFullYear()} · Real-time overview
               </div>
@@ -328,24 +366,33 @@ export default function FinanceDashboard() {
           {/* Net balance pill */}
           <div style={{
             border: `1.5px solid ${netBalance >= 0 ? "#48c78e" : "#e05c3a"}`,
-            borderRadius: 12, padding: "10px 18px", textAlign: "center",
+            borderRadius: 12,
+            padding: isMobile ? "8px 14px" : "10px 18px",
+            textAlign: isMobile ? "left" : "center",
             background: netBalance >= 0 ? "rgba(72,199,142,.12)" : "rgba(224,92,58,.12)",
             flexShrink: 0,
+            alignSelf: isMobile ? "stretch" : "auto",
+            display: "flex", flexDirection: isMobile ? "row" : "column",
+            alignItems: isMobile ? "center" : "flex-start",
+            justifyContent: isMobile ? "space-between" : "center",
+            gap: isMobile ? 8 : 0,
           }}>
-            <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 1, color: netBalance >= 0 ? "#48c78e" : "#e05c3a", textTransform: "uppercase", marginBottom: 2 }}>
-              Net Balance
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 1, color: netBalance >= 0 ? "#48c78e" : "#e05c3a", textTransform: "uppercase", marginBottom: 2 }}>
+                Net Balance
+              </div>
+              <div style={{ fontSize: 9.5, fontWeight: 600, color: netBalance >= 0 ? "#48c78e" : "#e05c3a" }}>
+                {netBalance >= 0 ? "Healthy Surplus" : "Running Deficit"}
+              </div>
             </div>
-            <div style={{ fontSize: 19, fontWeight: 800, color: "#fff", fontFamily: "'DM Mono',monospace" }}>
+            <div style={{ fontSize: isMobile ? 16 : 19, fontWeight: 800, color: "#fff", fontFamily: "'DM Mono',monospace" }}>
               {fmt(netBalance)}
-            </div>
-            <div style={{ fontSize: 9.5, fontWeight: 600, color: netBalance >= 0 ? "#48c78e" : "#e05c3a", marginTop: 1 }}>
-              {netBalance >= 0 ? "Healthy Surplus" : "Running Deficit"}
             </div>
           </div>
         </div>
 
         {/* ── KPI row ─────────────────────────────────────────────────────── */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: kpiCols, gap: isMobile ? 8 : 12, marginBottom: 18 }}>
           {[
             { label: "Total Revenue",  value: fmt(totalRevenue),               Icon: TrendingUp,   color: "#3c5d74",  accent: "#e8f3f8", strip: "#3c5d74" },
             { label: "Total Expenses", value: fmt(totalExpenses + allSalaries), Icon: TrendingDown, color: "#e05c3a",  accent: "#fef2ee", strip: "#e05c3a" },
@@ -358,24 +405,25 @@ export default function FinanceDashboard() {
               overflow: "hidden",
             }}>
               <div style={{ height: 4, background: k.strip, borderRadius: "12px 12px 0 0" }} />
-              <div style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ padding: isMobile ? "10px 12px" : "12px 16px", display: "flex", alignItems: "center", gap: isMobile ? 8 : 12 }}>
                 <div style={{
-                  width: 38, height: 38, borderRadius: 10, background: k.accent,
+                  width: isMobile ? 32 : 38, height: isMobile ? 32 : 38,
+                  borderRadius: 10, background: k.accent,
                   display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
                 }}>
-                  <k.Icon size={17} color={k.color} />
+                  <k.Icon size={isMobile ? 15 : 17} color={k.color} />
                 </div>
-                <div>
-                  <div style={{ fontSize: 9.5, fontWeight: 700, color: "#7a9ab0", textTransform: "uppercase", letterSpacing: ".7px" }}>{k.label}</div>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: "#172a38", fontFamily: "'DM Mono',monospace", marginTop: 2 }}>{k.value}</div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: isMobile ? 8.5 : 9.5, fontWeight: 700, color: "#7a9ab0", textTransform: "uppercase", letterSpacing: ".7px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{k.label}</div>
+                  <div style={{ fontSize: isMobile ? 13 : 16, fontWeight: 800, color: "#172a38", fontFamily: "'DM Mono',monospace", marginTop: 2 }}>{k.value}</div>
                 </div>
               </div>
             </div>
           ))}
         </div>
 
-        {/* ── 3-column body ───────────────────────────────────────────────── */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 18, alignItems: "start" }}>
+        {/* ── 3-col body ───────────────────────────────────────────────────── */}
+        <div style={{ display: "grid", gridTemplateColumns: bodyCols, gap: isMobile ? 14 : 18, alignItems: "start" }}>
 
           {/* ══ COL 1 – Student Fees ══ */}
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -394,9 +442,9 @@ export default function FinanceDashboard() {
                   { l: "Collected", v: fmt(paidFees),    c: "#48c78e" },
                   { l: "Pending",   v: fmt(pendingFees), c: "#e05c3a" },
                 ].map((s, i) => (
-                  <div key={i} style={{ background: "#f6f9fc", borderRadius: 9, padding: "8px 10px", textAlign: "center" }}>
+                  <div key={i} style={{ background: "#f6f9fc", borderRadius: 9, padding: "8px 6px", textAlign: "center" }}>
                     <div style={{ fontSize: 9, fontWeight: 700, color: "#9ab5c5", textTransform: "uppercase", letterSpacing: ".5px" }}>{s.l}</div>
-                    <div style={{ fontSize: 12.5, fontWeight: 800, color: s.c, fontFamily: "'DM Mono',monospace", marginTop: 2 }}>{s.v}</div>
+                    <div style={{ fontSize: 11.5, fontWeight: 800, color: s.c, fontFamily: "'DM Mono',monospace", marginTop: 2 }}>{s.v}</div>
                   </div>
                 ))}
               </div>
@@ -408,9 +456,9 @@ export default function FinanceDashboard() {
                 Payment Status
               </div>
               <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-                  <StatusChip label="Paid"    count={paidCount}    color="#48c78e" IconComp={CheckCircle2} />
-                  <StatusChip label="Partial" count={partialCount} color="#f59e0b" IconComp={Clock}        />
-                  <StatusChip label="Pending" count={pendingCount} color="#e05c3a" IconComp={AlertCircle}  />
+                <StatusChip label="Paid"    count={paidCount}    color="#48c78e" IconComp={CheckCircle2} />
+                <StatusChip label="Partial" count={partialCount} color="#f59e0b" IconComp={Clock}        />
+                <StatusChip label="Pending" count={pendingCount} color="#e05c3a" IconComp={AlertCircle}  />
               </div>
 
               {studentData.slice(0, 6).map((s, i) => {
@@ -421,8 +469,9 @@ export default function FinanceDashboard() {
                     padding: "6px 0",
                     borderTop: i === 0 ? "1px solid #f0f5f8" : "none",
                     borderBottom: "1px dashed #edf2f5",
+                    gap: 8,
                   }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
                       <div style={{
                         width: 26, height: 26, borderRadius: "50%",
                         background: `hsl(${(i * 53) % 360},45%,88%)`,
@@ -433,12 +482,12 @@ export default function FinanceDashboard() {
                       }}>
                         {(s.name || "S")[0].toUpperCase()}
                       </div>
-                      <div>
-                        <div style={{ fontSize: 11.5, fontWeight: 600, color: "#1c3040" }}>{s.name || "Student"}</div>
-                        <div style={{ fontSize: 9.5, color: "#9ab5c5" }}>{s.course || s.email || "—"}</div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 11.5, fontWeight: 600, color: "#1c3040", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.name || "Student"}</div>
+                        <div style={{ fontSize: 9.5, color: "#9ab5c5", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.course || s.email || "—"}</div>
                       </div>
                     </div>
-                    <div style={{ textAlign: "right" }}>
+                    <div style={{ textAlign: "right", flexShrink: 0 }}>
                       <div style={{ fontSize: 11, fontWeight: 700, color: "#1c3040", fontFamily: "'DM Mono',monospace" }}>{fmt(s.fees || 0)}</div>
                       <div style={{
                         fontSize: 8.5, fontWeight: 800, borderRadius: 99, padding: "1px 5px",
@@ -462,7 +511,6 @@ export default function FinanceDashboard() {
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <ColHeader IconComp={Users} title="Staff Salaries" sub={`${months[now.getMonth()]} ${now.getFullYear()}`} />
 
-            {/* Payroll summary */}
             <div style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", border: "1px solid #e4edf3", boxShadow: "0 1px 6px rgba(44,85,120,.06)" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -480,7 +528,7 @@ export default function FinanceDashboard() {
                 <div key={i} style={{ marginBottom: 11 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
                     <span style={{ fontSize: 11, color: "#3a5a70", fontWeight: 600 }}>{g.label}</span>
-                    <span style={{ fontSize: 11.5, fontWeight: 700, color: "#1c3040", fontFamily: "'DM Mono',monospace" }}>{fmt(g.total)}</span>
+                    <span style={{ fontSize: 11.5, fontWeight: 700, color: "#1c3040", fontFamily: "'DM Mono',monospace", flexShrink: 0, marginLeft: 8 }}>{fmt(g.total)}</span>
                   </div>
                   <ProgressBar value={allSalaries > 0 ? (g.total / allSalaries) * 100 : 0} color={g.color} />
                   <div style={{ fontSize: 9.5, color: "#9ab5c5", marginTop: 2 }}>
@@ -510,7 +558,6 @@ export default function FinanceDashboard() {
               }
             />
             <SectionCard title="Group C Staff Salaries" total={gcTotal} items={gcItems} color="#2e7d5a" iconName="Wrench" />
- 
           </div>
 
           {/* ══ COL 3 – Expenses ══ */}
@@ -533,11 +580,11 @@ export default function FinanceDashboard() {
               ) : expenseSections.slice(0, 5).map((sec, i) => (
                 <div key={i} style={{ marginBottom: 10 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <div style={{ width: 7, height: 7, borderRadius: "50%", background: COLORS[i % COLORS.length] }} />
-                      <span style={{ fontSize: 11, color: "#3a5a70", fontWeight: 600 }}>{sec.label}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                      <div style={{ width: 7, height: 7, borderRadius: "50%", background: COLORS[i % COLORS.length], flexShrink: 0 }} />
+                      <span style={{ fontSize: 11, color: "#3a5a70", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{sec.label}</span>
                     </div>
-                    <span style={{ fontSize: 11.5, fontWeight: 700, color: "#1c3040", fontFamily: "'DM Mono',monospace" }}>{fmt(sec.total)}</span>
+                    <span style={{ fontSize: 11.5, fontWeight: 700, color: "#1c3040", fontFamily: "'DM Mono',monospace", flexShrink: 0, marginLeft: 8 }}>{fmt(sec.total)}</span>
                   </div>
                   <ProgressBar value={totalExpenses > 0 ? (sec.total / totalExpenses) * 100 : 0} color={COLORS[i % COLORS.length]} />
                   <div style={{ fontSize: 9.5, color: "#9ab5c5", marginTop: 2 }}>{sec.items?.length || 0} items</div>
@@ -556,12 +603,15 @@ export default function FinanceDashboard() {
           </div>
         </div>
 
-        {/* ── Bottom summary strip ─────────────────────────────────────────── */}
+        {/* ── Bottom summary strip ──────────────────────────────────────────── */}
         <div style={{ marginTop: 20 }}>
           <div style={{
             background: "linear-gradient(135deg, #172a38 0%, #1e3a4f 100%)",
-            borderRadius: 16, padding: "18px 24px",
-            display: "grid", gridTemplateColumns: "repeat(5,1fr)",
+            borderRadius: 16,
+            padding: isMobile ? "14px 16px" : "18px 24px",
+            display: "grid",
+            gridTemplateColumns: stripCols,
+            gap: isMobile ? "12px 0" : 0,
             boxShadow: "0 4px 20px rgba(28,48,64,.18)",
           }}>
             {[
@@ -572,14 +622,15 @@ export default function FinanceDashboard() {
               { l: "Net Balance",    v: fmt(netBalance),    I: Wallet,      c: netBalance >= 0 ? "#48c78e" : "#ff6363" },
             ].map((s, i, arr) => (
               <React.Fragment key={i}>
-                <div style={{ textAlign: "center", padding: "0 12px" }}>
+                <div style={{ textAlign: "center", padding: isMobile ? "0 8px" : "0 12px" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, marginBottom: 4 }}>
                     <s.I size={11} color={s.c} />
                     <span style={{ fontSize: 9, fontWeight: 800, color: "rgba(255,255,255,.4)", letterSpacing: ".8px", textTransform: "uppercase" }}>{s.l}</span>
                   </div>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: s.c, fontFamily: "'DM Mono',monospace" }}>{s.v}</div>
+                  <div style={{ fontSize: isMobile ? 13 : 16, fontWeight: 800, color: s.c, fontFamily: "'DM Mono',monospace" }}>{s.v}</div>
                 </div>
-                {i < arr.length - 1 && (
+                {/* Dividers: vertical on desktop, skip on last item of each row on mobile */}
+                {!isMobile && i < arr.length - 1 && (
                   <div style={{ width: 1, background: "rgba(255,255,255,.1)", alignSelf: "stretch" }} />
                 )}
               </React.Fragment>

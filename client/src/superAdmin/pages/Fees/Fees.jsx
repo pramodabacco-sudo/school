@@ -115,7 +115,7 @@ export default function Fees() {
 
   const handleEdit = (fee) => {
     localStorage.setItem("editFeeData", JSON.stringify(fee));
-    navigate("/fees-add");
+    navigate("/superAdmin/fees-add");
   };
 
   const stats = [
@@ -161,7 +161,7 @@ export default function Fees() {
             </p>
           </div>
           <button
-            onClick={() => navigate("/fees-add")}
+            onClick={() => navigate("/superAdmin/fees-add")}
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-semibold shadow-md transition-all hover:opacity-90 hover:shadow-lg active:scale-95"
             style={{ background: "linear-gradient(135deg, #6A89A7, #384959)" }}
           >

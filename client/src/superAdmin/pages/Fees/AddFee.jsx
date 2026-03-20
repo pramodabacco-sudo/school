@@ -125,7 +125,7 @@ export default function AddFee() {
       } catch { /* ignore */ }
 
       setSubmitting(false);
-      navigate("/admin/fees");
+      navigate("/superAdmin/fees");
     }, 600);
   };
 
@@ -142,7 +142,7 @@ export default function AddFee() {
   });
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-900/40 to-indigo-900/40 backdrop-blur-xl" style={{fontFamily: "'DM Sans', 'Segoe UI', sans-serif" }} >
+    <div className="min-h-screen bg-gray-100/40 backdrop-blur-xl" style={{fontFamily: "'DM Sans', 'Segoe UI', sans-serif" }} >
 
       {/* Toast */}
       {toast && (
@@ -159,7 +159,7 @@ export default function AddFee() {
 
         {/* Back Button */}
         <button
-          onClick={() => navigate("/fees")}
+          onClick={() => navigate("/superAdmin/fees")}
           className="flex items-center gap-2 text-sm font-medium mb-6 transition-opacity hover:opacity-70"
           style={{ color: "#6A89A7" }}
         >
@@ -306,7 +306,7 @@ export default function AddFee() {
             {/* Actions */}
             <div className="flex gap-3 pt-2">
               <button
-                onClick={() => navigate("/fees")}
+                onClick={() => navigate("/superAdmin/fees")}
                 className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold border transition-all hover:bg-gray-50"
                 style={{ borderColor: "#BDDDFC", color: "#6A89A7" }}
               >
