@@ -5,9 +5,9 @@ import { LayoutDashboard, GraduationCap, Wallet, X } from "lucide-react";
 
 const NAV = [
   { icon: LayoutDashboard, label: "Dashboard", to: "/finance/dashboard" },
-  { icon: GraduationCap,   label: "Student",   to: "/finance/studentfinance" },
-  { icon: Wallet,          label: "Staff",      to: "/finance/teachersfinance" },
-  { icon: Wallet,          label: "Expenses",   to: "/finance/expenses" },
+  { icon: GraduationCap, label: "Student", to: "/finance/studentfinance" },
+  { icon: Wallet, label: "Staff", to: "/finance/teachersfinance" },
+  { icon: Wallet, label: "Expenses", to: "/finance/expenses" },
 ];
 
 const initials = (name = "AU") =>
@@ -19,11 +19,13 @@ export default function Sidebar({ isOpen, onClose, user }) {
 
   const isActive = (to) => pathname === to || pathname.startsWith(to + "/");
 
-  const displayName  = user?.name  || "Finance Admin";
-  const displayRole  = user?.role  || "Finance";
+  const displayName = user?.name || "Finance Admin";
+  const displayRole = user?.role || "Finance";
   const displayEmail = user?.email || "";
 
-  const expanded = hovered;
+  // On mobile (isOpen), always show expanded labels.
+  // On desktop, expand on hover.
+  const expanded = isOpen || hovered;
 
   return (
     <>
@@ -31,7 +33,10 @@ export default function Sidebar({ isOpen, onClose, user }) {
       {isOpen && (
         <div
           className="fixed inset-0 z-40 md:hidden"
-          style={{ background: "rgba(106,137,167,0.35)", backdropFilter: "blur(2px)" }}
+          style={{
+            background: "rgba(106,137,167,0.35)",
+            backdropFilter: "blur(2px)",
+          }}
           onClick={onClose}
         />
       )}
@@ -47,8 +52,9 @@ export default function Sidebar({ isOpen, onClose, user }) {
         style={{
           background: "#3f556b",
           fontFamily: "'DM Sans', sans-serif",
-          width: expanded ? "256px" : "64px",
-          transition: "width 280ms cubic-bezier(0.4, 0, 0.2, 1)",
+          // On mobile (isOpen) use full width up to 240px; on desktop use collapse/expand
+          width: isOpen ? "min(240px, 85vw)" : expanded ? "256px" : "64px",
+          transition: "width 280ms cubic-bezier(0.4, 0, 0.2, 1), transform 280ms cubic-bezier(0.4, 0, 0.2, 1)",
           overflow: "hidden",
         }}
       >
@@ -90,10 +96,22 @@ export default function Sidebar({ isOpen, onClose, user }) {
           {/* Mobile close button */}
           <button
             onClick={onClose}
-            className="md:hidden rounded-lg p-1 transition-opacity hover:opacity-60"
-            style={{ color: "#6A89A7", background: "none", border: "none", cursor: "pointer", flexShrink: 0 }}
+            className="md:hidden rounded-lg p-1.5 transition-colors"
+            style={{
+              color: "#8fafc4",
+              background: "rgba(136,189,242,0.08)",
+              border: "none",
+              cursor: "pointer",
+              flexShrink: 0,
+            }}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.background = "rgba(136,189,242,0.18)")
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.background = "rgba(136,189,242,0.08)")
+            }
           >
-            <X size={18} />
+            <X size={17} />
           </button>
         </div>
 
@@ -110,10 +128,12 @@ export default function Sidebar({ isOpen, onClose, user }) {
                     cursor: "pointer",
                     padding: "10px 10px",
                     gap: "12px",
-                    minHeight: "40px",
+                    minHeight: "44px",
                   }}
                   onMouseEnter={(e) => {
-                    if (!active) e.currentTarget.style.background = "rgba(136,189,242,0.07)";
+                    if (!active)
+                      e.currentTarget.style.background =
+                        "rgba(136,189,242,0.07)";
                   }}
                   onMouseLeave={(e) => {
                     if (!active) e.currentTarget.style.background = "transparent";
@@ -145,7 +165,9 @@ export default function Sidebar({ isOpen, onClose, user }) {
                       fontFamily: "'DM Sans', sans-serif",
                       whiteSpace: "nowrap",
                       opacity: expanded ? 1 : 0,
-                      transform: expanded ? "translateX(0)" : "translateX(-8px)",
+                      transform: expanded
+                        ? "translateX(0)"
+                        : "translateX(-8px)",
                       transition: "opacity 180ms ease, transform 180ms ease",
                       pointerEvents: "none",
                     }}
@@ -219,7 +241,10 @@ export default function Sidebar({ isOpen, onClose, user }) {
               {displayEmail && (
                 <p
                   className="text-[10px] truncate"
-                  style={{ color: "#88BDF2", fontFamily: "'DM Sans', sans-serif" }}
+                  style={{
+                    color: "#88BDF2",
+                    fontFamily: "'DM Sans', sans-serif",
+                  }}
                 >
                   {displayEmail}
                 </p>

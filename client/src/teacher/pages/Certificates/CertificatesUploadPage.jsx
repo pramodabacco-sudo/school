@@ -15,12 +15,12 @@ import { getToken } from "../../../auth/storage.js";
 
 // ─── Design tokens (matches existing teacher app) ────────────────────────────
 const C = {
-  dark:   "#384959",
-  mid:    "#6A89A7",
-  light:  "#88BDF2",
-  pale:   "#BDDDFC",
-  bg:     "#EDF3FA",
-  white:  "#ffffff",
+  dark: "#384959",
+  mid: "#6A89A7",
+  light: "#88BDF2",
+  pale: "#BDDDFC",
+  bg: "#EDF3FA",
+  white: "#ffffff",
   border: "rgba(136,189,242,0.30)",
 };
 
@@ -28,13 +28,13 @@ const API_BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}`;
 
 // ─── Category config ──────────────────────────────────────────────────────────
 const CATEGORIES = [
-  { value: "ACADEMIC",   label: "Academic",   icon: GraduationCap, color: "#1D4ED8", bg: "#EFF6FF" },
-  { value: "SPORTS",     label: "Sports",     icon: Trophy,        color: "#EA580C", bg: "#FFF7ED" },
-  { value: "CULTURAL",   label: "Cultural",   icon: Users,         color: "#9333EA", bg: "#FDF4FF" },
-  { value: "ATTENDANCE", label: "Attendance", icon: CheckCircle2,  color: "#16A34A", bg: "#F0FDF4" },
-  { value: "DISCIPLINE", label: "Discipline", icon: Shield,        color: "#475569", bg: "#F8FAFC" },
-  { value: "LEADERSHIP", label: "Leadership", icon: Star,          color: "#B45309", bg: "#FFFBEB" },
-  { value: "SPECIAL",    label: "Special",    icon: Medal,         color: "#7C3AED", bg: "#F5F3FF" },
+  { value: "ACADEMIC", label: "Academic", icon: GraduationCap, color: "#1D4ED8", bg: "#EFF6FF" },
+  { value: "SPORTS", label: "Sports", icon: Trophy, color: "#EA580C", bg: "#FFF7ED" },
+  { value: "CULTURAL", label: "Cultural", icon: Users, color: "#9333EA", bg: "#FDF4FF" },
+  { value: "ATTENDANCE", label: "Attendance", icon: CheckCircle2, color: "#16A34A", bg: "#F0FDF4" },
+  { value: "DISCIPLINE", label: "Discipline", icon: Shield, color: "#475569", bg: "#F8FAFC" },
+  { value: "LEADERSHIP", label: "Leadership", icon: Star, color: "#B45309", bg: "#FFFBEB" },
+  { value: "SPECIAL", label: "Special", icon: Medal, color: "#7C3AED", bg: "#F5F3FF" },
 ];
 
 const CAT_MAP = Object.fromEntries(CATEGORIES.map(c => [c.value, c]));
@@ -164,7 +164,7 @@ function Toast({ msg, type, onDone }) {
     }}>
       {isOk
         ? <CheckCircle2 size={16} color="#16a34a" style={{ flexShrink: 0 }} />
-        : <AlertCircle  size={16} color="#ef4444" style={{ flexShrink: 0 }} />
+        : <AlertCircle size={16} color="#ef4444" style={{ flexShrink: 0 }} />
       }
       <p style={{ fontSize: 13, fontWeight: 600, color: isOk ? "#166534" : "#991b1b", margin: 0 }}>{msg}</p>
     </div>
@@ -173,10 +173,10 @@ function Toast({ msg, type, onDone }) {
 
 // ─── Certificate Card ─────────────────────────────────────────────────────────
 function CertCard({ cert, onDelete, onView }) {
-  const cat     = CAT_MAP[cert.category] ?? { label: cert.category, color: C.mid, bg: C.bg, icon: Medal };
+  const cat = CAT_MAP[cert.category] ?? { label: cert.category, color: C.mid, bg: C.bg, icon: Medal };
   const CatIcon = cat.icon;
   const isImage = cert.fileType?.startsWith("image/");
-  const date    = cert.issuedDate
+  const date = cert.issuedDate
     ? new Date(cert.issuedDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
     : "—";
 
@@ -265,23 +265,23 @@ function CertCard({ cert, onDelete, onView }) {
 function UploadModal({ onClose, onSuccess, token }) {
   const [step, setStep] = useState(1); // 1=form  2=uploading  3=done
   const [form, setForm] = useState({
-    studentId:   "",
+    studentId: "",
     studentName: "",
-    title:       "",
-    category:    "ACADEMIC",
-    issuedDate:  new Date().toISOString().split("T")[0],
+    title: "",
+    category: "ACADEMIC",
+    issuedDate: new Date().toISOString().split("T")[0],
     description: "",
   });
-  const [file,             setFile]             = useState(null);
-  const [students,         setStudents]         = useState([]);
-  const [studentSearch,    setStudentSearch]    = useState("");
-  const [dropOpen,         setDropOpen]         = useState(false);
-  const [loadingStudents,  setLoadingStudents]  = useState(false);
-  const [formError,        setFormError]        = useState("");
-  const [progress,         setProgress]         = useState(0);
+  const [file, setFile] = useState(null);
+  const [students, setStudents] = useState([]);
+  const [studentSearch, setStudentSearch] = useState("");
+  const [dropOpen, setDropOpen] = useState(false);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [progress, setProgress] = useState(0);
   const fileInputRef = useRef();
-  const dropRef      = useRef();
-  const dragRef      = useRef(false);
+  const dropRef = useRef();
+  const dragRef = useRef(false);
 
   // Debounced student search
   useEffect(() => {
@@ -289,45 +289,45 @@ function UploadModal({ onClose, onSuccess, token }) {
     setLoadingStudents(true);
     const t = setTimeout(async () => {
       try {
-        const res  = await fetch(
+        const res = await fetch(
           `${API_BASE}/api/teacher/certificates/students?search=${encodeURIComponent(studentSearch)}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         const data = await res.json();
         setStudents(data.students ?? []);
       } catch { setStudents([]); }
-      finally  { setLoadingStudents(false); }
+      finally { setLoadingStudents(false); }
     }, 350);
     return () => clearTimeout(t);
   }, [studentSearch, token]);
 
   const validateFile = (f) => {
     const allowed = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
-    if (!allowed.includes(f.type))      { setFormError("Only PDF, JPG, PNG, or WebP files are allowed."); return; }
-    if (f.size > 10 * 1024 * 1024)     { setFormError("File must be under 10 MB."); return; }
+    if (!allowed.includes(f.type)) { setFormError("Only PDF, JPG, PNG, or WebP files are allowed."); return; }
+    if (f.size > 10 * 1024 * 1024) { setFormError("File must be under 10 MB."); return; }
     setFile(f); setFormError("");
   };
 
   const handleSubmit = async () => {
-    if (!form.studentId)   { setFormError("Please select a student.");         return; }
-    if (!form.title.trim()){ setFormError("Certificate title is required.");   return; }
-    if (!file)             { setFormError("Please upload a certificate file."); return; }
+    if (!form.studentId) { setFormError("Please select a student."); return; }
+    if (!form.title.trim()) { setFormError("Certificate title is required."); return; }
+    if (!file) { setFormError("Please upload a certificate file."); return; }
 
     setFormError(""); setStep(2); setProgress(10);
     try {
       const fd = new FormData();
-      fd.append("file",        file);
-      fd.append("studentId",   form.studentId);
-      fd.append("title",       form.title.trim());
-      fd.append("category",    form.category);
-      fd.append("issuedDate",  form.issuedDate);
+      fd.append("file", file);
+      fd.append("studentId", form.studentId);
+      fd.append("title", form.title.trim());
+      fd.append("category", form.category);
+      fd.append("issuedDate", form.issuedDate);
       fd.append("description", form.description.trim());
 
       const tick = setInterval(() => setProgress(p => Math.min(p + 8, 85)), 300);
-      const res  = await fetch(`${API_BASE}/api/teacher/certificates/upload`, {
-        method:  "POST",
+      const res = await fetch(`${API_BASE}/api/teacher/certificates/upload`, {
+        method: "POST",
         headers: { Authorization: `Bearer ${token}` },
-        body:    fd,
+        body: fd,
       });
       clearInterval(tick);
       setProgress(100);
@@ -597,7 +597,7 @@ function UploadModal({ onClose, onSuccess, token }) {
                       }}>
                         {file.type.startsWith("image/")
                           ? <ImageIcon size={18} color="#16A34A" />
-                          : <FileText  size={18} color="#16A34A" />
+                          : <FileText size={18} color="#16A34A" />
                         }
                       </div>
                       <div style={{ textAlign: "left" }}>
@@ -761,21 +761,21 @@ function ViewModal({ cert, onClose }) {
 export default function CertificatesUploadPage() {
   const token = getToken();
 
-  const [certs,        setCerts]        = useState([]);
-  const [loading,      setLoading]      = useState(true);
-  const [pageError,    setPageError]    = useState("");
-  const [search,       setSearch]       = useState("");
-  const [catFilter,    setCatFilter]    = useState("All");
-  const [showUpload,   setShowUpload]   = useState(false);
+  const [certs, setCerts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [pageError, setPageError] = useState("");
+  const [search, setSearch] = useState("");
+  const [catFilter, setCatFilter] = useState("All");
+  const [showUpload, setShowUpload] = useState(false);
   const [deletingCert, setDeletingCert] = useState(null);
-  const [deleteLoad,   setDeleteLoad]   = useState(false);
-  const [viewingCert,  setViewingCert]  = useState(null);
-  const [toast,        setToast]        = useState(null);
+  const [deleteLoad, setDeleteLoad] = useState(false);
+  const [viewingCert, setViewingCert] = useState(null);
+  const [toast, setToast] = useState(null);
 
   const fetchCerts = useCallback(async () => {
     setLoading(true); setPageError("");
     try {
-      const res  = await fetch(`${API_BASE}/api/teacher/certificates`, {
+      const res = await fetch(`${API_BASE}/api/teacher/certificates`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to load certificates");
@@ -795,7 +795,7 @@ export default function CertificatesUploadPage() {
     setDeleteLoad(true);
     try {
       const res = await fetch(`${API_BASE}/api/teacher/certificates/${deletingCert.id}`, {
-        method:  "DELETE",
+        method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Delete failed");
@@ -923,8 +923,8 @@ export default function CertificatesUploadPage() {
                   style={{
                     padding: "4px 12px", borderRadius: 20, fontSize: 11, fontWeight: 600,
                     background: active ? C.dark : C.white,
-                    color:      active ? C.white : C.mid,
-                    border:     `1.5px solid ${active ? C.dark : C.border}`,
+                    color: active ? C.white : C.mid,
+                    border: `1.5px solid ${active ? C.dark : C.border}`,
                   }}
                 >
                   {v === "All" ? "All" : CAT_MAP[v]?.label}

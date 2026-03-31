@@ -161,45 +161,16 @@ function DocumentModal({ doc, onClose }) {
 
     return (
         <div
+            className="pf-modal-overlay"
             onClick={onBackdrop}
-            style={{
-                position: "fixed", inset: 0, zIndex: 1000,
-                background: "rgba(56,73,89,0.76)", backdropFilter: "blur(7px)",
-                display: "flex", alignItems: "flex-end", justifyContent: "center",
-                padding: 0,
-            }}
         >
-            <style>{`
-        @media (min-width: 640px) {
-          .pf-modal-wrap {
-            align-self: center !important;
-            border-radius: 20px !important;
-            max-height: 90vh !important;
-            width: min(900px,95vw) !important;
-          }
-        }
-        @keyframes slideUp { from { transform:translateY(40px); opacity:0; } to { transform:translateY(0); opacity:1; } }
-        .pf-modal-inner { animation: slideUp 0.28s cubic-bezier(.22,.68,0,1.2) both; }
-      `}</style>
-
             <div
-                className="pf-modal-wrap pf-modal-inner"
-                style={{
-                    width: "100%",
-                    maxHeight: "96dvh",
-                    background: C.white,
-                    borderRadius: "20px 20px 0 0",
-                    boxShadow: "0 -8px 60px rgba(56,73,89,0.30), 0 24px 80px rgba(56,73,89,0.20)",
-                    display: "flex", flexDirection: "column", overflow: "hidden",
-                    fontFamily: "'Inter', sans-serif",
-                }}
+                className="pf-modal-box"
+                style={{ fontFamily: "'Inter', sans-serif" }}
             >
                 {/* Header */}
-                <div style={{
+                <div className="pf-modal-header" style={{
                     background: `linear-gradient(90deg, ${C.dark} 0%, ${C.mid} 100%)`,
-                    padding: "13px 14px",
-                    display: "flex", alignItems: "center", justifyContent: "space-between",
-                    gap: 10, flexShrink: 0,
                 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
                         <div style={{
@@ -220,7 +191,7 @@ function DocumentModal({ doc, onClose }) {
                         </div>
                     </div>
 
-                    <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
+                    <div className="pf-modal-actions">
                         {/* Timer */}
                         {state === "ready" && timeLeft != null && (
                             <div style={{

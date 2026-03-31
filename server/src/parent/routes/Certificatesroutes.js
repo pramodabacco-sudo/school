@@ -1,4 +1,8 @@
-// server/src/parent/routes/certificatesRoutes.js
+// server/src/parent/routes/Certificatesroutes.js
+// Mounted in parent.js as:
+//   parent.use("/certificates", certificatesRoutes);
+// Full path: GET /api/parent/certificates?studentId=<uuid>
+
 import { Router } from "express";
 import authMiddleware from "../../middlewares/authMiddleware.js";
 import { getCertificates } from "../controllers/Certificatescontroller.js";

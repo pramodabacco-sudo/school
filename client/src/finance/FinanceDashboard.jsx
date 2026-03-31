@@ -168,18 +168,18 @@ function StatusChip({ label, count, color, IconComp }) {
 
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 export default function FinanceDashboard() {
-  const [studentData,     setStudentData]     = useState([]);
+  const [studentData, setStudentData] = useState([]);
   const [expenseSections, setExpenseSections] = useState([]);
-  const [baseRevenue,     setBaseRevenue]     = useState([]);
+  const [baseRevenue, setBaseRevenue] = useState([]);
   const [teacherSalaries, setTeacherSalaries] = useState([]);
-  const [groupBSalaries,  setGroupBSalaries]  = useState([]);
-  const [groupCSalaries,  setGroupCSalaries]  = useState([]);
-  const [loading,         setLoading]         = useState(true);
-  const [fetchErrors,     setFetchErrors]     = useState({});
+  const [groupBSalaries, setGroupBSalaries] = useState([]);
+  const [groupCSalaries, setGroupCSalaries] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [fetchErrors, setFetchErrors] = useState({});
 
   const [rootRef, bp] = useContainerBreakpoint();
-  const isMobile  = bp === "xs" || bp === "sm";
-  const isTablet  = bp === "md";
+  const isMobile = bp === "xs" || bp === "sm";
+  const isTablet = bp === "md";
   const isDesktop = bp === "lg" || bp === "xl";
 
   useEffect(() => {
@@ -190,9 +190,9 @@ export default function FinanceDashboard() {
       if (raw) {
         const auth = JSON.parse(raw);
         school =
-          auth.user?.schoolId   ||
+          auth.user?.schoolId ||
           auth.user?.school?.id ||
-          auth.schoolId         || "";
+          auth.schoolId || "";
       }
     } catch { school = ""; }
     if (!school) school = localStorage.getItem("selectedSchoolId") || "";
@@ -223,55 +223,55 @@ export default function FinanceDashboard() {
       ),
       (school && token)
         ? safe("teachers", () =>
-            doFetch(`${API_URL}/api/teachers/salary/list/${school}`, {
-              headers: { Authorization: `Bearer ${token}` },
-            })
-          )
+          doFetch(`${API_URL}/api/teachers/salary/list/${school}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+        )
         : Promise.resolve(null),
       school
         ? safe("groupB", () =>
-            doFetch(`${API_URL}/api/groupb/salary/list/${school}`, { credentials: "include" })
-          )
+          doFetch(`${API_URL}/api/groupb/salary/list/${school}`, { credentials: "include" })
+        )
         : safe("groupBAll", () =>
-            doFetch(`${API_URL}/api/groupb/salary/list/all`, { credentials: "include" })
-          ),
+          doFetch(`${API_URL}/api/groupb/salary/list/all`, { credentials: "include" })
+        ),
       school
         ? safe("groupC", () =>
-            doFetch(`${API_URL}/api/groupc/salary/list/${school}`, { credentials: "include" })
-          )
+          doFetch(`${API_URL}/api/groupc/salary/list/${school}`, { credentials: "include" })
+        )
         : safe("groupCAll", () =>
-            doFetch(`${API_URL}/api/groupc/salary/list/all`, { credentials: "include" })
-          ),
+          doFetch(`${API_URL}/api/groupc/salary/list/all`, { credentials: "include" })
+        ),
     ]).then(([stu, exp, rev, teach, gb, gc]) => {
-      if (Array.isArray(stu))   setStudentData(stu);
-      if (Array.isArray(exp))   setExpenseSections(exp);
-      if (Array.isArray(rev))   setBaseRevenue(rev);
+      if (Array.isArray(stu)) setStudentData(stu);
+      if (Array.isArray(exp)) setExpenseSections(exp);
+      if (Array.isArray(rev)) setBaseRevenue(rev);
       if (Array.isArray(teach)) setTeacherSalaries(teach);
-      if (Array.isArray(gb))    setGroupBSalaries(gb);
-      if (Array.isArray(gc))    setGroupCSalaries(gc);
+      if (Array.isArray(gb)) setGroupBSalaries(gb);
+      if (Array.isArray(gc)) setGroupCSalaries(gc);
       setLoading(false);
     });
   }, []);
 
   // ── Derived values ─────────────────────────────────────────────────────────
-  const totalFees    = studentData.reduce((s, r) => s + Number(r.fees || 0), 0);
-  const paidFees     = studentData.reduce((s, r) => s + Number(r.paidAmount || 0), 0);
-  const pendingFees  = Math.max(totalFees - paidFees, 0);
+  const totalFees = studentData.reduce((s, r) => s + Number(r.fees || 0), 0);
+  const paidFees = studentData.reduce((s, r) => s + Number(r.paidAmount || 0), 0);
+  const pendingFees = Math.max(totalFees - paidFees, 0);
 
-  const paidCount    = studentData.filter(r => (r.paymentStatus || r.status || "").toUpperCase() === "PAID").length;
+  const paidCount = studentData.filter(r => (r.paymentStatus || r.status || "").toUpperCase() === "PAID").length;
   const partialCount = studentData.filter(r => (r.paymentStatus || r.status || "").toUpperCase() === "PARTIAL").length;
   const pendingCount = studentData.length - paidCount - partialCount;
 
-  const teachTotal  = teacherSalaries.reduce((s, t) => s + Number(t.netSalary || 0), 0);
-  const gbTotal     = groupBSalaries.reduce((s, t) => s + Number(t.netSalary || 0), 0);
-  const gcTotal     = groupCSalaries.reduce((s, t) => s + Number(t.netSalary || 0), 0);
+  const teachTotal = teacherSalaries.reduce((s, t) => s + Number(t.netSalary || 0), 0);
+  const gbTotal = groupBSalaries.reduce((s, t) => s + Number(t.netSalary || 0), 0);
+  const gcTotal = groupCSalaries.reduce((s, t) => s + Number(t.netSalary || 0), 0);
   const allSalaries = teachTotal + gbTotal + gcTotal;
 
   const totalExpenses = expenseSections.reduce((s, e) => s + (e.total || 0), 0);
-  const totalRevenue  = baseRevenue.length
+  const totalRevenue = baseRevenue.length
     ? baseRevenue.reduce((s, r) => s + (r.amount || 0), 0)
     : totalFees;
-  const netBalance   = totalRevenue - totalExpenses - allSalaries;
+  const netBalance = totalRevenue - totalExpenses - allSalaries;
   const pctCollected = totalFees > 0 ? Math.round((paidFees / totalFees) * 100) : 0;
 
   const teachItems = teacherSalaries.map(t => ({
@@ -287,20 +287,20 @@ export default function FinanceDashboard() {
     amount: Number(t.netSalary || 0),
   }));
 
-  const now    = new Date();
-  const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-  const COLORS = ["#172a38","#c8960c","#2e7d5a","#3c5d74","#a0522d","#1a6e8e"];
+  const now = new Date();
+  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const COLORS = ["#172a38", "#c8960c", "#2e7d5a", "#3c5d74", "#a0522d", "#1a6e8e"];
 
   // ── Responsive layout helpers ──────────────────────────────────────────────
-  const pad = isMobile ? "14px 14px 28px" : isTablet ? "16px 18px 28px" : "20px 24px 32px";
+  const pad = bp === "xs" ? "10px 10px 24px" : isMobile ? "14px 14px 28px" : isTablet ? "16px 18px 28px" : "20px 24px 32px";
 
-  const kpiCols = isMobile ? "1fr 1fr" : "repeat(4,1fr)";
+  const kpiCols = bp === "xs" ? "1fr" : isMobile ? "1fr 1fr" : "repeat(4,1fr)";
 
   // 3-col on desktop, 2-col on tablet, 1-col on mobile
   const bodyCols = isDesktop ? "1fr 1fr 1fr" : isTablet ? "1fr 1fr" : "1fr";
 
   // Bottom strip: 2-col on mobile, else 5-col
-  const stripCols = isMobile ? "1fr 1fr" : "repeat(5,1fr)";
+  const stripCols = bp === "xs" ? "1fr" : isMobile ? "1fr 1fr" : "repeat(5,1fr)";
 
   if (loading) return (
     <div ref={rootRef} style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "60px 0", width: "100%", minWidth: 0 }}>
@@ -318,7 +318,7 @@ export default function FinanceDashboard() {
       style={{
         width: "100%",
         minWidth: 0,
-        overflow: "hidden",
+        overflowX: "hidden",
         fontFamily: "'DM Sans', sans-serif",
         background: "#d1e2ed",
         minHeight: "100vh",
@@ -394,10 +394,10 @@ export default function FinanceDashboard() {
         {/* ── KPI row ─────────────────────────────────────────────────────── */}
         <div style={{ display: "grid", gridTemplateColumns: kpiCols, gap: isMobile ? 8 : 12, marginBottom: 18 }}>
           {[
-            { label: "Total Revenue",  value: fmt(totalRevenue),               Icon: TrendingUp,   color: "#3c5d74",  accent: "#e8f3f8", strip: "#3c5d74" },
-            { label: "Total Expenses", value: fmt(totalExpenses + allSalaries), Icon: TrendingDown, color: "#e05c3a",  accent: "#fef2ee", strip: "#e05c3a" },
-            { label: "Total Salaries", value: fmt(allSalaries),                 Icon: Users,        color: "#c8960c",  accent: "#fffbeb", strip: "#d4a017" },
-            { label: "Fees Pending",   value: fmt(pendingFees),                 Icon: Clock,        color: "#2e7d5a",  accent: "#e8f8f1", strip: "#2ecc71" },
+            { label: "Total Revenue", value: fmt(totalRevenue), Icon: TrendingUp, color: "#3c5d74", accent: "#e8f3f8", strip: "#3c5d74" },
+            { label: "Total Expenses", value: fmt(totalExpenses + allSalaries), Icon: TrendingDown, color: "#e05c3a", accent: "#fef2ee", strip: "#e05c3a" },
+            { label: "Total Salaries", value: fmt(allSalaries), Icon: Users, color: "#c8960c", accent: "#fffbeb", strip: "#d4a017" },
+            { label: "Fees Pending", value: fmt(pendingFees), Icon: Clock, color: "#2e7d5a", accent: "#e8f8f1", strip: "#2ecc71" },
           ].map((k, i) => (
             <div key={i} style={{
               background: "#fff", borderRadius: 12,
@@ -438,9 +438,9 @@ export default function FinanceDashboard() {
               <ProgressBar value={pctCollected} color="#3c5d74" />
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 14 }}>
                 {[
-                  { l: "Total",     v: fmt(totalFees),   c: "#3c5d74" },
-                  { l: "Collected", v: fmt(paidFees),    c: "#48c78e" },
-                  { l: "Pending",   v: fmt(pendingFees), c: "#e05c3a" },
+                  { l: "Total", v: fmt(totalFees), c: "#3c5d74" },
+                  { l: "Collected", v: fmt(paidFees), c: "#48c78e" },
+                  { l: "Pending", v: fmt(pendingFees), c: "#e05c3a" },
                 ].map((s, i) => (
                   <div key={i} style={{ background: "#f6f9fc", borderRadius: 9, padding: "8px 6px", textAlign: "center" }}>
                     <div style={{ fontSize: 9, fontWeight: 700, color: "#9ab5c5", textTransform: "uppercase", letterSpacing: ".5px" }}>{s.l}</div>
@@ -456,9 +456,9 @@ export default function FinanceDashboard() {
                 Payment Status
               </div>
               <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-                <StatusChip label="Paid"    count={paidCount}    color="#48c78e" IconComp={CheckCircle2} />
-                <StatusChip label="Partial" count={partialCount} color="#f59e0b" IconComp={Clock}        />
-                <StatusChip label="Pending" count={pendingCount} color="#e05c3a" IconComp={AlertCircle}  />
+                <StatusChip label="Paid" count={paidCount} color="#48c78e" IconComp={CheckCircle2} />
+                <StatusChip label="Partial" count={partialCount} color="#f59e0b" IconComp={Clock} />
+                <StatusChip label="Pending" count={pendingCount} color="#e05c3a" IconComp={AlertCircle} />
               </div>
 
               {studentData.slice(0, 6).map((s, i) => {
@@ -522,8 +522,8 @@ export default function FinanceDashboard() {
 
               {[
                 { label: "Teaching Staff (Group A)", total: teachTotal, count: teacherSalaries.length, color: "#172a38" },
-                { label: "Support Staff (Group B)",  total: gbTotal,    count: groupBSalaries.length,  color: "#c8960c" },
-                { label: "Support Staff (Group C)",  total: gcTotal,    count: groupCSalaries.length,  color: "#2e7d5a" },
+                { label: "Support Staff (Group B)", total: gbTotal, count: groupBSalaries.length, color: "#c8960c" },
+                { label: "Support Staff (Group C)", total: gcTotal, count: groupCSalaries.length, color: "#2e7d5a" },
               ].map((g, i) => (
                 <div key={i} style={{ marginBottom: 11 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
@@ -615,11 +615,11 @@ export default function FinanceDashboard() {
             boxShadow: "0 4px 20px rgba(28,48,64,.18)",
           }}>
             {[
-              { l: "Total Revenue",  v: fmt(totalRevenue),  I: TrendingUp,  c: "#48c78e" },
-              { l: "Total Salaries", v: fmt(allSalaries),   I: Users,       c: "#64b5f6" },
-              { l: "Other Expenses", v: fmt(totalExpenses), I: Receipt,     c: "#ff8c6b" },
-              { l: "Fees Collected", v: fmt(paidFees),      I: BadgeCheck,  c: "#ffd166" },
-              { l: "Net Balance",    v: fmt(netBalance),    I: Wallet,      c: netBalance >= 0 ? "#48c78e" : "#ff6363" },
+              { l: "Total Revenue", v: fmt(totalRevenue), I: TrendingUp, c: "#48c78e" },
+              { l: "Total Salaries", v: fmt(allSalaries), I: Users, c: "#64b5f6" },
+              { l: "Other Expenses", v: fmt(totalExpenses), I: Receipt, c: "#ff8c6b" },
+              { l: "Fees Collected", v: fmt(paidFees), I: BadgeCheck, c: "#ffd166" },
+              { l: "Net Balance", v: fmt(netBalance), I: Wallet, c: netBalance >= 0 ? "#48c78e" : "#ff6363" },
             ].map((s, i, arr) => (
               <React.Fragment key={i}>
                 <div style={{ textAlign: "center", padding: isMobile ? "0 8px" : "0 12px" }}>

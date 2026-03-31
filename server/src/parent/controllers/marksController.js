@@ -1,13 +1,10 @@
 // server/src/parent/controllers/marksController.js
 // ═══════════════════════════════════════════════════════════════
-//  Parent — Marks & Report Card Controller
-//  Difference from student version:
-//    • Authenticated via req.parent (set by parent auth middleware)
-//    • Requires ?studentId=<uuid> query param on every request
-//    • Validates parent actually owns the requested student via StudentParent
+//  Parent — Marks & Report Card Controller + Redis caching
 // ═══════════════════════════════════════════════════════════════
 
 import { prisma } from "../../config/db.js";
+import cache from "../../utils/cacheService.js";
 
 // ─── Grade scale ────────────────────────────────────────────────
 const GRADE_SCALE = [
@@ -34,20 +31,16 @@ function computeTotals(marksRows) {
   for (const m of marksRows) {
     if (!m.isAbsent && m.marksObtained !== null) {
       totalObtained += m.marksObtained;
-      if (
-        m.schedule.passingMarks !== null &&
-        m.marksObtained < m.schedule.passingMarks
-      ) {
+      if (m.schedule.passingMarks !== null && m.marksObtained < m.schedule.passingMarks) {
         hasFail = true;
       }
     }
     totalMax += m.schedule.maxMarks;
   }
 
-  const percentage =
-    totalMax > 0
-      ? parseFloat(((totalObtained / totalMax) * 100).toFixed(2))
-      : 0;
+  const percentage = totalMax > 0
+    ? parseFloat(((totalObtained / totalMax) * 100).toFixed(2))
+    : 0;
 
   const gradeInfo = hasFail
     ? { grade: "F", label: "Fail" }
@@ -56,7 +49,6 @@ function computeTotals(marksRows) {
   return { totalObtained, totalMax, percentage, gradeInfo, hasFail };
 }
 
-// ─── Guard: verify parent owns student ─────────────────────────
 async function verifyParentOwnsStudent(parentId, studentId) {
   const link = await prisma.studentParent.findFirst({
     where: { parentId, studentId },
@@ -79,6 +71,11 @@ export const getExamGroups = async (req, res) => {
     if (!owns)
       return res.status(403).json({ success: false, message: "Access denied" });
 
+    // ── Cache check ──────────────────────────────────────────
+    const cacheKey = `parent:marks:exam-groups:${studentId}`;
+    const cached = await cache.get(cacheKey);
+    if (cached) return res.json(JSON.parse(cached));
+
     const enrollment = await prisma.studentEnrollment.findFirst({
       where: { studentId, status: "ACTIVE" },
       orderBy: { createdAt: "desc" },
@@ -90,15 +87,15 @@ export const getExamGroups = async (req, res) => {
 
     const groups = await prisma.assessmentGroup.findMany({
       where: {
-        schoolId: enrollment.classSection.schoolId,
+        schoolId:       enrollment.classSection.schoolId,
         academicYearId: enrollment.academicYearId,
-        schedules: { some: { classSectionId: enrollment.classSectionId } },
+        schedules:      { some: { classSectionId: enrollment.classSectionId } },
       },
       orderBy: { createdAt: "asc" },
       include: { term: { select: { id: true, name: true, order: true } } },
     });
 
-    return res.json({
+    const response = {
       success: true,
       data: {
         enrollment: {
@@ -119,7 +116,11 @@ export const getExamGroups = async (req, res) => {
             : null,
         })),
       },
-    });
+    };
+
+    await cache.set(cacheKey, response);
+    return res.json(response);
+
   } catch (err) {
     console.error("[parent/getExamGroups]", err);
     return res.status(500).json({ success: false, message: "Server error" });
@@ -131,8 +132,8 @@ export const getExamGroups = async (req, res) => {
 // ═══════════════════════════════════════════════════════════════
 export const getReportCard = async (req, res) => {
   try {
-    const parentId          = req.user?.id;
-    const studentId         = req.query.studentId;
+    const parentId           = req.user?.id;
+    const studentId          = req.query.studentId;
     const { assessmentGroupId } = req.params;
 
     if (!parentId)  return res.status(401).json({ success: false, message: "Unauthorized" });
@@ -141,6 +142,11 @@ export const getReportCard = async (req, res) => {
     const owns = await verifyParentOwnsStudent(parentId, studentId);
     if (!owns)
       return res.status(403).json({ success: false, message: "Access denied" });
+
+    // ── Cache check ──────────────────────────────────────────
+    const cacheKey = `parent:marks:report-card:${studentId}:${assessmentGroupId}`;
+    const cached = await cache.get(cacheKey);
+    if (cached) return res.json(JSON.parse(cached));
 
     const enrollment = await prisma.studentEnrollment.findFirst({
       where: { studentId, status: "ACTIVE" },
@@ -165,32 +171,22 @@ export const getReportCard = async (req, res) => {
     if (!assessmentGroup.isPublished)
       return res.status(403).json({ success: false, message: "Results have not been published yet" });
 
-    const personalInfo = await prisma.studentPersonalInfo.findUnique({
-      where: { studentId },
-    });
-
-    const student = await prisma.student.findUnique({
-      where: { id: studentId },
-      select: { name: true, email: true },
-    });
-
-    const marks = await prisma.marks.findMany({
-      where: {
-        studentId,
-        schedule: {
-          assessmentGroupId,
-          classSectionId: enrollment.classSectionId,
+    const [personalInfo, student, marks] = await Promise.all([
+      prisma.studentPersonalInfo.findUnique({ where: { studentId } }),
+      prisma.student.findUnique({ where: { id: studentId }, select: { name: true, email: true } }),
+      prisma.marks.findMany({
+        where: {
+          studentId,
+          schedule: { assessmentGroupId, classSectionId: enrollment.classSectionId },
         },
-      },
-      include: {
-        schedule: {
-          include: {
-            subject: { select: { id: true, name: true, code: true } },
+        include: {
+          schedule: {
+            include: { subject: { select: { id: true, name: true, code: true } } },
           },
         },
-      },
-      orderBy: { schedule: { subject: { name: "asc" } } },
-    });
+        orderBy: { schedule: { subject: { name: "asc" } } },
+      }),
+    ]);
 
     if (marks.length === 0)
       return res.status(404).json({ success: false, message: "No marks found for this exam" });
@@ -199,15 +195,13 @@ export const getReportCard = async (req, res) => {
       const obtained = m.isAbsent ? null : (m.marksObtained ?? null);
       const maxMarks = m.schedule.maxMarks;
       const passing  = m.schedule.passingMarks ?? null;
-      const pct =
-        obtained !== null && maxMarks > 0
-          ? parseFloat(((obtained / maxMarks) * 100).toFixed(2))
-          : null;
+      const pct = obtained !== null && maxMarks > 0
+        ? parseFloat(((obtained / maxMarks) * 100).toFixed(2))
+        : null;
 
       let resultStatus = "absent";
       if (!m.isAbsent && obtained !== null) {
-        resultStatus =
-          passing !== null ? (obtained >= passing ? "pass" : "fail") : "pass";
+        resultStatus = passing !== null ? (obtained >= passing ? "pass" : "fail") : "pass";
       }
 
       return {
@@ -227,16 +221,12 @@ export const getReportCard = async (req, res) => {
       };
     });
 
-    const { totalObtained, totalMax, percentage, gradeInfo, hasFail } =
-      computeTotals(marks);
+    const { totalObtained, totalMax, percentage, gradeInfo, hasFail } = computeTotals(marks);
 
-    // Class rank
+    // ── Class rank ────────────────────────────────────────────
     const allClassMarks = await prisma.marks.findMany({
       where: {
-        schedule: {
-          assessmentGroupId,
-          classSectionId: enrollment.classSectionId,
-        },
+        schedule: { assessmentGroupId, classSectionId: enrollment.classSectionId },
       },
       include: { schedule: { select: { maxMarks: true, passingMarks: true } } },
     });
@@ -247,16 +237,12 @@ export const getReportCard = async (req, res) => {
       studentTotalsMap[m.studentId].rows.push(m);
     }
 
-    const studentSummaries = Object.entries(studentTotalsMap).map(
-      ([sid, { rows }]) => {
+    const studentSummaries = Object.entries(studentTotalsMap)
+      .map(([sid, { rows }]) => {
         const t = computeTotals(rows);
         return { studentId: sid, total: t.totalObtained, pct: t.percentage };
-      }
-    );
-
-    studentSummaries.sort((a, b) =>
-      b.total !== a.total ? b.total - a.total : b.pct - a.pct
-    );
+      })
+      .sort((a, b) => b.total !== a.total ? b.total - a.total : b.pct - a.pct);
 
     let rank = 1;
     for (let i = 0; i < studentSummaries.length; i++) {
@@ -272,7 +258,7 @@ export const getReportCard = async (req, res) => {
       where: { studentId, assessmentGroupId, academicYearId: enrollment.academicYearId },
     });
 
-    return res.json({
+    const response = {
       success: true,
       data: {
         student: {
@@ -316,7 +302,11 @@ export const getReportCard = async (req, res) => {
           isPublished:          resultSummary?.isPublished ?? assessmentGroup.isPublished,
         },
       },
-    });
+    };
+
+    await cache.set(cacheKey, response);
+    return res.json(response);
+
   } catch (err) {
     console.error("[parent/getReportCard]", err);
     return res.status(500).json({ success: false, message: "Server error" });
@@ -339,6 +329,11 @@ export const getTermSummary = async (req, res) => {
     if (!owns)
       return res.status(403).json({ success: false, message: "Access denied" });
 
+    // ── Cache check ──────────────────────────────────────────
+    const cacheKey = `parent:marks:term-summary:${studentId}:${termId}`;
+    const cached = await cache.get(cacheKey);
+    if (cached) return res.json(JSON.parse(cached));
+
     const enrollment = await prisma.studentEnrollment.findFirst({
       where: { studentId, status: "ACTIVE" },
       orderBy: { createdAt: "desc" },
@@ -354,9 +349,7 @@ export const getTermSummary = async (req, res) => {
         assessmentGroups: {
           where: { isPublished: true },
           include: {
-            schedules: {
-              where: { classSectionId: enrollment.classSectionId },
-            },
+            schedules: { where: { classSectionId: enrollment.classSectionId } },
           },
         },
       },
@@ -370,18 +363,14 @@ export const getTermSummary = async (req, res) => {
       const marks = await prisma.marks.findMany({
         where: {
           studentId,
-          schedule: {
-            assessmentGroupId: group.id,
-            classSectionId: enrollment.classSectionId,
-          },
+          schedule: { assessmentGroupId: group.id, classSectionId: enrollment.classSectionId },
         },
         include: { schedule: { select: { maxMarks: true, passingMarks: true } } },
       });
 
       if (marks.length === 0) continue;
 
-      const { totalObtained, totalMax, percentage, gradeInfo, hasFail } =
-        computeTotals(marks);
+      const { totalObtained, totalMax, percentage, gradeInfo, hasFail } = computeTotals(marks);
 
       groupSummaries.push({
         examId:        group.id,
@@ -404,10 +393,10 @@ export const getTermSummary = async (req, res) => {
       );
     }
     overallPct = parseFloat(overallPct.toFixed(2));
-    const overallGrade  = calcGrade(overallPct);
-    const termHasFail   = groupSummaries.some((g) => g.hasFail);
+    const overallGrade = calcGrade(overallPct);
+    const termHasFail  = groupSummaries.some((g) => g.hasFail);
 
-    return res.json({
+    const response = {
       success: true,
       data: {
         term: { id: term.id, name: term.name },
@@ -424,7 +413,11 @@ export const getTermSummary = async (req, res) => {
           hasFail:    termHasFail,
         },
       },
-    });
+    };
+
+    await cache.set(cacheKey, response);
+    return res.json(response);
+
   } catch (err) {
     console.error("[parent/getTermSummary]", err);
     return res.status(500).json({ success: false, message: "Server error" });

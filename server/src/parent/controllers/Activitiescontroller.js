@@ -1,12 +1,10 @@
 // server/src/parent/controllers/activitiesController.js
 // ═══════════════════════════════════════════════════════════════
-//  Parent — Activities Controller (view-only)
-//  • Auth via req.user.id (set by authMiddleware)
-//  • Requires ?studentId=<uuid> on every request
-//  • Validates parent owns student via StudentParent table
+//  Parent — Activities Controller (view-only) + Redis caching
 // ═══════════════════════════════════════════════════════════════
 
 import { prisma } from "../../config/db.js";
+import cache from "../../utils/cacheService.js";
 
 async function verifyParentOwnsStudent(parentId, studentId) {
   const link = await prisma.studentParent.findFirst({
@@ -33,6 +31,11 @@ export const getActivities = async (req, res) => {
     const owns = await verifyParentOwnsStudent(parentId, studentId);
     if (!owns) return res.status(403).json({ success: false, message: "Access denied" });
 
+    // ── Cache check ──────────────────────────────────────────
+    const cacheKey = `parent:activities:list:${studentId}`;
+    const cached = await cache.get(cacheKey);
+    if (cached) return res.json(JSON.parse(cached));
+
     const enrollment = await prisma.studentEnrollment.findFirst({
       where: { studentId, status: "ACTIVE" },
       orderBy: { createdAt: "desc" },
@@ -56,19 +59,18 @@ export const getActivities = async (req, res) => {
       orderBy: { createdAt: "asc" },
     });
 
-    // Mark which ones the student is enrolled in
     const enrollments = await prisma.studentActivityEnrollment.findMany({
       where: { studentId, academicYearId: enrollment.academicYearId, status: "ACTIVE" },
       select: { activityId: true },
     });
     const enrolledSet = new Set(enrollments.map(e => e.activityId));
 
-    const data = activities.map(a => ({
-      ...a,
-      isEnrolled: enrolledSet.has(a.id),
-    }));
+    const data = activities.map(a => ({ ...a, isEnrolled: enrolledSet.has(a.id) }));
 
-    return res.json({ success: true, data });
+    const response = { success: true, data };
+    await cache.set(cacheKey, response);
+
+    return res.json(response);
   } catch (err) {
     console.error("[parent/getActivities]", err);
     return res.status(500).json({ success: false, message: "Server error" });
@@ -84,6 +86,11 @@ export const getEvents = async (req, res) => {
 
     const owns = await verifyParentOwnsStudent(parentId, studentId);
     if (!owns) return res.status(403).json({ success: false, message: "Access denied" });
+
+    // ── Cache check ──────────────────────────────────────────
+    const cacheKey = `parent:activities:events:${studentId}`;
+    const cached = await cache.get(cacheKey);
+    if (cached) return res.json(JSON.parse(cached));
 
     const participants = await prisma.eventParticipant.findMany({
       where: { studentId },
@@ -145,7 +152,10 @@ export const getEvents = async (req, res) => {
     const allEvents = [...individualEvents, ...teamEvents]
       .sort((a, b) => new Date(b.eventDate ?? 0) - new Date(a.eventDate ?? 0));
 
-    return res.json({ success: true, data: allEvents });
+    const response = { success: true, data: allEvents };
+    await cache.set(cacheKey, response);
+
+    return res.json(response);
   } catch (err) {
     console.error("[parent/getEvents]", err);
     return res.status(500).json({ success: false, message: "Server error" });
@@ -161,6 +171,11 @@ export const getAchievements = async (req, res) => {
 
     const owns = await verifyParentOwnsStudent(parentId, studentId);
     if (!owns) return res.status(403).json({ success: false, message: "Access denied" });
+
+    // ── Cache check ──────────────────────────────────────────
+    const cacheKey = `parent:activities:achievements:${studentId}`;
+    const cached = await cache.get(cacheKey);
+    if (cached) return res.json(JSON.parse(cached));
 
     const results = await prisma.eventResult.findMany({
       where: {
@@ -188,7 +203,10 @@ export const getAchievements = async (req, res) => {
       teamName:     r.team?.name ?? null,
     }));
 
-    return res.json({ success: true, data });
+    const response = { success: true, data };
+    await cache.set(cacheKey, response);
+
+    return res.json(response);
   } catch (err) {
     console.error("[parent/getAchievements]", err);
     return res.status(500).json({ success: false, message: "Server error" });
@@ -204,6 +222,11 @@ export const getSummary = async (req, res) => {
 
     const owns = await verifyParentOwnsStudent(parentId, studentId);
     if (!owns) return res.status(403).json({ success: false, message: "Access denied" });
+
+    // ── Cache check ──────────────────────────────────────────
+    const cacheKey = `parent:activities:summary:${studentId}`;
+    const cached = await cache.get(cacheKey);
+    if (cached) return res.json(JSON.parse(cached));
 
     const enrollment = await prisma.studentEnrollment.findFirst({
       where: { studentId, status: "ACTIVE" },
@@ -221,7 +244,7 @@ export const getSummary = async (req, res) => {
       }),
     ]);
 
-    return res.json({
+    const response = {
       success: true,
       data: {
         enrolledActivities,
@@ -229,7 +252,10 @@ export const getSummary = async (req, res) => {
         achievements,
         academicYear: enrollment?.academicYear?.name ?? null,
       },
-    });
+    };
+    await cache.set(cacheKey, response);
+
+    return res.json(response);
   } catch (err) {
     console.error("[parent/getSummary]", err);
     return res.status(500).json({ success: false, message: "Server error" });

@@ -100,11 +100,7 @@ export default function ProfileSidebar({ profileData, enrollment, parents, loadi
                     display: "flex", flexDirection: "column",
                 }}>
                     {/* Name */}
-                    <div style={{
-                        fontWeight: 800, fontSize: 14, color: C.dark,
-                        lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                    }}>
+                    <div className="pf-sidebar-name">
                         {loading ? "Loading…" : fullName}
                     </div>
                     <div style={{ fontSize: 11, color: C.mid, marginTop: 2, fontWeight: 500 }}>{className}</div>

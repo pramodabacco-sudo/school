@@ -13,17 +13,17 @@ export const iconMap = {
 };
 
 export const iconOptions = [
-  { key: "Wrench",       icon: Wrench },
-  { key: "Package",      icon: Package },
-  { key: "Zap",          icon: Zap },
-  { key: "Droplets",     icon: Droplets },
-  { key: "Monitor",      icon: Monitor },
-  { key: "FileText",     icon: FileText },
-  { key: "Users",        icon: Users },
-  { key: "BookOpen",     icon: BookOpen },
-  { key: "Building2",    icon: Building2 },
-  { key: "Layers",       icon: Layers },
-  { key: "Utensils",     icon: Utensils },
+  { key: "Wrench", icon: Wrench },
+  { key: "Package", icon: Package },
+  { key: "Zap", icon: Zap },
+  { key: "Droplets", icon: Droplets },
+  { key: "Monitor", icon: Monitor },
+  { key: "FileText", icon: FileText },
+  { key: "Users", icon: Users },
+  { key: "BookOpen", icon: BookOpen },
+  { key: "Building2", icon: Building2 },
+  { key: "Layers", icon: Layers },
+  { key: "Utensils", icon: Utensils },
   { key: "GraduationCap", icon: GraduationCap },
 ];
 
@@ -31,15 +31,15 @@ export const fmt = (n) => "₹" + Number(n).toLocaleString("en-IN");
 
 // ── AddExpense Modal ──────────────────────────────────────────────────────────
 export default function AddExpense({ expenseSections = [], onClose, onAdd }) {
-  const [tab,              setTab]              = useState("view");
-  const [selectedSection,  setSelectedSection]  = useState(expenseSections[0]?.key || "");
-  const [customLabel,      setCustomLabel]      = useState("");
-  const [customAmount,     setCustomAmount]     = useState("");
+  const [tab, setTab] = useState("view");
+  const [selectedSection, setSelectedSection] = useState(expenseSections[0]?.key || "");
+  const [customLabel, setCustomLabel] = useState("");
+  const [customAmount, setCustomAmount] = useState("");
   const [customNewSection, setCustomNewSection] = useState(false);
-  const [newSectionLabel,  setNewSectionLabel]  = useState("");
-  const [selectedIcon,     setSelectedIcon]     = useState("Package");
-  const [success,          setSuccess]          = useState(false);
-  const [expandedSec,      setExpandedSec]      = useState(null);
+  const [newSectionLabel, setNewSectionLabel] = useState("");
+  const [selectedIcon, setSelectedIcon] = useState("Package");
+  const [success, setSuccess] = useState(false);
+  const [expandedSec, setExpandedSec] = useState(null);
 
   const totalExpenses = expenseSections.reduce((s, e) => s + e.total, 0);
 
@@ -54,12 +54,12 @@ export default function AddExpense({ expenseSections = [], onClose, onAdd }) {
     if (customNewSection && !newSectionLabel.trim()) return;
 
     onAdd({
-      isNewSection:    customNewSection,
-      sectionKey:      customNewSection ? null : selectedSection,
+      isNewSection: customNewSection,
+      sectionKey: customNewSection ? null : selectedSection,
       newSectionLabel: newSectionLabel.trim(),
-      label:           customLabel.trim(),
+      label: customLabel.trim(),
       amount,
-      icon:            selectedIcon,
+      icon: selectedIcon,
     });
 
     setSuccess(true);
@@ -77,65 +77,64 @@ export default function AddExpense({ expenseSections = [], onClose, onAdd }) {
     <>
       {/* Overlay */}
       <div
-        className="fixed inset-0 bg-[#142332]/60 backdrop-blur-md z-[1000] flex items-center justify-center p-5"
+        className="fixed inset-0 bg-[#142332]/60 backdrop-blur-md z-[1000] flex items-center justify-center p-3 sm:p-5"
         style={{ animation: "aeModalFadeIn .2s ease" }}
         onClick={onClose}
       >
         {/* Box */}
         <div
-          className="bg-white rounded-2xl w-full max-w-[580px] max-h-[88vh] flex flex-col shadow-2xl overflow-hidden"
+          className="bg-white rounded-2xl w-full max-w-[580px] max-h-[92vh] flex flex-col shadow-2xl overflow-hidden"
           style={{ animation: "aeModalSlideUp .25s ease" }}
           onClick={(e) => e.stopPropagation()}
         >
           {/* ── Header ── */}
-          <div className="bg-gradient-to-br from-[#1c3040] to-[#2b4557] px-5 py-4 flex items-center justify-between flex-shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-xl bg-white/[0.14] border border-white/[0.22] flex items-center justify-center">
-                <TrendingDown size={18} color="#fff" />
+          <div className="bg-gradient-to-br from-[#1c3040] to-[#2b4557] px-4 sm:px-5 py-3 sm:py-4 flex items-center justify-between flex-shrink-0">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-white/[0.14] border border-white/[0.22] flex items-center justify-center flex-shrink-0">
+                <TrendingDown size={16} color="#fff" />
               </div>
               <div>
-                <p className="text-base font-bold text-white m-0">Expense Manager</p>
-                <p className="text-[11.5px] text-white/55 m-0">View all expenses or add a new one</p>
+                <p className="text-sm sm:text-base font-bold text-white m-0">Expense Manager</p>
+                <p className="text-[10px] sm:text-[11.5px] text-white/55 m-0 hidden xs:block">View all expenses or add a new one</p>
               </div>
             </div>
             <button
               className="w-8 h-8 rounded-lg bg-white/[0.12] border border-white/20 text-white/75 flex items-center justify-center hover:bg-white/[0.22] hover:text-white transition-colors"
               onClick={onClose}
             >
-              <X size={18} />
+              <X size={16} />
             </button>
           </div>
 
           {/* ── Tabs ── */}
           <div className="flex bg-[#f5f9fc] border-b border-[#e4eff6] flex-shrink-0">
             {[
-              { key: "view", label: "All Expenses",    Icon: BarChart3 },
-              { key: "add",  label: "Add New Expense", Icon: Plus },
+              { key: "view", label: "All Expenses", Icon: BarChart3 },
+              { key: "add", label: "Add New Expense", Icon: Plus },
             ].map(({ key, label, Icon }) => (
               <button
                 key={key}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-[13px] font-semibold border-b-[2.5px] transition-all
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 sm:py-3 text-[12px] sm:text-[13px] font-semibold border-b-[2.5px] transition-all
                   ${tab === key
                     ? "text-[#2b4557] border-[#2b4557] bg-[#2b4557]/[0.04]"
                     : "text-[#5A7A90] border-transparent hover:text-[#3c5d74] hover:bg-[#3c5d74]/[0.04]"
                   }`}
                 onClick={() => setTab(key)}
               >
-                <Icon size={14} /> {label}
+                <Icon size={13} /> {label}
               </button>
             ))}
           </div>
 
           {/* ── Body ── */}
-          <div className="overflow-y-auto p-5 flex-1">
+          <div className="overflow-y-auto p-4 sm:p-5 flex-1">
 
             {/* ── VIEW TAB ── */}
             {tab === "view" && (
               <div>
-                {/* Total pill */}
-                <div className="bg-gradient-to-br from-[#2b4557] to-[#1c3040] rounded-xl px-4 py-3.5 flex justify-between items-center mb-4">
-                  <span className="text-[12px] text-white/60 font-bold uppercase tracking-wider">Total Expenses</span>
-                  <span className="text-xl text-white font-bold">{fmt(totalExpenses)}</span>
+                <div className="bg-gradient-to-br from-[#2b4557] to-[#1c3040] rounded-xl px-4 py-3 sm:py-3.5 flex justify-between items-center mb-4">
+                  <span className="text-[11px] sm:text-[12px] text-white/60 font-bold uppercase tracking-wider">Total Expenses</span>
+                  <span className="text-lg sm:text-xl text-white font-bold">{fmt(totalExpenses)}</span>
                 </div>
 
                 {expenseSections.length === 0 && (
@@ -144,56 +143,56 @@ export default function AddExpense({ expenseSections = [], onClose, onAdd }) {
 
                 {expenseSections.map((sec) => {
                   const SIcon = iconMap[sec.icon] || Package;
-                  const pct   = totalExpenses > 0 ? Math.round((sec.total / totalExpenses) * 100) : 0;
+                  const pct = totalExpenses > 0 ? Math.round((sec.total / totalExpenses) * 100) : 0;
                   return (
                     <div key={sec.key} className="bg-[#f8fafc] rounded-xl mb-2.5 overflow-hidden border border-[#e4eff6]">
                       <button
-                        className="w-full flex items-center justify-between px-4 py-3 hover:bg-[#3c5d74]/[0.04] transition-colors"
+                        className="w-full flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3 hover:bg-[#3c5d74]/[0.04] transition-colors"
                         onClick={() => setExpandedSec(expandedSec === sec.key ? null : sec.key)}
                       >
-                        <div className="flex items-center gap-2.5">
+                        <div className="flex items-center gap-2 min-w-0">
                           <div
-                            className="w-8 h-8 rounded-lg flex items-center justify-center"
+                            className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center flex-shrink-0"
                             style={{ background: sec.color + "20", color: sec.color }}
                           >
-                            <SIcon size={15} />
+                            <SIcon size={13} />
                           </div>
-                          <span className="text-[13.5px] font-bold text-[#1c3040]">{sec.label}</span>
+                          <span className="text-[12px] sm:text-[13.5px] font-bold text-[#1c3040] truncate">{sec.label}</span>
                         </div>
-                        <div className="flex items-center gap-2.5">
-                          <span className="text-[14px] font-bold text-[#2b4557]">{fmt(sec.total)}</span>
-                          <span className="text-[11px] font-bold text-[#5A7A90] bg-[#eaf1f6] px-2 py-0.5 rounded-full">{pct}%</span>
+                        <div className="flex items-center gap-1.5 sm:gap-2.5 flex-shrink-0 ml-2">
+                          <span className="text-[13px] sm:text-[14px] font-bold text-[#2b4557]">{fmt(sec.total)}</span>
+                          <span className="hidden sm:inline text-[11px] font-bold text-[#5A7A90] bg-[#eaf1f6] px-2 py-0.5 rounded-full">{pct}%</span>
                           {expandedSec === sec.key
-                            ? <ChevronUp size={14} color="#5A7A90" />
-                            : <ChevronDown size={14} color="#5A7A90" />}
+                            ? <ChevronUp size={13} color="#5A7A90" />
+                            : <ChevronDown size={13} color="#5A7A90" />}
                         </div>
                       </button>
 
                       {expandedSec === sec.key && (
-                        <div className="px-4 pt-1 pb-3.5 border-t border-[#e4eff6]">
+                        <div className="px-3 sm:px-4 pt-1 pb-3 sm:pb-3.5 border-t border-[#e4eff6]">
                           {sec.items.map((item, i) => {
                             const IIcon = iconMap[item.icon] || Package;
-                            const iPct  = sec.total > 0 ? Math.round((item.amount / sec.total) * 100) : 0;
+                            const iPct = sec.total > 0 ? Math.round((item.amount / sec.total) * 100) : 0;
                             return (
                               <div key={i} className="flex items-center justify-between py-2 border-b border-[#f0f5f9] last:border-none">
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
                                   <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: sec.color }} />
-                                  <div className="w-6 h-6 rounded-md bg-[#f0f5f9] flex items-center justify-center" style={{ color: sec.color }}>
-                                    <IIcon size={12} />
+                                  <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-[#f0f5f9] flex items-center justify-center flex-shrink-0" style={{ color: sec.color }}>
+                                    <IIcon size={11} />
                                   </div>
-                                  <span className="text-[13px] font-medium text-[#2E3F50]">{item.label}</span>
+                                  <span className="text-[12px] sm:text-[13px] font-medium text-[#2E3F50] truncate">{item.label}</span>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                  <div className="w-14 h-1 bg-[#eaf1f6] rounded-full overflow-hidden">
+                                <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                                  <div className="hidden sm:block w-14 h-1 bg-[#eaf1f6] rounded-full overflow-hidden">
                                     <div className="h-full rounded-full opacity-60" style={{ width: `${iPct}%`, background: sec.color }} />
                                   </div>
-                                  <span className="text-[12.5px] font-bold text-[#1c3040] min-w-[72px] text-right">{fmt(item.amount)}</span>
+                                  <span className="text-[12px] sm:text-[12.5px] font-bold text-[#1c3040] text-right">{fmt(item.amount)}</span>
                                 </div>
                               </div>
                             );
                           })}
                           <div
-                            className="flex justify-between px-3 py-2 mt-1.5 rounded-lg text-[12.5px] font-bold"
+                            className="flex justify-between px-2.5 sm:px-3 py-2 mt-1.5 rounded-lg text-[12px] sm:text-[12.5px] font-bold"
                             style={{ background: sec.color + "14", color: sec.color }}
                           >
                             <span>Section Total</span>
@@ -223,16 +222,16 @@ export default function AddExpense({ expenseSections = [], onClose, onAdd }) {
                 ) : (
                   <>
                     {/* Category toggle */}
-                    <div className="flex items-center gap-3.5">
-                      <span className="text-[12px] font-bold text-[#5A7A90] uppercase tracking-[.7px]">Add to</span>
-                      <div className="flex bg-[#eaf1f6] rounded-xl p-1 gap-1">
+                    <div className="flex flex-col xs:flex-row xs:items-center gap-2 xs:gap-3.5">
+                      <span className="text-[11px] font-bold text-[#5A7A90] uppercase tracking-[.7px]">Add to</span>
+                      <div className="flex bg-[#eaf1f6] rounded-xl p-1 gap-1 w-fit">
                         {[
                           { label: "Existing Category", val: false },
-                          { label: "New Category",      val: true  },
+                          { label: "New Category", val: true },
                         ].map(({ label, val }) => (
                           <button
                             key={label}
-                            className={`rounded-lg px-3.5 py-1.5 text-[12.5px] font-semibold transition-all
+                            className={`rounded-lg px-2.5 sm:px-3.5 py-1.5 text-[11.5px] sm:text-[12.5px] font-semibold transition-all whitespace-nowrap
                               ${customNewSection === val
                                 ? "bg-white text-[#2b4557] shadow-sm"
                                 : "text-[#5A7A90] hover:text-[#2b4557]"
@@ -245,12 +244,11 @@ export default function AddExpense({ expenseSections = [], onClose, onAdd }) {
                       </div>
                     </div>
 
-                    {/* Select existing / new name */}
                     {!customNewSection ? (
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-[12px] font-bold text-[#5A7A90] uppercase tracking-[.7px]">Select Category</label>
+                        <label className="text-[11px] font-bold text-[#5A7A90] uppercase tracking-[.7px]">Select Category</label>
                         <select
-                          className="border-[1.5px] border-[#d4e4ee] rounded-xl px-3.5 py-2.5 text-sm text-[#1c3040] outline-none bg-white focus:border-[#3c5d74] cursor-pointer w-full"
+                          className="border-[1.5px] border-[#d4e4ee] rounded-xl px-3 sm:px-3.5 py-2.5 text-sm text-[#1c3040] outline-none bg-white focus:border-[#3c5d74] cursor-pointer w-full"
                           value={selectedSection}
                           onChange={(e) => setSelectedSection(e.target.value)}
                         >
@@ -261,9 +259,9 @@ export default function AddExpense({ expenseSections = [], onClose, onAdd }) {
                       </div>
                     ) : (
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-[12px] font-bold text-[#5A7A90] uppercase tracking-[.7px]">New Category Name</label>
+                        <label className="text-[11px] font-bold text-[#5A7A90] uppercase tracking-[.7px]">New Category Name</label>
                         <input
-                          className="border-[1.5px] border-[#d4e4ee] rounded-xl px-3.5 py-2.5 text-sm text-[#1c3040] outline-none bg-white focus:border-[#3c5d74] w-full"
+                          className="border-[1.5px] border-[#d4e4ee] rounded-xl px-3 sm:px-3.5 py-2.5 text-sm text-[#1c3040] outline-none bg-white focus:border-[#3c5d74] w-full"
                           placeholder="e.g. Events & Activities"
                           value={newSectionLabel}
                           onChange={(e) => setNewSectionLabel(e.target.value)}
@@ -271,20 +269,18 @@ export default function AddExpense({ expenseSections = [], onClose, onAdd }) {
                       </div>
                     )}
 
-                    {/* Description */}
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[12px] font-bold text-[#5A7A90] uppercase tracking-[.7px]">Expense Description</label>
+                      <label className="text-[11px] font-bold text-[#5A7A90] uppercase tracking-[.7px]">Expense Description</label>
                       <input
-                        className="border-[1.5px] border-[#d4e4ee] rounded-xl px-3.5 py-2.5 text-sm text-[#1c3040] outline-none bg-white focus:border-[#3c5d74] w-full"
+                        className="border-[1.5px] border-[#d4e4ee] rounded-xl px-3 sm:px-3.5 py-2.5 text-sm text-[#1c3040] outline-none bg-white focus:border-[#3c5d74] w-full"
                         placeholder="e.g. Annual Day Decorations"
                         value={customLabel}
                         onChange={(e) => setCustomLabel(e.target.value)}
                       />
                     </div>
 
-                    {/* Amount */}
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[12px] font-bold text-[#5A7A90] uppercase tracking-[.7px]">Amount (₹)</label>
+                      <label className="text-[11px] font-bold text-[#5A7A90] uppercase tracking-[.7px]">Amount (₹)</label>
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[15px] font-bold text-[#5A7A90] pointer-events-none">₹</span>
                         <input
@@ -298,9 +294,8 @@ export default function AddExpense({ expenseSections = [], onClose, onAdd }) {
                       </div>
                     </div>
 
-                    {/* Icon picker */}
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[12px] font-bold text-[#5A7A90] uppercase tracking-[.7px]">Icon</label>
+                      <label className="text-[11px] font-bold text-[#5A7A90] uppercase tracking-[.7px]">Icon</label>
                       <div className="flex flex-wrap gap-2">
                         {iconOptions.map(({ key, icon: Icon }) => (
                           <button
@@ -313,19 +308,18 @@ export default function AddExpense({ expenseSections = [], onClose, onAdd }) {
                               }`}
                             onClick={() => setSelectedIcon(key)}
                           >
-                            <Icon size={16} />
+                            <Icon size={15} />
                           </button>
                         ))}
                       </div>
                     </div>
 
-                    {/* Submit */}
                     <button
                       className="flex items-center justify-center gap-2 bg-gradient-to-br from-[#2b4557] to-[#1c3040] text-white rounded-xl py-3 text-sm font-bold shadow-md hover:-translate-y-0.5 hover:shadow-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:translate-y-0 mt-1"
                       onClick={handleAdd}
                       disabled={!canSubmit}
                     >
-                      <Plus size={16} /> Add Expense
+                      <Plus size={15} /> Add Expense
                     </button>
                   </>
                 )}
@@ -335,7 +329,6 @@ export default function AddExpense({ expenseSections = [], onClose, onAdd }) {
         </div>
       </div>
 
-      {/* Keyframes */}
       <style>{`
         @keyframes aeModalFadeIn  { from { opacity: 0 }                          to { opacity: 1 } }
         @keyframes aeModalSlideUp { from { transform: translateY(24px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }

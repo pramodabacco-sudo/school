@@ -15,14 +15,14 @@ const API_URL = import.meta.env.VITE_API_URL;
 // ─────────────────────────────────────────────────────────────────────────────
 function InvoiceModal({ student, onClose }) {
     const paidAmount = Number(student.paidAmount || 0);
-    const totalFees  = Number(student.fees || 0);
-    const due        = Math.max(0, totalFees - paidAmount);
-    const invoiceNo  = `INV-${String(student.id || "").slice(-4).padStart(4, "0")}-${new Date().getFullYear()}`;
-    const today      = new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+    const totalFees = Number(student.fees || 0);
+    const due = Math.max(0, totalFees - paidAmount);
+    const invoiceNo = `INV-${String(student.id || "").slice(-4).padStart(4, "0")}-${new Date().getFullYear()}`;
+    const today = new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 
     // Parse fee breakdown if stored as JSON in feeBreakdown field
     let breakdown = null;
-    try { breakdown = student.feeBreakdown ? JSON.parse(student.feeBreakdown) : null; } catch {}
+    try { breakdown = student.feeBreakdown ? JSON.parse(student.feeBreakdown) : null; } catch { }
 
     const handleDownload = () => {
         if (!window.jspdf) { alert("PDF library not loaded yet. Please try again."); return; }
@@ -30,66 +30,66 @@ function InvoiceModal({ student, onClose }) {
         const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
         const W = 210, m = 18;
         doc.setFillColor(28, 48, 68); doc.rect(0, 0, W, 40, "F");
-        doc.setFont("helvetica", "bold"); doc.setFontSize(20); doc.setTextColor(255,255,255);
+        doc.setFont("helvetica", "bold"); doc.setFontSize(20); doc.setTextColor(255, 255, 255);
         doc.text("Invoice", m, 17);
-        doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.setTextColor(180,205,220);
+        doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.setTextColor(180, 205, 220);
         doc.text("Fee Invoice & Payment Receipt", m, 25);
-        doc.setFillColor(255,255,255); doc.roundedRect(W-m-52, 8, 52, 22, 3, 3, "F");
-        doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor(28,48,68);
-        doc.text("INVOICE", W-m-26, 16, { align:"center" });
-        doc.setFontSize(10); doc.text(invoiceNo, W-m-26, 24, { align:"center" });
-        doc.setFillColor(39,67,91); doc.rect(0, 40, W, 10, "F");
-        doc.setFontSize(9); doc.setFont("helvetica","normal"); doc.setTextColor(180,205,220);
+        doc.setFillColor(255, 255, 255); doc.roundedRect(W - m - 52, 8, 52, 22, 3, 3, "F");
+        doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(28, 48, 68);
+        doc.text("INVOICE", W - m - 26, 16, { align: "center" });
+        doc.setFontSize(10); doc.text(invoiceNo, W - m - 26, 24, { align: "center" });
+        doc.setFillColor(39, 67, 91); doc.rect(0, 40, W, 10, "F");
+        doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.setTextColor(180, 205, 220);
         doc.text(`Date: ${today}`, m, 47);
-        doc.text(`Status: ${due === 0 ? "PAID" : "PARTIALLY PAID"}`, W-m, 47, { align:"right" });
+        doc.text(`Status: ${due === 0 ? "PAID" : "PARTIALLY PAID"}`, W - m, 47, { align: "right" });
         let y = 62;
-        doc.setFillColor(240,247,252); doc.roundedRect(m, y-6, W-m*2, 36, 3, 3, "F");
-        doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(28,48,68);
-        doc.text("STUDENT DETAILS", m+4, y);
-        doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.setTextColor(30,50,70);
-        doc.setFont("helvetica","bold"); doc.text("Name:", m+4, y+8);
-        doc.setFont("helvetica","normal"); doc.text(student.name||"N/A", m+24, y+8);
-        doc.setFont("helvetica","bold"); doc.text("Email:", W/2+4, y+8);
-        doc.setFont("helvetica","normal"); doc.text(student.email||"N/A", W/2+24, y+8);
-        doc.setFont("helvetica","bold"); doc.text("Course:", m+4, y+17);
-        doc.setFont("helvetica","normal"); doc.text(student.course||"N/A", m+24, y+17);
+        doc.setFillColor(240, 247, 252); doc.roundedRect(m, y - 6, W - m * 2, 36, 3, 3, "F");
+        doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(28, 48, 68);
+        doc.text("STUDENT DETAILS", m + 4, y);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(30, 50, 70);
+        doc.setFont("helvetica", "bold"); doc.text("Name:", m + 4, y + 8);
+        doc.setFont("helvetica", "normal"); doc.text(student.name || "N/A", m + 24, y + 8);
+        doc.setFont("helvetica", "bold"); doc.text("Email:", W / 2 + 4, y + 8);
+        doc.setFont("helvetica", "normal"); doc.text(student.email || "N/A", W / 2 + 24, y + 8);
+        doc.setFont("helvetica", "bold"); doc.text("Course:", m + 4, y + 17);
+        doc.setFont("helvetica", "normal"); doc.text(student.course || "N/A", m + 24, y + 17);
         y += 46;
-        doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(28,48,68);
+        doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(28, 48, 68);
         doc.text("FEE SUMMARY", m, y); y += 5;
-        doc.setFillColor(28,48,68); doc.rect(m, y, W-m*2, 9, "F");
-        doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(255,255,255);
-        doc.text("Description", m+4, y+6); doc.text("Amount (INR)", m+145, y+6); y+=9;
+        doc.setFillColor(28, 48, 68); doc.rect(m, y, W - m * 2, 9, "F");
+        doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(255, 255, 255);
+        doc.text("Description", m + 4, y + 6); doc.text("Amount (INR)", m + 145, y + 6); y += 9;
         const rows = breakdown
-          ? Object.entries(breakdown).filter(([k,v]) => k !== "customFees" && Number(v) > 0).map(([k,v]) => [k.replace(/Fee$/,"").replace(/([A-Z])/g," $1").trim(), v])
-          : [["Total Fees", totalFees]];
+            ? Object.entries(breakdown).filter(([k, v]) => k !== "customFees" && Number(v) > 0).map(([k, v]) => [k.replace(/Fee$/, "").replace(/([A-Z])/g, " $1").trim(), v])
+            : [["Total Fees", totalFees]];
         rows.forEach(([label, amt], i) => {
-            doc.setFillColor(i%2===0?248:255, i%2===0?252:255, 255);
-            doc.rect(m, y, W-m*2, 9, "F");
-            doc.setFont("helvetica","normal"); doc.setFontSize(9.5); doc.setTextColor(30,50,70);
-            doc.text(label, m+4, y+6);
-            doc.setFont("helvetica","bold"); doc.text(`Rs. ${Number(amt).toLocaleString("en-IN")}`, m+145, y+6); y+=9;
+            doc.setFillColor(i % 2 === 0 ? 248 : 255, i % 2 === 0 ? 252 : 255, 255);
+            doc.rect(m, y, W - m * 2, 9, "F");
+            doc.setFont("helvetica", "normal"); doc.setFontSize(9.5); doc.setTextColor(30, 50, 70);
+            doc.text(label, m + 4, y + 6);
+            doc.setFont("helvetica", "bold"); doc.text(`Rs. ${Number(amt).toLocaleString("en-IN")}`, m + 145, y + 6); y += 9;
         });
         y += 12;
-        const bx = W-m-80;
-        doc.setFillColor(240,247,252); doc.roundedRect(bx, y, 80, 34, 3, 3, "F");
-        doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(80,100,120);
-        doc.text("Total Fees:", bx+4, y+9);
-        doc.setFont("helvetica","bold"); doc.setTextColor(28,48,68);
-        doc.text(`Rs. ${totalFees.toLocaleString("en-IN")}`, bx+78, y+9, { align:"right" });
-        doc.setFont("helvetica","normal"); doc.setTextColor(80,100,120);
-        doc.text("Amount Paid:", bx+4, y+18);
-        doc.setFont("helvetica","bold"); doc.setTextColor(28,68,48);
-        doc.text(`Rs. ${paidAmount.toLocaleString("en-IN")}`, bx+78, y+18, { align:"right" });
-        doc.setDrawColor(28,48,68); doc.setLineWidth(0.5); doc.line(bx+4, y+22, bx+76, y+22);
-        doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(28,48,68);
-        doc.text("Balance Due:", bx+4, y+30);
-        doc.setTextColor(due===0?28:180, due===0?90:30, due===0?50:30);
-        doc.text(`Rs. ${due.toLocaleString("en-IN")}`, bx+78, y+30, { align:"right" });
+        const bx = W - m - 80;
+        doc.setFillColor(240, 247, 252); doc.roundedRect(bx, y, 80, 34, 3, 3, "F");
+        doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(80, 100, 120);
+        doc.text("Total Fees:", bx + 4, y + 9);
+        doc.setFont("helvetica", "bold"); doc.setTextColor(28, 48, 68);
+        doc.text(`Rs. ${totalFees.toLocaleString("en-IN")}`, bx + 78, y + 9, { align: "right" });
+        doc.setFont("helvetica", "normal"); doc.setTextColor(80, 100, 120);
+        doc.text("Amount Paid:", bx + 4, y + 18);
+        doc.setFont("helvetica", "bold"); doc.setTextColor(28, 68, 48);
+        doc.text(`Rs. ${paidAmount.toLocaleString("en-IN")}`, bx + 78, y + 18, { align: "right" });
+        doc.setDrawColor(28, 48, 68); doc.setLineWidth(0.5); doc.line(bx + 4, y + 22, bx + 76, y + 22);
+        doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(28, 48, 68);
+        doc.text("Balance Due:", bx + 4, y + 30);
+        doc.setTextColor(due === 0 ? 28 : 180, due === 0 ? 90 : 30, due === 0 ? 50 : 30);
+        doc.text(`Rs. ${due.toLocaleString("en-IN")}`, bx + 78, y + 30, { align: "right" });
         y = 272;
-        doc.setFillColor(28,48,68); doc.rect(0, y, W, 25, "F");
-        doc.setFont("helvetica","normal"); doc.setFontSize(8.5); doc.setTextColor(180,205,220);
-        doc.text("This is a system-generated invoice. No signature required.", W/2, y+9, { align:"center" });
-        doc.save(`Invoice_${student.name?.replace(/\s+/g,"_")||"Student"}_${invoiceNo}.pdf`);
+        doc.setFillColor(28, 48, 68); doc.rect(0, y, W, 25, "F");
+        doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(180, 205, 220);
+        doc.text("This is a system-generated invoice. No signature required.", W / 2, y + 9, { align: "center" });
+        doc.save(`Invoice_${student.name?.replace(/\s+/g, "_") || "Student"}_${invoiceNo}.pdf`);
     };
 
     return (
@@ -103,7 +103,7 @@ function InvoiceModal({ student, onClose }) {
                             <div className="inv-head-sub">{invoiceNo} · {today}</div>
                         </div>
                     </div>
-                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         <button className="inv-dl-btn" onClick={handleDownload}><Download size={14} /> Download PDF</button>
                         <button className="inv-close" onClick={onClose}><X size={17} /></button>
                     </div>
@@ -124,10 +124,10 @@ function InvoiceModal({ student, onClose }) {
                         <div className="inv-row"><span>Amount Paid</span><span className="inv-bold inv-green">₹{paidAmount.toLocaleString("en-IN")}</span></div>
                         <div className="inv-row inv-row-total"><span>Balance Due</span><span className="inv-bold" style={{ color: due > 0 ? "#a33030" : "#1a6e3e" }}>₹{due.toLocaleString("en-IN")}</span></div>
                         <div className="inv-progress-wrap">
-                            <div className="inv-progress-fill" style={{ width:`${Math.min(100, Math.round((paidAmount/(totalFees||1))*100))}%` }} />
+                            <div className="inv-progress-fill" style={{ width: `${Math.min(100, Math.round((paidAmount / (totalFees || 1)) * 100))}%` }} />
                         </div>
-                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:"#4A6B80", marginTop:4 }}>
-                            <span>{Math.min(100, Math.round((paidAmount/(totalFees||1))*100))}% paid</span>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#4A6B80", marginTop: 4 }}>
+                            <span>{Math.min(100, Math.round((paidAmount / (totalFees || 1)) * 100))}% paid</span>
                             <span>{due === 0 ? "✓ Fully Paid" : `₹${due.toLocaleString("en-IN")} remaining`}</span>
                         </div>
                     </div>
@@ -135,15 +135,15 @@ function InvoiceModal({ student, onClose }) {
                         <div className="inv-section">
                             <div className="inv-sec-label">Fee Breakdown</div>
                             {Object.entries(breakdown)
-                                .filter(([k,v]) => k !== "customFees" && Number(v) > 0)
-                                .map(([k,v]) => (
+                                .filter(([k, v]) => k !== "customFees" && Number(v) > 0)
+                                .map(([k, v]) => (
                                     <div key={k} className="inv-row">
-                                        <span style={{ textTransform:"capitalize" }}>{k.replace(/Fee$/,"").replace(/([A-Z])/g," $1").trim()} Fee</span>
+                                        <span style={{ textTransform: "capitalize" }}>{k.replace(/Fee$/, "").replace(/([A-Z])/g, " $1").trim()} Fee</span>
                                         <span className="inv-bold">₹{Number(v).toLocaleString("en-IN")}</span>
                                     </div>
                                 ))
                             }
-                            {breakdown.customFees?.filter(c => Number(c.amount) > 0).map((c,i) => (
+                            {breakdown.customFees?.filter(c => Number(c.amount) > 0).map((c, i) => (
                                 <div key={i} className="inv-row">
                                     <span>{c.label || "Custom Fee"}</span>
                                     <span className="inv-bold">₹{Number(c.amount).toLocaleString("en-IN")}</span>
@@ -161,39 +161,39 @@ function InvoiceModal({ student, onClose }) {
 // PAY MODAL  — reads real student data, persists via API
 // ─────────────────────────────────────────────────────────────────────────────
 function PayModal({ student, onClose, onPaymentDone }) {
-    const totalFees   = Number(student.fees || 0);
+    const totalFees = Number(student.fees || 0);
     const alreadyPaid = Number(student.paidAmount || 0);
-    const remaining   = Math.max(0, totalFees - alreadyPaid);
+    const remaining = Math.max(0, totalFees - alreadyPaid);
 
-    const [useEmi,    setUseEmi]    = useState(null);   // null=choose | false=full | true=emi
-    const [fullMode,  setFullMode]  = useState("UPI");
-    const [fullDone,  setFullDone]  = useState(false);
-    const [loading,   setLoading]   = useState(false);
-    const [error,     setError]     = useState("");
+    const [useEmi, setUseEmi] = useState(null);   // null=choose | false=full | true=emi
+    const [fullMode, setFullMode] = useState("UPI");
+    const [fullDone, setFullDone] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
 
-    const [emiCount,  setEmiCount]  = useState(3);
-    const [emiList,   setEmiList]   = useState([]);
+    const [emiCount, setEmiCount] = useState(3);
+    const [emiList, setEmiList] = useState([]);
     const [confirmId, setConfirmId] = useState(null);
     const [modeInput, setModeInput] = useState("UPI");
 
     useEffect(() => {
         if (!useEmi) return;
         const base = Math.floor(remaining / emiCount);
-        const rem  = remaining - base * emiCount;
+        const rem = remaining - base * emiCount;
         setEmiList(Array.from({ length: emiCount }, (_, i) => ({
-            id: i+1, label: `Instalment ${i+1}`,
-            amount: i === emiCount-1 ? base+rem : base,
+            id: i + 1, label: `Instalment ${i + 1}`,
+            amount: i === emiCount - 1 ? base + rem : base,
             date: null, mode: null, status: "pending",
         })));
         setConfirmId(null);
     }, [emiCount, useEmi]);
 
-    const emiPaid    = emiList.filter(e => e.status === "paid").reduce((a,e) => a+e.amount, 0);
-    const emiPending = emiList.filter(e => e.status === "pending").reduce((a,e) => a+e.amount, 0);
+    const emiPaid = emiList.filter(e => e.status === "paid").reduce((a, e) => a + e.amount, 0);
+    const emiPending = emiList.filter(e => e.status === "pending").reduce((a, e) => a + e.amount, 0);
 
-    const displayPaid    = useEmi ? alreadyPaid + emiPaid : (fullDone ? totalFees : alreadyPaid);
+    const displayPaid = useEmi ? alreadyPaid + emiPaid : (fullDone ? totalFees : alreadyPaid);
     const displayPending = useEmi ? emiPending : (fullDone ? 0 : remaining);
-    const progressPct    = Math.min(100, Math.round((displayPaid / (totalFees||1)) * 100));
+    const progressPct = Math.min(100, Math.round((displayPaid / (totalFees || 1)) * 100));
 
     // ── Full pay: call API to mark student as paid ──────────────────────────
     const handleFullPay = async () => {
@@ -221,9 +221,9 @@ function PayModal({ student, onClose, onPaymentDone }) {
     // ── EMI instalment pay ──────────────────────────────────────────────────
     const handleConfirmEmi = async (emi) => {
         setLoading(true); setError("");
-        const today   = new Date().toLocaleDateString("en-IN", { day:"2-digit", month:"short", year:"numeric" });
-        const updated = emiList.map(e => e.id === emi.id ? { ...e, status:"paid", date:today, mode:modeInput } : e);
-        const nowPaid = alreadyPaid + updated.filter(e => e.status==="paid").reduce((a,e) => a+e.amount, 0);
+        const today = new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+        const updated = emiList.map(e => e.id === emi.id ? { ...e, status: "paid", date: today, mode: modeInput } : e);
+        const nowPaid = alreadyPaid + updated.filter(e => e.status === "paid").reduce((a, e) => a + e.amount, 0);
         const allPaid = updated.every(e => e.status === "paid");
         try {
             const res = await fetch(`${API_URL}/api/finance/updateStudentFinance/${student.id}`, {
@@ -248,7 +248,7 @@ function PayModal({ student, onClose, onPaymentDone }) {
 
     return (
         <div className="inv-overlay" onClick={onClose}>
-            <div className="inv-box" style={{ maxWidth:560 }} onClick={e => e.stopPropagation()}>
+            <div className="inv-box" style={{ maxWidth: 560 }} onClick={e => e.stopPropagation()}>
                 <div className="inv-head">
                     <div className="inv-head-left">
                         <div className="inv-head-ico"><CreditCard size={18} color="#fff" /></div>
@@ -263,62 +263,62 @@ function PayModal({ student, onClose, onPaymentDone }) {
                 <div className="inv-body">
 
                     {/* Summary cards */}
-                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
                         {[
-                            { lbl:"Total Fees",   val:`₹${totalFees.toLocaleString("en-IN")}`,     clr:"#1C3044", bg:"#f0f7fc" },
-                            { lbl:"Amount Paid",  val:`₹${displayPaid.toLocaleString("en-IN")}`,   clr:"#1a6e3e", bg:"#edf7f1" },
-                            { lbl:"Pending",      val:`₹${displayPending.toLocaleString("en-IN")}`, clr:displayPending>0?"#a33030":"#1a6e3e", bg:displayPending>0?"#fdf0f0":"#edf7f1" },
-                        ].map((s,i) => (
-                            <div key={i} style={{ background:s.bg, borderRadius:10, padding:"11px 14px", border:"1px solid #d0e2ee", textAlign:"center" }}>
-                                <div style={{ fontSize:10, fontWeight:700, color:"#4A6B80", textTransform:"uppercase", letterSpacing:".7px", marginBottom:5 }}>{s.lbl}</div>
-                                <div style={{ fontSize:17, fontWeight:700, color:s.clr }}>{s.val}</div>
+                            { lbl: "Total Fees", val: `₹${totalFees.toLocaleString("en-IN")}`, clr: "#1C3044", bg: "#f0f7fc" },
+                            { lbl: "Amount Paid", val: `₹${displayPaid.toLocaleString("en-IN")}`, clr: "#1a6e3e", bg: "#edf7f1" },
+                            { lbl: "Pending", val: `₹${displayPending.toLocaleString("en-IN")}`, clr: displayPending > 0 ? "#a33030" : "#1a6e3e", bg: displayPending > 0 ? "#fdf0f0" : "#edf7f1" },
+                        ].map((s, i) => (
+                            <div key={i} style={{ background: s.bg, borderRadius: 10, padding: "11px 14px", border: "1px solid #d0e2ee", textAlign: "center" }}>
+                                <div style={{ fontSize: 10, fontWeight: 700, color: "#4A6B80", textTransform: "uppercase", letterSpacing: ".7px", marginBottom: 5 }}>{s.lbl}</div>
+                                <div style={{ fontSize: 17, fontWeight: 700, color: s.clr }}>{s.val}</div>
                             </div>
                         ))}
                     </div>
 
                     {/* Progress */}
                     <div>
-                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:"#4A6B80", marginBottom:5 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#4A6B80", marginBottom: 5 }}>
                             <span>Payment progress</span>
-                            <span style={{ fontWeight:700, color:"#27435B" }}>{progressPct}% paid</span>
+                            <span style={{ fontWeight: 700, color: "#27435B" }}>{progressPct}% paid</span>
                         </div>
-                        <div style={{ height:9, background:"#D0E2EE", borderRadius:8, overflow:"hidden" }}>
-                            <div style={{ height:"100%", width:`${progressPct}%`, background:"linear-gradient(90deg,#3A5E78,#27435B)", borderRadius:8, transition:"width .5s ease" }} />
+                        <div style={{ height: 9, background: "#D0E2EE", borderRadius: 8, overflow: "hidden" }}>
+                            <div style={{ height: "100%", width: `${progressPct}%`, background: "linear-gradient(90deg,#3A5E78,#27435B)", borderRadius: 8, transition: "width .5s ease" }} />
                         </div>
-                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:10.5, color:"#6A8FA4", marginTop:4 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, color: "#6A8FA4", marginTop: 4 }}>
                             <span>₹0</span>
-                            <span>{displayPending===0 ? "✓ Fully Paid" : `₹${displayPending.toLocaleString("en-IN")} remaining`}</span>
+                            <span>{displayPending === 0 ? "✓ Fully Paid" : `₹${displayPending.toLocaleString("en-IN")} remaining`}</span>
                             <span>₹{totalFees.toLocaleString("en-IN")}</span>
                         </div>
                     </div>
 
                     {/* Already fully paid */}
                     {remaining === 0 && (
-                        <div style={{ background:"#edf7f1", border:"1px solid #b2dfc6", borderRadius:12, padding:18, textAlign:"center" }}>
-                            <CheckCircle size={24} color="#1a6e3e" style={{ marginBottom:6 }} />
-                            <div style={{ fontWeight:700, color:"#1a6e3e", fontSize:14 }}>All fees have been paid!</div>
+                        <div style={{ background: "#edf7f1", border: "1px solid #b2dfc6", borderRadius: 12, padding: 18, textAlign: "center" }}>
+                            <CheckCircle size={24} color="#1a6e3e" style={{ marginBottom: 6 }} />
+                            <div style={{ fontWeight: 700, color: "#1a6e3e", fontSize: 14 }}>All fees have been paid!</div>
                         </div>
                     )}
 
                     {/* Choose payment method */}
-                    {useEmi===null && !fullDone && remaining>0 && (
-                        <div style={{ background:"#f0f7fc", borderRadius:14, padding:20, border:"1px solid #d0e2ee" }}>
-                            <div style={{ fontSize:13, fontWeight:700, color:"#1C3044", marginBottom:14, textAlign:"center" }}>
-                                How would you like to pay <span style={{ color:"#27435B" }}>₹{remaining.toLocaleString("en-IN")}</span>?
+                    {useEmi === null && !fullDone && remaining > 0 && (
+                        <div style={{ background: "#f0f7fc", borderRadius: 14, padding: 20, border: "1px solid #d0e2ee" }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: "#1C3044", marginBottom: 14, textAlign: "center" }}>
+                                How would you like to pay <span style={{ color: "#27435B" }}>₹{remaining.toLocaleString("en-IN")}</span>?
                             </div>
-                            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                                 {[
-                                    { icon:"💳", title:"Pay Full Amount", sub:`₹${remaining.toLocaleString("en-IN")} at once`, action:() => setUseEmi(false) },
-                                    { icon:"📅", title:"Pay in Instalments", sub:"Split into EMIs", action:() => setUseEmi(true) },
-                                ].map((opt,i) => (
+                                    { icon: "💳", title: "Pay Full Amount", sub: `₹${remaining.toLocaleString("en-IN")} at once`, action: () => setUseEmi(false) },
+                                    { icon: "📅", title: "Pay in Instalments", sub: "Split into EMIs", action: () => setUseEmi(true) },
+                                ].map((opt, i) => (
                                     <button key={i} onClick={opt.action}
-                                        style={{ background:"#fff", border:"2px solid #A0C0D4", borderRadius:12, padding:"18px 14px", cursor:"pointer", textAlign:"center", fontFamily:"'DM Sans',sans-serif", transition:"all .15s" }}
-                                        onMouseEnter={e => { e.currentTarget.style.borderColor="#27435B"; e.currentTarget.style.boxShadow="0 4px 16px rgba(39,67,91,.15)"; }}
-                                        onMouseLeave={e => { e.currentTarget.style.borderColor="#A0C0D4"; e.currentTarget.style.boxShadow="none"; }}
+                                        style={{ background: "#fff", border: "2px solid #A0C0D4", borderRadius: 12, padding: "18px 14px", cursor: "pointer", textAlign: "center", fontFamily: "'DM Sans',sans-serif", transition: "all .15s" }}
+                                        onMouseEnter={e => { e.currentTarget.style.borderColor = "#27435B"; e.currentTarget.style.boxShadow = "0 4px 16px rgba(39,67,91,.15)"; }}
+                                        onMouseLeave={e => { e.currentTarget.style.borderColor = "#A0C0D4"; e.currentTarget.style.boxShadow = "none"; }}
                                     >
-                                        <div style={{ fontSize:26, marginBottom:8 }}>{opt.icon}</div>
-                                        <div style={{ fontSize:13, fontWeight:700, color:"#1C3044" }}>{opt.title}</div>
-                                        <div style={{ fontSize:11, color:"#4A6B80", marginTop:4 }}>{opt.sub}</div>
+                                        <div style={{ fontSize: 26, marginBottom: 8 }}>{opt.icon}</div>
+                                        <div style={{ fontSize: 13, fontWeight: 700, color: "#1C3044" }}>{opt.title}</div>
+                                        <div style={{ fontSize: 11, color: "#4A6B80", marginTop: 4 }}>{opt.sub}</div>
                                     </button>
                                 ))}
                             </div>
@@ -326,103 +326,103 @@ function PayModal({ student, onClose, onPaymentDone }) {
                     )}
 
                     {/* Full pay form */}
-                    {useEmi===false && !fullDone && (
-                        <div style={{ background:"#f8fafc", borderRadius:12, border:"1px solid #d0e2ee", overflow:"hidden" }}>
-                            <div style={{ padding:"11px 16px 0" }}>
-                                <button onClick={() => setUseEmi(null)} style={{ background:"none", border:"none", color:"#4A6B80", fontSize:12, cursor:"pointer", fontFamily:"'DM Sans',sans-serif", padding:0 }}>← Back</button>
+                    {useEmi === false && !fullDone && (
+                        <div style={{ background: "#f8fafc", borderRadius: 12, border: "1px solid #d0e2ee", overflow: "hidden" }}>
+                            <div style={{ padding: "11px 16px 0" }}>
+                                <button onClick={() => setUseEmi(null)} style={{ background: "none", border: "none", color: "#4A6B80", fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", padding: 0 }}>← Back</button>
                             </div>
-                            <div style={{ padding:"14px 16px 18px" }}>
-                                <div style={{ fontSize:11, fontWeight:700, color:"#4A6B80", textTransform:"uppercase", letterSpacing:".6px", marginBottom:14 }}>Full Payment</div>
-                                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
+                            <div style={{ padding: "14px 16px 18px" }}>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: "#4A6B80", textTransform: "uppercase", letterSpacing: ".6px", marginBottom: 14 }}>Full Payment</div>
+                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
                                     <div>
-                                        <div style={{ fontSize:11, color:"#4A6B80" }}>Amount to pay</div>
-                                        <div style={{ fontSize:24, fontWeight:700, color:"#1C3044" }}>₹{remaining.toLocaleString("en-IN")}</div>
+                                        <div style={{ fontSize: 11, color: "#4A6B80" }}>Amount to pay</div>
+                                        <div style={{ fontSize: 24, fontWeight: 700, color: "#1C3044" }}>₹{remaining.toLocaleString("en-IN")}</div>
                                     </div>
-                                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                                        <label style={{ fontSize:12, color:"#4A6B80", fontWeight:600 }}>Mode</label>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                        <label style={{ fontSize: 12, color: "#4A6B80", fontWeight: 600 }}>Mode</label>
                                         <select value={fullMode} onChange={e => setFullMode(e.target.value)}
-                                            style={{ fontSize:13, border:"1.5px solid #A0C0D4", borderRadius:8, padding:"7px 10px", color:"#1C3044", fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
-                                            {["UPI","Net Banking","Cash","Card","Cheque"].map(m => <option key={m}>{m}</option>)}
+                                            style={{ fontSize: 13, border: "1.5px solid #A0C0D4", borderRadius: 8, padding: "7px 10px", color: "#1C3044", fontFamily: "'DM Sans',sans-serif", outline: "none", background: "#fff" }}>
+                                            {["UPI", "Net Banking", "Cash", "Card", "Cheque"].map(m => <option key={m}>{m}</option>)}
                                         </select>
                                     </div>
                                 </div>
                                 <button onClick={handleFullPay} disabled={loading}
-                                    style={{ width:"100%", background:"linear-gradient(135deg,#27435B,#1C3044)", border:"none", color:"#fff", borderRadius:10, padding:13, fontSize:14, fontWeight:700, cursor:loading?"not-allowed":"pointer", fontFamily:"'DM Sans',sans-serif", opacity:loading?.7:1 }}>
+                                    style={{ width: "100%", background: "linear-gradient(135deg,#27435B,#1C3044)", border: "none", color: "#fff", borderRadius: 10, padding: 13, fontSize: 14, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", fontFamily: "'DM Sans',sans-serif", opacity: loading ? .7 : 1 }}>
                                     {loading ? "Processing…" : `Confirm Full Payment — ₹${remaining.toLocaleString("en-IN")}`}
                                 </button>
-                                {error && <div style={{ marginTop:10, color:"#a33030", fontSize:12 }}>{error}</div>}
+                                {error && <div style={{ marginTop: 10, color: "#a33030", fontSize: 12 }}>{error}</div>}
                             </div>
                         </div>
                     )}
 
                     {/* Full pay success */}
-                    {useEmi===false && fullDone && (
-                        <div style={{ background:"#edf7f1", border:"1px solid #b2dfc6", borderRadius:12, padding:"16px 18px", display:"flex", alignItems:"center", gap:12 }}>
+                    {useEmi === false && fullDone && (
+                        <div style={{ background: "#edf7f1", border: "1px solid #b2dfc6", borderRadius: 12, padding: "16px 18px", display: "flex", alignItems: "center", gap: 12 }}>
                             <CheckCircle size={28} color="#1a6e3e" />
                             <div>
-                                <div style={{ fontWeight:700, color:"#1a6e3e", fontSize:14 }}>Payment Confirmed!</div>
-                                <div style={{ fontSize:12, color:"#4A6B80", marginTop:2 }}>₹{remaining.toLocaleString("en-IN")} paid via {fullMode}</div>
+                                <div style={{ fontWeight: 700, color: "#1a6e3e", fontSize: 14 }}>Payment Confirmed!</div>
+                                <div style={{ fontSize: 12, color: "#4A6B80", marginTop: 2 }}>₹{remaining.toLocaleString("en-IN")} paid via {fullMode}</div>
                             </div>
                         </div>
                     )}
 
                     {/* EMI section */}
-                    {useEmi===true && (
+                    {useEmi === true && (
                         <>
-                            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", background:"#f0f7fc", borderRadius:10, padding:"10px 14px", border:"1px solid #d0e2ee" }}>
-                                <button onClick={() => setUseEmi(null)} style={{ background:"none", border:"none", color:"#4A6B80", fontSize:12, cursor:"pointer", fontFamily:"'DM Sans',sans-serif", padding:0 }}>← Back</button>
-                                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                                    <span style={{ fontSize:12, fontWeight:700, color:"#27435B" }}>Instalments:</span>
-                                    {[2,3,4,6].map(n => (
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#f0f7fc", borderRadius: 10, padding: "10px 14px", border: "1px solid #d0e2ee" }}>
+                                <button onClick={() => setUseEmi(null)} style={{ background: "none", border: "none", color: "#4A6B80", fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", padding: 0 }}>← Back</button>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                    <span style={{ fontSize: 12, fontWeight: 700, color: "#27435B" }}>Instalments:</span>
+                                    {[2, 3, 4, 6].map(n => (
                                         <button key={n} onClick={() => setEmiCount(n)}
-                                            style={{ width:34, height:34, borderRadius:8, border:"none", background:emiCount===n?"linear-gradient(135deg,#27435B,#1C3044)":"rgba(39,67,91,.12)", color:emiCount===n?"#fff":"#27435B", fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:"'DM Sans',sans-serif" }}>
+                                            style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: emiCount === n ? "linear-gradient(135deg,#27435B,#1C3044)" : "rgba(39,67,91,.12)", color: emiCount === n ? "#fff" : "#27435B", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
                                             {n}
                                         </button>
                                     ))}
                                 </div>
                             </div>
 
-                            <div style={{ borderRadius:12, overflow:"hidden", border:"1px solid #d0e2ee" }}>
-                                <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
+                            <div style={{ borderRadius: 12, overflow: "hidden", border: "1px solid #d0e2ee" }}>
+                                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                                     <thead>
-                                        <tr style={{ background:"linear-gradient(135deg,#1C3044,#27435B)" }}>
-                                            {["Instalment","Amount","Date","Mode","Status","Action"].map(h => (
-                                                <th key={h} style={{ padding:"11px 13px", color:"rgba(255,255,255,.85)", fontWeight:700, fontSize:11, textTransform:"uppercase", letterSpacing:".6px", textAlign:"left", whiteSpace:"nowrap" }}>{h}</th>
+                                        <tr style={{ background: "linear-gradient(135deg,#1C3044,#27435B)" }}>
+                                            {["Instalment", "Amount", "Date", "Mode", "Status", "Action"].map(h => (
+                                                <th key={h} style={{ padding: "11px 13px", color: "rgba(255,255,255,.85)", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: ".6px", textAlign: "left", whiteSpace: "nowrap" }}>{h}</th>
                                             ))}
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {emiList.map((emi,i) => (
-                                            <tr key={emi.id} style={{ background:i%2===0?"#f8fafc":"#fff", borderBottom:"1px solid #e8f2f8" }}>
-                                                <td style={{ padding:"11px 13px", fontWeight:600, color:"#1C3044" }}>{emi.label}</td>
-                                                <td style={{ padding:"11px 13px", fontWeight:700, color:"#27435B" }}>₹{emi.amount.toLocaleString("en-IN")}</td>
-                                                <td style={{ padding:"11px 13px", color:"#4A6B80", fontSize:12 }}>{emi.date || "—"}</td>
-                                                <td style={{ padding:"11px 13px" }}>
-                                                    {emi.mode ? <span className="sf2-badge sf2-badge-blue" style={{ fontSize:11 }}>{emi.mode}</span> : <span style={{ color:"#A0B8C8", fontSize:12 }}>—</span>}
+                                        {emiList.map((emi, i) => (
+                                            <tr key={emi.id} style={{ background: i % 2 === 0 ? "#f8fafc" : "#fff", borderBottom: "1px solid #e8f2f8" }}>
+                                                <td style={{ padding: "11px 13px", fontWeight: 600, color: "#1C3044" }}>{emi.label}</td>
+                                                <td style={{ padding: "11px 13px", fontWeight: 700, color: "#27435B" }}>₹{emi.amount.toLocaleString("en-IN")}</td>
+                                                <td style={{ padding: "11px 13px", color: "#4A6B80", fontSize: 12 }}>{emi.date || "—"}</td>
+                                                <td style={{ padding: "11px 13px" }}>
+                                                    {emi.mode ? <span className="sf2-badge sf2-badge-blue" style={{ fontSize: 11 }}>{emi.mode}</span> : <span style={{ color: "#A0B8C8", fontSize: 12 }}>—</span>}
                                                 </td>
-                                                <td style={{ padding:"11px 13px" }}>
-                                                    {emi.status==="paid"
-                                                        ? <span style={{ display:"inline-flex", alignItems:"center", gap:4, background:"#edf7f1", color:"#1a6e3e", borderRadius:20, padding:"3px 10px", fontSize:11.5, fontWeight:600 }}><CheckCircle size={11}/> Paid</span>
-                                                        : <span style={{ display:"inline-flex", alignItems:"center", gap:4, background:"#fdf0f0", color:"#a33030", borderRadius:20, padding:"3px 10px", fontSize:11.5, fontWeight:600 }}><Clock size={11}/> Pending</span>}
+                                                <td style={{ padding: "11px 13px" }}>
+                                                    {emi.status === "paid"
+                                                        ? <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "#edf7f1", color: "#1a6e3e", borderRadius: 20, padding: "3px 10px", fontSize: 11.5, fontWeight: 600 }}><CheckCircle size={11} /> Paid</span>
+                                                        : <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "#fdf0f0", color: "#a33030", borderRadius: 20, padding: "3px 10px", fontSize: 11.5, fontWeight: 600 }}><Clock size={11} /> Pending</span>}
                                                 </td>
-                                                <td style={{ padding:"11px 13px" }}>
-                                                    {emi.status==="paid" && <span style={{ color:"#A0B8C8", fontSize:12 }}>—</span>}
-                                                    {emi.status==="pending" && confirmId!==emi.id && (
+                                                <td style={{ padding: "11px 13px" }}>
+                                                    {emi.status === "paid" && <span style={{ color: "#A0B8C8", fontSize: 12 }}>—</span>}
+                                                    {emi.status === "pending" && confirmId !== emi.id && (
                                                         <button onClick={() => setConfirmId(emi.id)}
-                                                            style={{ background:"linear-gradient(135deg,#27435B,#1C3044)", border:"none", color:"#fff", borderRadius:7, padding:"6px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"'DM Sans',sans-serif" }}>
+                                                            style={{ background: "linear-gradient(135deg,#27435B,#1C3044)", border: "none", color: "#fff", borderRadius: 7, padding: "6px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
                                                             Pay
                                                         </button>
                                                     )}
-                                                    {emi.status==="pending" && confirmId===emi.id && (
-                                                        <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
+                                                    {emi.status === "pending" && confirmId === emi.id && (
+                                                        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                                                             <select value={modeInput} onChange={e => setModeInput(e.target.value)}
-                                                                style={{ fontSize:12, border:"1.5px solid #A0C0D4", borderRadius:6, padding:"5px 8px", color:"#1C3044", fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
-                                                                {["UPI","Net Banking","Cash","Card","Cheque"].map(m => <option key={m}>{m}</option>)}
+                                                                style={{ fontSize: 12, border: "1.5px solid #A0C0D4", borderRadius: 6, padding: "5px 8px", color: "#1C3044", fontFamily: "'DM Sans',sans-serif", outline: "none", background: "#fff" }}>
+                                                                {["UPI", "Net Banking", "Cash", "Card", "Cheque"].map(m => <option key={m}>{m}</option>)}
                                                             </select>
                                                             <button onClick={() => handleConfirmEmi(emi)} disabled={loading}
-                                                                style={{ background:"#1a6e3e", border:"none", color:"#fff", borderRadius:6, padding:"5px 11px", fontSize:13, fontWeight:700, cursor:"pointer" }}>✓</button>
+                                                                style={{ background: "#1a6e3e", border: "none", color: "#fff", borderRadius: 6, padding: "5px 11px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>✓</button>
                                                             <button onClick={() => setConfirmId(null)}
-                                                                style={{ background:"rgba(39,67,91,.13)", border:"none", color:"#27435B", borderRadius:6, padding:"5px 9px", fontSize:13, fontWeight:700, cursor:"pointer" }}>✕</button>
+                                                                style={{ background: "rgba(39,67,91,.13)", border: "none", color: "#27435B", borderRadius: 6, padding: "5px 9px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>✕</button>
                                                         </div>
                                                     )}
                                                 </td>
@@ -430,27 +430,27 @@ function PayModal({ student, onClose, onPaymentDone }) {
                                         ))}
                                     </tbody>
                                     <tfoot>
-                                        <tr style={{ background:"#e8f2f8", borderTop:"2px solid #C0D8E8" }}>
-                                            <td style={{ padding:"11px 13px", fontWeight:700, color:"#1C3044", fontSize:13 }}>Total</td>
-                                            <td style={{ padding:"11px 13px", fontWeight:700, color:"#1C3044", fontSize:14 }}>₹{remaining.toLocaleString("en-IN")}</td>
-                                            <td colSpan={2} style={{ padding:"11px 13px" }}>
-                                                <span style={{ fontSize:12, color:"#1a6e3e", fontWeight:600 }}>Paid: ₹{emiPaid.toLocaleString("en-IN")}</span>
+                                        <tr style={{ background: "#e8f2f8", borderTop: "2px solid #C0D8E8" }}>
+                                            <td style={{ padding: "11px 13px", fontWeight: 700, color: "#1C3044", fontSize: 13 }}>Total</td>
+                                            <td style={{ padding: "11px 13px", fontWeight: 700, color: "#1C3044", fontSize: 14 }}>₹{remaining.toLocaleString("en-IN")}</td>
+                                            <td colSpan={2} style={{ padding: "11px 13px" }}>
+                                                <span style={{ fontSize: 12, color: "#1a6e3e", fontWeight: 600 }}>Paid: ₹{emiPaid.toLocaleString("en-IN")}</span>
                                             </td>
-                                            <td colSpan={2} style={{ padding:"11px 13px" }}>
-                                                <span style={{ fontSize:12, fontWeight:700, color:emiPending>0?"#a33030":"#1a6e3e" }}>
-                                                    {emiPending>0 ? `Pending: ₹${emiPending.toLocaleString("en-IN")}` : "✓ Fully Paid"}
+                                            <td colSpan={2} style={{ padding: "11px 13px" }}>
+                                                <span style={{ fontSize: 12, fontWeight: 700, color: emiPending > 0 ? "#a33030" : "#1a6e3e" }}>
+                                                    {emiPending > 0 ? `Pending: ₹${emiPending.toLocaleString("en-IN")}` : "✓ Fully Paid"}
                                                 </span>
                                             </td>
                                         </tr>
                                     </tfoot>
                                 </table>
                             </div>
-                            {error && <div style={{ color:"#a33030", fontSize:12 }}>{error}</div>}
+                            {error && <div style={{ color: "#a33030", fontSize: 12 }}>{error}</div>}
                         </>
                     )}
 
-                    <div style={{ display:"flex", justifyContent:"flex-end" }}>
-                        <button onClick={onClose} style={{ background:"none", border:"1.5px solid #A0C0D4", borderRadius:10, color:"#27435B", fontWeight:700, fontSize:14, cursor:"pointer", padding:"9px 28px", fontFamily:"'DM Sans',sans-serif" }}>
+                    <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                        <button onClick={onClose} style={{ background: "none", border: "1.5px solid #A0C0D4", borderRadius: 10, color: "#27435B", fontWeight: 700, fontSize: 14, cursor: "pointer", padding: "9px 28px", fontFamily: "'DM Sans',sans-serif" }}>
                             Close
                         </button>
                     </div>
@@ -464,18 +464,18 @@ function PayModal({ student, onClose, onPaymentDone }) {
 // MAIN PAGE
 // ─────────────────────────────────────────────────────────────────────────────
 export default function StudentFeesPage() {
-    const [students,       setStudents]       = useState([]);
-    const [openPopup,      setOpenPopup]      = useState(false);
-    const [editData,       setEditData]       = useState(null);
-    const [search,         setSearch]         = useState("");
+    const [students, setStudents] = useState([]);
+    const [openPopup, setOpenPopup] = useState(false);
+    const [editData, setEditData] = useState(null);
+    const [search, setSearch] = useState("");
     const [invoiceStudent, setInvoiceStudent] = useState(null);
-    const [payStudent,     setPayStudent]     = useState(null);
+    const [payStudent, setPayStudent] = useState(null);
 
     // Load jsPDF for invoice downloads
     useEffect(() => {
         if (!window.jspdf) {
             const s = document.createElement("script");
-            s.src   = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+            s.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
             s.async = true;
             document.head.appendChild(s);
         }
@@ -484,7 +484,7 @@ export default function StudentFeesPage() {
     // ── Fetch students ────────────────────────────────────────────────────────
     const fetchStudents = async () => {
         try {
-            const res  = await fetch(`${API_URL}/api/finance/getStudentFinance`, { credentials:"include" });
+            const res = await fetch(`${API_URL}/api/finance/getStudentFinance`, { credentials: "include" });
             const data = await res.json();
             setStudents(Array.isArray(data) ? data : []);
         } catch (err) { console.error("Fetch error:", err); }
@@ -492,10 +492,10 @@ export default function StudentFeesPage() {
     useEffect(() => { fetchStudents(); }, []);
 
     // ── Computed KPI from real data ───────────────────────────────────────────
-    const totalFeesAll  = students.reduce((a,s) => a + Number(s.fees || 0), 0);
-    const totalPaidAll  = students.reduce((a,s) => a + Number(s.paidAmount || 0), 0);
-    const totalDueAll   = Math.max(0, totalFeesAll - totalPaidAll);
-    const paidCount     = students.filter(s => s.paymentStatus === "PAID").length;
+    const totalFeesAll = students.reduce((a, s) => a + Number(s.fees || 0), 0);
+    const totalPaidAll = students.reduce((a, s) => a + Number(s.paidAmount || 0), 0);
+    const totalDueAll = Math.max(0, totalFeesAll - totalPaidAll);
+    const paidCount = students.filter(s => s.paymentStatus === "PAID").length;
     const collectionPct = totalFeesAll > 0 ? Math.round((totalPaidAll / totalFeesAll) * 100) : 0;
 
     // ── Handlers ──────────────────────────────────────────────────────────────
@@ -513,7 +513,7 @@ export default function StudentFeesPage() {
 
     const handleDelete = async (id) => {
         if (!window.confirm("Delete this student record?")) return;
-        await fetch(`${API_URL}/api/finance/deleteStudentFinance/${id}`, { method:"DELETE", credentials:"include" });
+        await fetch(`${API_URL}/api/finance/deleteStudentFinance/${id}`, { method: "DELETE", credentials: "include" });
         fetchStudents();
     };
 
@@ -633,6 +633,28 @@ export default function StudentFeesPage() {
                 .inv-green { color:#1a6e3e; }
                 .inv-progress-wrap { height:7px; background:#d0e2ee; border-radius:6px; overflow:hidden; margin-top:10px; }
                 .inv-progress-fill { height:100%; background:linear-gradient(90deg,#3A5E78,#27435B); border-radius:6px; transition:width .5s ease; }
+
+                @media (max-width: 768px) {
+                  .sf2-topbar { padding: 14px 16px; flex-direction: column; align-items: flex-start; gap: 12px; }
+                  .sf2-content { padding: 16px; }
+                  .sf2-kpi-grid { grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+                  .sf2-strip { padding: 14px 16px; flex-direction: column; gap: 10px; }
+                  .sf2-progress-track { display: none; }
+                  .sf2-tbl { font-size: 12px; }
+                  .sf2-tbl th, .sf2-tbl td { padding: 9px 8px; }
+                  .sf2-panel-head { flex-direction: column; gap: 10px; align-items: flex-start; padding: 12px 16px; }
+                  .sf2-search-inp { width: 100%; }
+                  .sf2-panel-body { overflow-x: auto; }
+                  .sf2-kpi-val { font-size: 17px; }
+                  .sf2-title { font-size: 15px; }
+                }
+                @media (max-width: 480px) {
+                  .sf2-kpi-grid { grid-template-columns: 1fr; }
+                  .inv-box { border-radius: 16px; }
+                  .inv-head { border-radius: 16px 16px 0 0; padding: 14px 16px; }
+                  .inv-body { padding: 14px 16px 18px; }
+                  .inv-detail-grid { grid-template-columns: 1fr; }
+                }
             `}</style>
 
             <div className="sf2-root sf2-page">
@@ -648,7 +670,7 @@ export default function StudentFeesPage() {
                     </div>
                     <div className="sf2-topright">
                         <span className="sf2-datebadge">
-                            {new Date().toLocaleDateString("en-IN", { weekday:"short", year:"numeric", month:"long", day:"numeric" })}
+                            {new Date().toLocaleDateString("en-IN", { weekday: "short", year: "numeric", month: "long", day: "numeric" })}
                         </span>
                         <button className="sf2-btn-primary" onClick={() => { setEditData(null); setOpenPopup(true); }}>
                             <UserPlus size={15} /> Add Student
@@ -661,11 +683,11 @@ export default function StudentFeesPage() {
                     {/* ── KPI CARDS — all from real data ── */}
                     <div className="sf2-kpi-grid">
                         {[
-                            { lbl:"Total Fees",   val:`₹${totalFeesAll.toLocaleString("en-IN")}`,  Icon:IndianRupee },
-                            { lbl:"Amount Paid",  val:`₹${totalPaidAll.toLocaleString("en-IN")}`,  Icon:CheckCircle },
-                            { lbl:"Amount Due",   val:`₹${totalDueAll.toLocaleString("en-IN")}`,   Icon:AlertCircle },
-                            { lbl:"Paid Students",val:`${paidCount} / ${students.length}`,         Icon:CalendarDays },
-                        ].map((k,i) => (
+                            { lbl: "Total Fees", val: `₹${totalFeesAll.toLocaleString("en-IN")}`, Icon: IndianRupee },
+                            { lbl: "Amount Paid", val: `₹${totalPaidAll.toLocaleString("en-IN")}`, Icon: CheckCircle },
+                            { lbl: "Amount Due", val: `₹${totalDueAll.toLocaleString("en-IN")}`, Icon: AlertCircle },
+                            { lbl: "Paid Students", val: `${paidCount} / ${students.length}`, Icon: CalendarDays },
+                        ].map((k, i) => (
                             <div key={i} className="sf2-kpi">
                                 <div className="sf2-kpi-lbl">{k.lbl}</div>
                                 <div className="sf2-kpi-val">{k.val}</div>
@@ -680,18 +702,18 @@ export default function StudentFeesPage() {
                             <div className="sf2-strip-lbl">Collection Progress</div>
                             <div className="sf2-strip-val">{collectionPct}% Collected</div>
                         </div>
-                        <div style={{ flex:1, margin:"0 32px" }}>
+                        <div style={{ flex: 1, margin: "0 32px" }}>
                             <div className="sf2-progress-track">
-                                <div className="sf2-progress-fill" style={{ width:`${collectionPct}%` }} />
+                                <div className="sf2-progress-fill" style={{ width: `${collectionPct}%` }} />
                             </div>
-                            <div style={{ display:"flex", justifyContent:"space-between", marginTop:5 }}>
-                                <span style={{ color:"rgba(255,255,255,.6)", fontSize:11 }}>₹0</span>
-                                <span style={{ color:"rgba(255,255,255,.6)", fontSize:11 }}>₹{totalFeesAll.toLocaleString("en-IN")}</span>
+                            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5 }}>
+                                <span style={{ color: "rgba(255,255,255,.6)", fontSize: 11 }}>₹0</span>
+                                <span style={{ color: "rgba(255,255,255,.6)", fontSize: 11 }}>₹{totalFeesAll.toLocaleString("en-IN")}</span>
                             </div>
                         </div>
                         <div className="sf2-strip-item">
                             <div className="sf2-strip-lbl">Remaining</div>
-                            <div className="sf2-strip-val" style={{ color:"#A8C8DC" }}>₹{totalDueAll.toLocaleString("en-IN")}</div>
+                            <div className="sf2-strip-val" style={{ color: "#A8C8DC" }}>₹{totalDueAll.toLocaleString("en-IN")}</div>
                         </div>
                     </div>
 
@@ -710,41 +732,41 @@ export default function StudentFeesPage() {
                             </div>
                         </div>
                         <div className="sf2-panel-body">
-                            <table className="sf2-tbl">
+                            <table className="sf2-tbl" style={{ minWidth: "700px" }}>
                                 <thead>
                                     <tr>
-                                        {["#","Name","Email","Course","Total Fees","Paid","Remaining","Status","Actions"].map(h => <th key={h}>{h}</th>)}
+                                        {["#", "Name", "Email", "Course", "Total Fees", "Paid", "Remaining", "Status", "Actions"].map(h => <th key={h}>{h}</th>)}
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {filtered.length === 0 ? (
                                         <tr><td colSpan={9} className="sf2-empty">No students found</td></tr>
                                     ) : filtered.map((student, idx) => {
-                                        const totalFee  = Number(student.fees || 0);
-                                        const paidAmt   = Number(student.paidAmount || 0);
+                                        const totalFee = Number(student.fees || 0);
+                                        const paidAmt = Number(student.paidAmount || 0);
                                         const remaining = Math.max(0, totalFee - paidAmt);
-                                        const status    = student.paymentStatus || (remaining === 0 && totalFee > 0 ? "PAID" : "UNPAID");
-                                        const isPaid    = status === "PAID";
+                                        const status = student.paymentStatus || (remaining === 0 && totalFee > 0 ? "PAID" : "UNPAID");
+                                        const isPaid = status === "PAID";
                                         const isPartial = status === "PARTIAL";
 
                                         return (
                                             <tr key={student.id}>
-                                                <td style={{ color:"#8fa3b1", fontSize:12 }}>{idx+1}</td>
-                                                <td style={{ fontWeight:600 }}>{student.name}</td>
-                                                <td style={{ color:"#4A6B80", fontSize:13 }}>{student.email}</td>
+                                                <td style={{ color: "#8fa3b1", fontSize: 12 }}>{idx + 1}</td>
+                                                <td style={{ fontWeight: 600 }}>{student.name}</td>
+                                                <td style={{ color: "#4A6B80", fontSize: 13 }}>{student.email}</td>
                                                 <td><span className="sf2-badge sf2-badge-blue">{student.course || "—"}</span></td>
-                                                <td style={{ fontWeight:700, color:"#27435B" }}>₹{totalFee.toLocaleString("en-IN")}</td>
-                                                <td style={{ fontWeight:600, color:"#1a6e3e" }}>
-                                                    {paidAmt > 0 ? `₹${paidAmt.toLocaleString("en-IN")}` : <span style={{ color:"#A0B8C8" }}>—</span>}
+                                                <td style={{ fontWeight: 700, color: "#27435B" }}>₹{totalFee.toLocaleString("en-IN")}</td>
+                                                <td style={{ fontWeight: 600, color: "#1a6e3e" }}>
+                                                    {paidAmt > 0 ? `₹${paidAmt.toLocaleString("en-IN")}` : <span style={{ color: "#A0B8C8" }}>—</span>}
                                                 </td>
                                                 <td>
-                                                    <span style={{ fontWeight:700, color: remaining > 0 ? "#a33030" : "#1a6e3e" }}>
+                                                    <span style={{ fontWeight: 700, color: remaining > 0 ? "#a33030" : "#1a6e3e" }}>
                                                         ₹{remaining.toLocaleString("en-IN")}
                                                     </span>
                                                 </td>
                                                 <td>
-                                                    {isPaid    && <span className="sf2-badge sf2-badge-green"><CheckCircle size={11}/> Paid</span>}
-                                                    {isPartial && <span className="sf2-badge sf2-badge-orange"><Clock size={11}/> Partial</span>}
+                                                    {isPaid && <span className="sf2-badge sf2-badge-green"><CheckCircle size={11} /> Paid</span>}
+                                                    {isPartial && <span className="sf2-badge sf2-badge-orange"><Clock size={11} /> Partial</span>}
                                                     {!isPaid && !isPartial && (
                                                         <button className="sf2-pay-btn" onClick={() => setPayStudent(student)}>
                                                             Pay
@@ -752,10 +774,10 @@ export default function StudentFeesPage() {
                                                     )}
                                                 </td>
                                                 <td>
-                                                    <div style={{ display:"flex", gap:6 }}>
-                                                        <button className="sf2-act sf2-act-edit" title="Edit"    onClick={() => handleEdit(student)}><Pencil size={13}/></button>
-                                                        <button className="sf2-act sf2-act-del"  title="Delete"  onClick={() => handleDelete(student.id)}><Trash2 size={13}/></button>
-                                                        <button className="sf2-act sf2-act-inv"  title="Invoice" onClick={() => setInvoiceStudent(student)}><FileText size={13}/></button>
+                                                    <div style={{ display: "flex", gap: 6 }}>
+                                                        <button className="sf2-act sf2-act-edit" title="Edit" onClick={() => handleEdit(student)}><Pencil size={13} /></button>
+                                                        <button className="sf2-act sf2-act-del" title="Delete" onClick={() => handleDelete(student.id)}><Trash2 size={13} /></button>
+                                                        <button className="sf2-act sf2-act-inv" title="Invoice" onClick={() => setInvoiceStudent(student)}><FileText size={13} /></button>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -772,7 +794,7 @@ export default function StudentFeesPage() {
             {/* Modals */}
             <Addstudent open={openPopup} handleClose={() => setOpenPopup(false)} addStudentData={addStudentData} editData={editData} />
             {invoiceStudent && <InvoiceModal student={invoiceStudent} onClose={() => setInvoiceStudent(null)} />}
-            {payStudent     && <PayModal student={payStudent} onClose={() => setPayStudent(null)} onPaymentDone={handlePaymentDone} />}
+            {payStudent && <PayModal student={payStudent} onClose={() => setPayStudent(null)} onPaymentDone={handlePaymentDone} />}
 
         </>
     );

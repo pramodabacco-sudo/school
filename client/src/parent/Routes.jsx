@@ -9,6 +9,7 @@ import Marks from './pages/Marksresults/Marks';       // ← added
 import Timetable from "./pages/Timetable/Timetable";
 import Activities from "./pages/Activities/Activities";
 import Certificates from "./pages/Certificates/Certificates";
+// import CertificatesUploadPage from "../teacher/pages/Certificates/CertificatesUploadPage";
 
 import FeesAndPayments from "./pages/FeesAndPayments/FeesAndPayments";
 
@@ -26,6 +27,7 @@ const ParentRoutes = () => {
         <Route path="timetable" element={<Timetable />} />
         <Route path="activities" element={<Activities />} />
         <Route path="certificates" element={<Certificates />} />
+        {/* <Route path="certificates" element={<CertificatesUploadPage />} /> */}
 
         <Route path="fees-payments" element={<FeesAndPayments />} />
 

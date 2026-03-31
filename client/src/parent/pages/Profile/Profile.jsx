@@ -101,10 +101,7 @@ function ChildSelector({ children, selectedId, onChange }) {
             }}>
                 Select Child
             </p>
-            <div style={{
-                display: "flex", gap: 9, overflowX: "auto", paddingBottom: 3,
-                scrollbarWidth: "none",
-            }}>
+            <div className="pf-child-scroll">
                 {children.map((child) => {
                     const active = child.studentId === selectedId;
                     return (
@@ -296,53 +293,41 @@ export default function ParentProfile() {
                         {selectedChild && (
                             <>
                                 {/* ── PAGE HEADER ── */}
-                                <div className="a1" style={{ marginBottom: 18 }}>
-                                    <div style={{
-                                        display: "flex", alignItems: "flex-start", justifyContent: "space-between",
-                                        flexWrap: "wrap", gap: 12,
-                                    }}>
-                                        {/* Left: accent bar + name */}
-                                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                            <div style={{
-                                                width: 4, height: 30, borderRadius: 99, flexShrink: 0,
-                                                background: `linear-gradient(180deg, ${C.light} 0%, ${C.dark} 100%)`,
-                                            }} />
-                                            <div>
-                                                <h1 style={{
-                                                    margin: 0,
-                                                    fontSize: "clamp(18px,4vw,25px)",
-                                                    fontWeight: 900, color: C.dark, letterSpacing: "-0.5px",
-                                                    fontFamily: "'Inter', sans-serif",
-                                                }}>
-                                                    {profileLoading ? "Loading…" : fullName}
-                                                </h1>
-                                                <p style={{ margin: "3px 0 0", fontSize: 11, color: C.mid, fontWeight: 500 }}>
-                                                    {enrollment?.classSection?.name ?? "Student Profile"}
-                                                    {enrollment?.admissionNumber ? ` · ${enrollment.admissionNumber}` : ""}
-                                                </p>
-                                            </div>
-                                        </div>
-
-                                        {/* Tab bar */}
+                                <div className="a1 pf-header-row">
+                                    {/* Left: accent bar + name */}
+                                    <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
                                         <div style={{
-                                            display: "flex", gap: 4,
-                                            background: "rgba(255,255,255,0.75)",
-                                            backdropFilter: "blur(12px)",
-                                            border: "1.5px solid rgba(136,189,242,0.22)",
-                                            borderRadius: 15, padding: "4px",
-                                            overflowX: "auto", scrollbarWidth: "none",
-                                            maxWidth: "100%",
-                                        }}>
-                                            {TABS.map(({ key, label, icon: Icon }) => (
-                                                <button
-                                                    key={key}
-                                                    className={`pf-tab${activeTab === key ? " active" : ""}`}
-                                                    onClick={() => setActiveTab(key)}
-                                                >
-                                                    <Icon size={12} /> {label}
-                                                </button>
-                                            ))}
+                                            width: 4, height: 30, borderRadius: 99, flexShrink: 0,
+                                            background: `linear-gradient(180deg, ${C.light} 0%, ${C.dark} 100%)`,
+                                        }} />
+                                        <div style={{ minWidth: 0 }}>
+                                            <h1 style={{
+                                                margin: 0,
+                                                fontSize: "clamp(16px,4vw,24px)",
+                                                fontWeight: 900, color: C.dark, letterSpacing: "-0.5px",
+                                                fontFamily: "'Inter', sans-serif",
+                                                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                                            }}>
+                                                {profileLoading ? "Loading…" : fullName}
+                                            </h1>
+                                            <p style={{ margin: "3px 0 0", fontSize: 11, color: C.mid, fontWeight: 500 }}>
+                                                {enrollment?.classSection?.name ?? "Student Profile"}
+                                                {enrollment?.admissionNumber ? ` · ${enrollment.admissionNumber}` : ""}
+                                            </p>
                                         </div>
+                                    </div>
+
+                                    {/* Tab bar */}
+                                    <div className="pf-tab-bar">
+                                        {TABS.map(({ key, label, icon: Icon }) => (
+                                            <button
+                                                key={key}
+                                                className={`pf-tab${activeTab === key ? " active" : ""}`}
+                                                onClick={() => setActiveTab(key)}
+                                            >
+                                                <Icon size={12} /> {label}
+                                            </button>
+                                        ))}
                                     </div>
                                 </div>
 
