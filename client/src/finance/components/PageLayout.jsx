@@ -25,10 +25,14 @@ function PageLayout({ children }) {
     <div className="flex h-screen bg-gray-50 overflow-hidden">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} user={user} />
 
-      <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Clicking the main area on mobile closes the sidebar */}
+      <div
+        className="flex-1 flex flex-col overflow-hidden min-w-0"
+        onClick={() => sidebarOpen && setSidebarOpen(false)}
+      >
         <Navbar onMenuClick={() => setSidebarOpen(true)} user={user} />
 
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden">
           {children}
         </main>
       </div>

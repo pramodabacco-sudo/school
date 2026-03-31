@@ -20,14 +20,14 @@ const getAuthSchool = () => {
 
     // Check every path the API might place schoolId
     const schoolId =
-      auth.user?.schoolId   ||  // flat on user
+      auth.user?.schoolId ||  // flat on user
       auth.user?.school?.id ||  // nested school relation
-      auth.schoolId         ||  // flat on root
+      auth.schoolId ||  // flat on root
       "";
 
     const schoolName =
       auth.user?.school?.name ||
-      auth.schoolName         ||
+      auth.schoolName ||
       "Your School";
 
     console.log("[Addstudent] schoolId resolved:", schoolId, "| name:", schoolName);
@@ -45,30 +45,30 @@ const Addstudent = ({ open, handleClose, addStudentData, editData }) => {
   const [authSchool, setAuthSchool] = useState({ schoolId: "", schoolName: "Your School" });
 
   // cascade selects
-  const [classes,           setClasses]           = useState([]);
-  const [selectedClass,     setSelectedClass]     = useState("");
-  const [students,          setStudents]          = useState([]);
+  const [classes, setClasses] = useState([]);
+  const [selectedClass, setSelectedClass] = useState("");
+  const [students, setStudents] = useState([]);
   const [selectedStudentId, setSelectedStudentId] = useState("");
 
   // auto-filled info
   const [studentInfo, setStudentInfo] = useState({ name: "", email: "", phone: "", course: "", studentId: "" });
-  const [autoFilled,  setAutoFilled]  = useState(false);
+  const [autoFilled, setAutoFilled] = useState(false);
 
   // ── Fee rows state ──────────────────────────────────────────────────────────
   const DEFAULT_FEES = [
-    { id: "college",   label: "College Fee",   amount: "", enabled: true,  required: true  },
-    { id: "tuition",   label: "Tuition Fee",   amount: "", enabled: true,  required: false },
-    { id: "exam",      label: "Exam Fee",       amount: "", enabled: false, required: false },
-    { id: "transport", label: "Transport Fee",  amount: "", enabled: false, required: false },
-    { id: "books",     label: "Books Fee",      amount: "", enabled: false, required: false },
-    { id: "lab",       label: "Lab Fee",        amount: "", enabled: false, required: false },
+    { id: "college", label: "College Fee", amount: "", enabled: true, required: true },
+    { id: "tuition", label: "Tuition Fee", amount: "", enabled: true, required: false },
+    { id: "exam", label: "Exam Fee", amount: "", enabled: false, required: false },
+    { id: "transport", label: "Transport Fee", amount: "", enabled: false, required: false },
+    { id: "books", label: "Books Fee", amount: "", enabled: false, required: false },
+    { id: "lab", label: "Lab Fee", amount: "", enabled: false, required: false },
   ];
-  const [feeRows,    setFeeRows]    = useState(DEFAULT_FEES);
+  const [feeRows, setFeeRows] = useState(DEFAULT_FEES);
   const [customFees, setCustomFees] = useState([]); // [{ id, label, amount }]
 
   // ui
   const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState("");
+  const [error, setError] = useState("");
 
   // ── Reset helper ───────────────────────────────────────────────────────────
   const resetForm = () => {
@@ -102,11 +102,11 @@ const Addstudent = ({ open, handleClose, addStudentData, editData }) => {
     if (editData) {
       // ── Restore student info ──────────────────────────────────────────────
       setStudentInfo({
-        name:      editData.name      ?? "",
-        email:     editData.email     ?? "",
-        phone:     editData.phone     ?? "",
-        course:    editData.course    ?? "",
-        studentId: editData.id        ?? "",
+        name: editData.name ?? "",
+        email: editData.email ?? "",
+        phone: editData.phone ?? "",
+        course: editData.course ?? "",
+        studentId: editData.id ?? "",
       });
       setAutoFilled(true);
 
@@ -119,18 +119,18 @@ const Addstudent = ({ open, handleClose, addStudentData, editData }) => {
       if (parsed) {
         // Map JSON keys to feeRow ids  e.g. "tuitionFee" → "tuition"
         const keyMap = {
-          collegeFee:   "college",
-          tuitionFee:   "tuition",
-          examFee:      "exam",
+          collegeFee: "college",
+          tuitionFee: "tuition",
+          examFee: "exam",
           transportFee: "transport",
-          booksFee:     "books",
-          labFee:       "lab",
+          booksFee: "books",
+          labFee: "lab",
         };
 
         // If collegeFee not stored (old records), derive it:
         // collegeFee = total fees - sum of all other named fees
         if (!parsed.collegeFee && editData.fees) {
-          const otherSum = ["tuitionFee","examFee","transportFee","booksFee","labFee","miscFee"]
+          const otherSum = ["tuitionFee", "examFee", "transportFee", "booksFee", "labFee", "miscFee"]
             .reduce((s, k) => s + Number(parsed[k] || 0), 0);
           const customSum = (parsed.customFees || []).reduce((s, c) => s + Number(c.amount || 0), 0);
           parsed.collegeFee = Math.max(0, Number(editData.fees) - otherSum - customSum);
@@ -138,10 +138,10 @@ const Addstudent = ({ open, handleClose, addStudentData, editData }) => {
 
         setFeeRows(DEFAULT_FEES.map(row => {
           const jsonKey = Object.keys(keyMap).find(k => keyMap[k] === row.id);
-          const amt     = jsonKey ? Number(parsed[jsonKey] || 0) : 0;
+          const amt = jsonKey ? Number(parsed[jsonKey] || 0) : 0;
           return {
             ...row,
-            amount:  amt > 0 ? String(amt) : "",
+            amount: amt > 0 ? String(amt) : "",
             enabled: row.required || amt > 0,  // enable the row if it has a stored amount
           };
         }));
@@ -149,8 +149,8 @@ const Addstudent = ({ open, handleClose, addStudentData, editData }) => {
         // Restore custom fees
         if (Array.isArray(parsed.customFees) && parsed.customFees.length > 0) {
           setCustomFees(parsed.customFees.map((c, i) => ({
-            id:     `custom_edit_${i}`,
-            label:  c.label  || "",
+            id: `custom_edit_${i}`,
+            label: c.label || "",
             amount: c.amount ? String(c.amount) : "",
           })));
         }
@@ -174,7 +174,7 @@ const Addstudent = ({ open, handleClose, addStudentData, editData }) => {
     setAutoFilled(false);
     if (!classId) return;
     try {
-      const res  = await fetch(`${API_URL}/api/finance/studentsByClass?classSectionId=${classId}`);
+      const res = await fetch(`${API_URL}/api/finance/studentsByClass?classSectionId=${classId}`);
       const data = await res.json();
       setStudents(Array.isArray(data) ? data : []);
     } catch { setStudents([]); }
@@ -194,8 +194,8 @@ const Addstudent = ({ open, handleClose, addStudentData, editData }) => {
   };
 
   // ── Fee helpers ────────────────────────────────────────────────────────────
-  const toggleFee   = (id) => setFeeRows(rows => rows.map(r => r.id === id ? { ...r, enabled: !r.enabled } : r));
-  const updateFee   = (id, val) => setFeeRows(rows => rows.map(r => r.id === id ? { ...r, amount: val } : r));
+  const toggleFee = (id) => setFeeRows(rows => rows.map(r => r.id === id ? { ...r, enabled: !r.enabled } : r));
+  const updateFee = (id, val) => setFeeRows(rows => rows.map(r => r.id === id ? { ...r, amount: val } : r));
 
   const addCustomFee = () =>
     setCustomFees(prev => [...prev, { id: `custom_${Date.now()}`, label: "", amount: "" }]);
@@ -224,9 +224,9 @@ const Addstudent = ({ open, handleClose, addStudentData, editData }) => {
         ...feeMap,
         customFees: customFees.map(c => ({ label: c.label, amount: Number(c.amount || 0) })),
       };
-      const url    = editData ? `${API_URL}/api/finance/updateStudentFinance/${editData.id}` : `${API_URL}/api/finance/addStudentFinance`;
+      const url = editData ? `${API_URL}/api/finance/updateStudentFinance/${editData.id}` : `${API_URL}/api/finance/addStudentFinance`;
       const method = editData ? "PUT" : "POST";
-      const res    = await fetch(url, { method, headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(payload) });
+      const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(payload) });
       if (!res.ok) throw new Error(await res.text());
       const result = await res.json();
       addStudentData(result);
@@ -431,6 +431,22 @@ const Addstudent = ({ open, handleClose, addStudentData, editData }) => {
           border-radius:10px;font-size:14px;font-weight:600;
           font-family:'Sora',sans-serif;cursor:pointer;transition:all .2s}
         .as-bs:hover{background:var(--bf);color:var(--brd)}
+
+        @media (max-width: 600px) {
+          .as-ov { padding: 12px; }
+          .as-mod { max-width: 100%; border-radius: 16px; }
+          .as-hd { padding: 16px 18px; border-radius: 16px 16px 0 0; }
+          .as-bd { padding: 14px 16px 20px; gap: 14px; }
+          .as-ttl { font-size: 15px; }
+          .as-ig { grid-template-columns: 1fr; }
+          .as-act { flex-direction: column; }
+          .as-bp, .as-bs { width: 100%; }
+          .as-fee-sym { padding: 0 6px 0 8px; }
+          .as-fee-amt { width: 70px; }
+          .as-fee-label-text { font-size: 12px; }
+          .as-fee-num { width: 32px; min-width: 32px; font-size: 10px; }
+          .as-ta { font-size: 24px; }
+        }
       `}</style>
 
       <div className="as-ov">
@@ -498,13 +514,13 @@ const Addstudent = ({ open, handleClose, addStudentData, editData }) => {
             {editData && (
               <div>
                 <p className="as-sl">Student</p>
-                <div style={{display:"flex",alignItems:"center",gap:10,background:"linear-gradient(135deg,#eef1f4,#e4ecf2)",border:"1.5px solid var(--bf)",borderRadius:12,padding:"11px 16px"}}>
-                  <div style={{width:34,height:34,borderRadius:"50%",background:"linear-gradient(135deg,var(--br),var(--brd))",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, background: "linear-gradient(135deg,#eef1f4,#e4ecf2)", border: "1.5px solid var(--bf)", borderRadius: 12, padding: "11px 16px" }}>
+                  <div style={{ width: 34, height: 34, borderRadius: "50%", background: "linear-gradient(135deg,var(--br),var(--brd))", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     <User size={15} color="#fff" />
                   </div>
                   <div>
-                    <div style={{fontSize:13.5,fontWeight:600,color:"var(--brp)"}}>{editData.name}</div>
-                    <div style={{fontSize:10.5,color:"var(--brl)",marginTop:2}}>Editing existing record — ID #{editData.id}</div>
+                    <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--brp)" }}>{editData.name}</div>
+                    <div style={{ fontSize: 10.5, color: "var(--brl)", marginTop: 2 }}>Editing existing record — ID #{editData.id}</div>
                   </div>
                 </div>
               </div>
@@ -514,26 +530,26 @@ const Addstudent = ({ open, handleClose, addStudentData, editData }) => {
             <div>
               <p className="as-sl">
                 Student Info
-                {autoFilled && <span style={{fontSize:10,fontWeight:700,background:"#dcfce7",color:"#15803d",padding:"1px 7px",borderRadius:20}}>AUTO-FILLED ✓</span>}
+                {autoFilled && <span style={{ fontSize: 10, fontWeight: 700, background: "#dcfce7", color: "#15803d", padding: "1px 7px", borderRadius: 20 }}>AUTO-FILLED ✓</span>}
               </p>
               {autoFilled ? (
                 <div className="as-ig">
                   <div className="as-ic">
-                    <div className="as-icl"><Mail size={9}/> Email</div>
+                    <div className="as-icl"><Mail size={9} /> Email</div>
                     <div className="as-icv">{studentInfo.email || "—"}</div>
                   </div>
                   <div className="as-ic">
-                    <div className="as-icl"><Phone size={9}/> Phone</div>
+                    <div className="as-icl"><Phone size={9} /> Phone</div>
                     <div className="as-icv">{studentInfo.phone || "—"}</div>
                   </div>
-                  <div className="as-ic" style={{gridColumn:"1 / -1"}}>
-                    <div className="as-icl"><BookOpen size={9}/> Course / Class</div>
+                  <div className="as-ic" style={{ gridColumn: "1 / -1" }}>
+                    <div className="as-icl"><BookOpen size={9} /> Course / Class</div>
                     <div className="as-icv">{studentInfo.course || "—"}</div>
                   </div>
                 </div>
               ) : (
                 <div className="as-ph">
-                  <AlertCircle size={15} style={{color:"#94a3b8",flexShrink:0}}/>
+                  <AlertCircle size={15} style={{ color: "#94a3b8", flexShrink: 0 }} />
                   Select a class and student above — email, phone &amp; course will appear here automatically.
                 </div>
               )}
@@ -581,7 +597,7 @@ const Addstudent = ({ open, handleClose, addStudentData, editData }) => {
                         </label>
                       </div>
                     ) : (
-                      <div style={{width:64}} />
+                      <div style={{ width: 64 }} />
                     )}
                   </div>
                 ))}
@@ -640,7 +656,7 @@ const Addstudent = ({ open, handleClose, addStudentData, editData }) => {
             {/* Error */}
             {error && (
               <div className="as-err">
-                <AlertCircle size={14} style={{flexShrink:0}}/>{error}
+                <AlertCircle size={14} style={{ flexShrink: 0 }} />{error}
               </div>
             )}
 

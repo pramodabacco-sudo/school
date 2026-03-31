@@ -1,12 +1,10 @@
 // server/src/parent/controllers/profileController.js
 // ═══════════════════════════════════════════════════════════════
-//  Parent — Profile Controller
-//  Returns identical JSON shape to student /profile/me so all
-//  student sub-components (PersonalInfo, AcademicInfo, etc.)
-//  work without any modification.
+//  Parent — Profile Controller + Redis caching
 // ═══════════════════════════════════════════════════════════════
 
 import { prisma } from "../../config/db.js";
+import cache from "../../utils/cacheService.js";
 
 async function verifyParentOwnsStudent(parentId, studentId) {
   const link = await prisma.studentParent.findFirst({
@@ -30,13 +28,18 @@ export const getProfile = async (req, res) => {
     if (!owns)
       return res.status(403).json({ success: false, message: "Access denied" });
 
+    // ── Cache check ──────────────────────────────────────────
+    const cacheKey = `parent:profile:${studentId}`;
+    const cached = await cache.get(cacheKey);
+    if (cached) return res.json(JSON.parse(cached));
+
     const student = await prisma.student.findUnique({
       where: { id: studentId },
       include: {
         personalInfo: true,
         enrollments: {
           include: {
-            academicYear:  true,
+            academicYear: true,
             classSection: {
               include: {
                 stream:      true,
@@ -64,7 +67,10 @@ export const getProfile = async (req, res) => {
     if (!student)
       return res.status(404).json({ success: false, message: "Student not found" });
 
-    return res.json({ success: true, student });
+    const response = { success: true, student };
+    await cache.set(cacheKey, response);
+
+    return res.json(response);
   } catch (err) {
     console.error("[parent/getProfile]", err);
     return res.status(500).json({ success: false, message: "Server error" });
@@ -86,26 +92,32 @@ export const getDocuments = async (req, res) => {
     if (!owns)
       return res.status(403).json({ success: false, message: "Access denied" });
 
+    // ── Cache check ──────────────────────────────────────────
+    const cacheKey = `parent:profile:documents:${studentId}`;
+    const cached = await cache.get(cacheKey);
+    if (cached) return res.json(JSON.parse(cached));
+
     const rawDocs = await prisma.studentDocumentInfo.findMany({
-      where: { studentId },
+      where:   { studentId },
       orderBy: { uploadedAt: "desc" },
     });
 
-    // Generate presigned/signed URLs if your storage layer supports it.
-    // For now, expose fileUrl directly (replace this with your signed URL logic).
     const documents = rawDocs.map(d => ({
-      id:           d.id,
-      documentName: d.documentName,
-      customLabel:  d.customLabel,
-      fileType:     d.fileType,
+      id:            d.id,
+      documentName:  d.documentName,
+      customLabel:   d.customLabel,
+      fileType:      d.fileType,
       fileSizeBytes: d.fileSizeBytes,
-      isVerified:   d.isVerified,
-      verifiedAt:   d.verifiedAt,
-      uploadedAt:   d.uploadedAt,
-      url:          d.fileUrl ?? null,  // swap for your signed URL generator
+      isVerified:    d.isVerified,
+      verifiedAt:    d.verifiedAt,
+      uploadedAt:    d.uploadedAt,
+      url:           d.fileUrl ?? null,
     }));
 
-    return res.json({ success: true, documents });
+    const response = { success: true, documents };
+    await cache.set(cacheKey, response);
+
+    return res.json(response);
   } catch (err) {
     console.error("[parent/getDocuments]", err);
     return res.status(500).json({ success: false, message: "Server error" });

@@ -1,21 +1,15 @@
 // server/src/parent/controllers/dashboardController.js
 // ═══════════════════════════════════════════════════════════════
-//  Parent — Dashboard Controller
-//  Mirrors student dashboardController but:
-//    • Auth via req.user.id (authMiddleware)
-//    • Requires ?studentId=<uuid>
-//    • Validates parent owns student via StudentParent
-//  Returns identical shape to student dashboard so the UI
-//  components work without any changes.
+//  Parent — Dashboard Controller + Redis caching
 // ═══════════════════════════════════════════════════════════════
 
 import { prisma } from "../../config/db.js";
+import cache from "../../utils/cacheService.js";
 
 async function verifyParentOwnsStudent(parentId, studentId) {
   const link = await prisma.studentParent.findFirst({
     where: { parentId, studentId },
   });
-  
   return !!link;
 }
 
@@ -33,6 +27,11 @@ export const getDashboard = async (req, res) => {
     if (!owns)
       return res.status(403).json({ success: false, message: "Access denied" });
 
+    // ── Cache check ──────────────────────────────────────────
+    const cacheKey = `parent:dashboard:${studentId}`;
+    const cached = await cache.get(cacheKey);
+    if (cached) return res.json(JSON.parse(cached));
+
     // ── Student basic info ────────────────────────────────────
     const student = await prisma.student.findUnique({
       where: { id: studentId },
@@ -45,10 +44,7 @@ export const getDashboard = async (req, res) => {
     const enrollment = await prisma.studentEnrollment.findFirst({
       where: { studentId, status: "ACTIVE" },
       orderBy: { createdAt: "desc" },
-      include: {
-        academicYear: true,
-        classSection: true,
-      },
+      include: { academicYear: true, classSection: true },
     });
 
     if (!enrollment)
@@ -57,7 +53,7 @@ export const getDashboard = async (req, res) => {
     const { academicYearId, classSectionId } = enrollment;
     const schoolId = enrollment.classSection.schoolId;
 
-    const today = new Date();
+    const today    = new Date();
     const todayDay = today.toLocaleDateString("en-US", { weekday: "long" }).toUpperCase();
 
     // ── Today's timetable ─────────────────────────────────────
@@ -119,7 +115,10 @@ export const getDashboard = async (req, res) => {
     const latestResult = await prisma.resultSummary.findFirst({
       where: { studentId, academicYearId },
       orderBy: { assessmentGroup: { createdAt: "desc" } },
-      include: { assessmentGroup: { select: { name: true } }, term: { select: { name: true } } },
+      include: {
+        assessmentGroup: { select: { name: true } },
+        term:            { select: { name: true } },
+      },
     });
 
     // ── Upcoming exams (next 5) ───────────────────────────────
@@ -127,11 +126,7 @@ export const getDashboard = async (req, res) => {
       where: {
         classSectionId,
         examDate: { gte: today },
-        assessmentGroup: {
-          academicYearId,
-          schoolId,
-          isPublished: false,
-        },
+        assessmentGroup: { academicYearId, schoolId, isPublished: false },
       },
       include: {
         subject:         { select: { name: true } },
@@ -159,7 +154,9 @@ export const getDashboard = async (req, res) => {
     const absentDays  = attendanceRecords.filter(r => r.status === "ABSENT").length;
     const lateDays    = attendanceRecords.filter(r => r.status === "LATE").length;
     const totalDays   = attendanceRecords.length;
-    const percentage  = totalDays > 0 ? parseFloat(((presentDays / totalDays) * 100).toFixed(1)) : 0;
+    const percentage  = totalDays > 0
+      ? parseFloat(((presentDays / totalDays) * 100).toFixed(1))
+      : 0;
 
     // ── Activities summary ────────────────────────────────────
     const [enrolledActivities, achievements] = await Promise.all([
@@ -191,7 +188,7 @@ export const getDashboard = async (req, res) => {
         status: "SCHEDULED",
         OR: [
           { students: { some: { studentId } } },
-          { classes: { some: { classSectionId } } },
+          { classes:  { some: { classSectionId } } },
           { type: { in: ["PARENT", "GENERAL"] } },
         ],
       },
@@ -208,7 +205,7 @@ export const getDashboard = async (req, res) => {
       venue:       m.location ?? m.venueDetail ?? null,
     }));
 
-    return res.json({
+    const response = {
       success: true,
       data: {
         student: {
@@ -239,7 +236,11 @@ export const getDashboard = async (req, res) => {
         awards,
         upcomingMeetings,
       },
-    });
+    };
+
+    await cache.set(cacheKey, response);
+    return res.json(response);
+
   } catch (err) {
     console.error("[parent/getDashboard]", err);
     return res.status(500).json({ success: false, message: "Server error" });

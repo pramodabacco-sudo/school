@@ -477,7 +477,7 @@ function AchievementRow({ achievement }) {
 // ═══════════════════════════════════════════════════════════════
 //  MAIN — No <PageLayout> (Routes.jsx handles layout)
 // ═══════════════════════════════════════════════════════════════
-export default function ActivitiesPage() {
+export default function FeesAndPayments() {
     // ── Children ─────────────────────────────────────────────────
     const [children, setChildren] = useState([]);
     const [selectedChild, setSelectedChild] = useState(null);

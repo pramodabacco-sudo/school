@@ -97,6 +97,25 @@ const STYLE = `
 .gd-btn-cancel:hover { border-color:#3c5d74; color:#2b4557; }
 .gd-act-slip { background:rgba(82,122,145,.18); color:#1c3040; width:30px; height:30px; border-radius:8px; border:none; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; transition:opacity .15s; }
 .gd-act-slip:hover { opacity:.72; }
+@media (max-width: 768px) {
+  .gd-topbar { padding: 14px 16px; flex-direction: column; align-items: flex-start; gap: 12px; }
+  .gd-content { padding: 16px; }
+  .gd-kpi-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .gd-strip { display: none; }
+  .gd-tbl { font-size: 12px; }
+  .gd-tbl th, .gd-tbl td { padding: 8px 6px; }
+  .gd-panel-head { flex-direction: column; gap: 10px; align-items: flex-start; }
+  .gd-search-inp { width: 100%; }
+  .gd-modal { max-width: calc(100vw - 32px); }
+  .gd-field-row { grid-template-columns: 1fr; }
+  .gd-kpi-val { font-size: 18px; }
+}
+@media (max-width: 480px) {
+  .gd-kpi-grid { grid-template-columns: 1fr; }
+  .gd-title { font-size: 15px; }
+  .gd-tbl th, .gd-tbl td { padding: 6px 4px; font-size: 11px; }
+}
+
 `;
 
 const emptyForm = { name: "", position: "", school: "", section: "", basicSalary: "", allowances: "", status: "Active" };
@@ -307,7 +326,7 @@ export default function GroupDSalary() {
                             <p className="gd-sub">Administrative Staff · Payroll & Records</p>
                         </div>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                         <span className="gd-datebadge">
                             {new Date().toLocaleDateString("en-IN", { weekday: "short", year: "numeric", month: "long", day: "numeric" })}
                         </span>
@@ -369,7 +388,7 @@ export default function GroupDSalary() {
                                 />
                             </div>
                         </div>
-                        <div className="gd-panel-body">
+                        <div className="gd-panel-body" style={{ overflowX: "auto" }}>
                             <table className="gd-tbl">
                                 <thead>
                                     <tr>

@@ -32,38 +32,38 @@ const calcLeaveDeduction = (monthlySalary, leaveDays) => {
 const STATUS_OPTIONS = ["ALL", "PENDING", "PAID", "HOLD"];
 
 const statusStyle = (s) => {
-    if (s === "PAID")  return "bg-green-100 text-green-700";
-    if (s === "HOLD")  return "bg-orange-100 text-orange-700";
+    if (s === "PAID") return "bg-green-100 text-green-700";
+    if (s === "HOLD") return "bg-orange-100 text-orange-700";
     return "bg-amber-100 text-amber-700";
 };
 
 export default function GroupCSalary() {
-    const [search,                   setSearch]                   = useState("");
-    const [tableStatusFilter,        setTableStatusFilter]        = useState("ALL");
-    const [showStatusDropdown,       setShowStatusDropdown]       = useState(false);
-    const [salaryList,               setSalaryList]               = useState([]);
+    const [search, setSearch] = useState("");
+    const [tableStatusFilter, setTableStatusFilter] = useState("ALL");
+    const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+    const [salaryList, setSalaryList] = useState([]);
     const [currentMonthPlaceholders, setCurrentMonthPlaceholders] = useState([]);
-    const [allSalaryHistory,         setAllSalaryHistory]         = useState([]);
-    const [dropdownStaff,            setDropdownStaff]            = useState([]);
-    const [showModal,                setShowModal]                = useState(false);
-    const [bonus,                    setBonus]                    = useState(0);
-    const [deduction,                setDeduction]                = useState(0);
-    const [leaveDays,                setLeaveDays]                = useState(0);
-    const [selectedStaff,            setSelectedStaff]            = useState("");
-    const [staffDetail,              setStaffDetail]              = useState(null);
-    const [editModal,                setEditModal]                = useState(false);
-    const [deleteModal,              setDeleteModal]              = useState(false);
-    const [historyModal,             setHistoryModal]             = useState(false);
-    const [slipModal,                setSlipModal]                = useState(false);
-    const [payConfirmModal,          setPayConfirmModal]          = useState(false);
-    const [pendingPayId,             setPendingPayId]             = useState(null);
-    const [selectedSalary,           setSelectedSalary]           = useState(null);
-    const [salaryHistory,            setSalaryHistory]            = useState([]);
-    const [historySearch,            setHistorySearch]            = useState("");
-    const [historyStatusFilter,      setHistoryStatusFilter]      = useState("ALL");
-    const [authSchool,               setAuthSchool]               = useState({ schoolId: "", schoolName: "Your School" });
-    const [loading,                  setLoading]                  = useState(false);
-    const pdfRef      = useRef();
+    const [allSalaryHistory, setAllSalaryHistory] = useState([]);
+    const [dropdownStaff, setDropdownStaff] = useState([]);
+    const [showModal, setShowModal] = useState(false);
+    const [bonus, setBonus] = useState(0);
+    const [deduction, setDeduction] = useState(0);
+    const [leaveDays, setLeaveDays] = useState(0);
+    const [selectedStaff, setSelectedStaff] = useState("");
+    const [staffDetail, setStaffDetail] = useState(null);
+    const [editModal, setEditModal] = useState(false);
+    const [deleteModal, setDeleteModal] = useState(false);
+    const [historyModal, setHistoryModal] = useState(false);
+    const [slipModal, setSlipModal] = useState(false);
+    const [payConfirmModal, setPayConfirmModal] = useState(false);
+    const [pendingPayId, setPendingPayId] = useState(null);
+    const [selectedSalary, setSelectedSalary] = useState(null);
+    const [salaryHistory, setSalaryHistory] = useState([]);
+    const [historySearch, setHistorySearch] = useState("");
+    const [historyStatusFilter, setHistoryStatusFilter] = useState("ALL");
+    const [authSchool, setAuthSchool] = useState({ schoolId: "", schoolName: "Your School" });
+    const [loading, setLoading] = useState(false);
+    const pdfRef = useRef();
     const dropdownRef = useRef();
     const tok = () => localStorage.getItem("token");
 
@@ -204,7 +204,7 @@ export default function GroupCSalary() {
         await fetchAllHistory(authSchool.schoolId);
     };
 
-    const requestPay  = (salaryId) => { setPendingPayId(salaryId); setPayConfirmModal(true); };
+    const requestPay = (salaryId) => { setPendingPayId(salaryId); setPayConfirmModal(true); };
 
     const confirmPay = async () => {
         const res = await fetch(`${API_URL}/api/groupc/salary/pay/${pendingPayId}`, {
@@ -256,7 +256,7 @@ export default function GroupCSalary() {
         setEditModal(true);
     };
 
-    const openDeleteModal  = (salary) => { setSelectedSalary({ id: salary.id || salary.salaryId }); setDeleteModal(true); };
+    const openDeleteModal = (salary) => { setSelectedSalary({ id: salary.id || salary.salaryId }); setDeleteModal(true); };
 
     const openHistoryModal = async (salary) => {
         setSelectedSalary(salary);
@@ -282,9 +282,9 @@ export default function GroupCSalary() {
     };
 
     // ── Helpers ───────────────────────────────────────────────────────────────
-    const rowName  = (r) => r.staffName  || `${r.staff?.firstName || ""} ${r.staff?.lastName || ""}`;
+    const rowName = (r) => r.staffName || `${r.staff?.firstName || ""} ${r.staff?.lastName || ""}`;
     const rowEmail = (r) => r.staffEmail || r.staff?.email || "—";
-    const rowRole  = (r) => r.staffRole  || r.staff?.role  || "—";
+    const rowRole = (r) => r.staffRole || r.staff?.role || "—";
 
     // ── Derived lists ─────────────────────────────────────────────────────────
     const searchFn = (r) => {
@@ -315,16 +315,16 @@ export default function GroupCSalary() {
         .filter(r => historyStatusFilter === "ALL" ? (r.status === "PAID" || r.status === "HOLD") : r.status === historyStatusFilter)
         .filter(r => rowName(r).toLowerCase().includes(historySearch.toLowerCase()) || rowEmail(r).toLowerCase().includes(historySearch.toLowerCase()));
 
-    const editBasic      = selectedSalary?.basicSalary || 0;
-    const editLeaveDed   = calcLeaveDeduction(editBasic, leaveDays);
+    const editBasic = selectedSalary?.basicSalary || 0;
+    const editLeaveDed = calcLeaveDeduction(editBasic, leaveDays);
     const editNetPreview = Number(editBasic) + Number(bonus || 0) - editLeaveDed - Number(deduction || 0);
     const leaveDedPreview = calcLeaveDeduction(staffDetail?.basicSalary || 0, leaveDays);
-    const netPreview      = Number(staffDetail?.basicSalary || 0) + Number(bonus || 0) - leaveDedPreview - Number(deduction || 0);
+    const netPreview = Number(staffDetail?.basicSalary || 0) + Number(bonus || 0) - leaveDedPreview - Number(deduction || 0);
 
     return (
         <div>
             {/* ── HEADER ── */}
-            <div className="bg-gradient-to-r from-[#1A2E3D] via-[#27435B] to-[#3A5E78] rounded-2xl px-8 py-7 flex items-center justify-between mb-5 relative overflow-hidden shadow-xl">
+            <div className="bg-gradient-to-r from-[#1A2E3D] via-[#27435B] to-[#3A5E78] rounded-2xl px-4 sm:px-8 py-5 sm:py-7 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5 relative overflow-hidden shadow-xl">
                 <div className="absolute top-0 right-0 w-44 h-44 rounded-full bg-white/5 -translate-y-1/2 translate-x-1/2" />
                 <div className="flex items-center gap-4 relative z-10">
                     <div className="w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center shadow-lg"><Wrench size={22} color="#fff" /></div>
@@ -336,7 +336,7 @@ export default function GroupCSalary() {
                 <div className="flex items-center gap-3 relative z-10">
                     <div className="relative">
                         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#4A6B80]" />
-                        <input className="pl-9 pr-3 py-2.5 rounded-xl border border-[#C8DCEC] bg-white/90 text-[13px] text-[#162535] w-60 outline-none focus:border-[#27435B] focus:bg-white"
+                        <input className="pl-9 pr-3 py-2.5 rounded-xl border border-[#C8DCEC] bg-white/90 text-[13px] text-[#162535] w-full sm:w-52 md:w-60 outline-none focus:border-[#27435B] focus:bg-white"
                             placeholder="Search staff..." value={search} onChange={e => setSearch(e.target.value)} />
                     </div>
                     <button onClick={() => { setSelectedStaff(""); setBonus(0); setDeduction(0); setLeaveDays(0); setShowModal(true); }}
@@ -347,12 +347,12 @@ export default function GroupCSalary() {
             </div>
 
             {/* ── STATS ── */}
-            <div className="grid grid-cols-4 gap-4 mb-5">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-5">
                 {[
-                    { label: "Total Staff",     val: salaryList.length,                                      icon: Users,        color: "from-[#27435B] to-[#1C3044]" },
-                    { label: "Pending Payment", val: salaryList.filter(r => r.status === "PENDING").length,  icon: AlertTriangle, color: "from-[#B08A00] to-[#7A5E00]" },
-                    { label: "Paid This Month", val: salaryList.filter(r => r.status === "PAID").length,     icon: BadgeCheck,    color: "from-[#1E7E4E] to-[#155A36]" },
-                    { label: "Total Payout",    val: `₹${salaryList.reduce((s, r) => s + Number(r.netSalary || 0), 0).toLocaleString("en-IN")}`, icon: Banknote, color: "from-[#3A5E78] to-[#27435B]" },
+                    { label: "Total Staff", val: salaryList.length, icon: Users, color: "from-[#27435B] to-[#1C3044]" },
+                    { label: "Pending Payment", val: salaryList.filter(r => r.status === "PENDING").length, icon: AlertTriangle, color: "from-[#B08A00] to-[#7A5E00]" },
+                    { label: "Paid This Month", val: salaryList.filter(r => r.status === "PAID").length, icon: BadgeCheck, color: "from-[#1E7E4E] to-[#155A36]" },
+                    { label: "Total Payout", val: `₹${salaryList.reduce((s, r) => s + Number(r.netSalary || 0), 0).toLocaleString("en-IN")}`, icon: Banknote, color: "from-[#3A5E78] to-[#27435B]" },
                 ].map((s, i) => (
                     <div key={i} className={`bg-gradient-to-br ${s.color} rounded-2xl p-5 shadow-lg`}>
                         <div className="flex items-center gap-3">
@@ -368,7 +368,7 @@ export default function GroupCSalary() {
 
             {/* ── SALARY TABLE ── */}
             <div className="bg-white/85 backdrop-blur-sm rounded-2xl shadow-lg overflow-hidden mb-5 border border-white/60">
-                <div className="bg-gradient-to-r from-[#27435B] to-[#1C3044] px-6 py-4 flex items-center justify-between">
+                <div className="bg-gradient-to-r from-[#27435B] to-[#1C3044] px-4 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <div className="flex items-center gap-3">
                         <ListOrdered size={15} color="#fff" />
                         <span className="text-white font-bold text-[14px]">Group C Staff — Salary Records</span>
@@ -380,10 +380,10 @@ export default function GroupCSalary() {
                             <button onClick={() => setShowStatusDropdown(v => !v)}
                                 className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white text-[12.5px] font-semibold transition-all border border-white/20">
                                 <span className="flex items-center gap-1.5">
-                                    {tableStatusFilter === "ALL"     && <span className="w-2 h-2 rounded-full bg-white/60 inline-block" />}
-                                    {tableStatusFilter === "PAID"    && <span className="w-2 h-2 rounded-full bg-green-400 inline-block" />}
+                                    {tableStatusFilter === "ALL" && <span className="w-2 h-2 rounded-full bg-white/60 inline-block" />}
+                                    {tableStatusFilter === "PAID" && <span className="w-2 h-2 rounded-full bg-green-400 inline-block" />}
                                     {tableStatusFilter === "PENDING" && <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />}
-                                    {tableStatusFilter === "HOLD"    && <span className="w-2 h-2 rounded-full bg-orange-400 inline-block" />}
+                                    {tableStatusFilter === "HOLD" && <span className="w-2 h-2 rounded-full bg-orange-400 inline-block" />}
                                     {tableStatusFilter}
                                 </span>
                                 <ChevronDown size={13} />
@@ -393,10 +393,10 @@ export default function GroupCSalary() {
                                     {STATUS_OPTIONS.map(opt => (
                                         <button key={opt} onClick={() => { setTableStatusFilter(opt); setShowStatusDropdown(false); }}
                                             className={`w-full text-left px-4 py-2.5 text-[12.5px] font-semibold flex items-center gap-2 hover:bg-[#EAF1F6] transition-colors ${tableStatusFilter === opt ? "text-[#27435B] bg-[#EAF1F6]" : "text-[#4A6B80]"}`}>
-                                            {opt === "ALL"     && <span className="w-2 h-2 rounded-full bg-gray-400 inline-block" />}
-                                            {opt === "PAID"    && <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />}
+                                            {opt === "ALL" && <span className="w-2 h-2 rounded-full bg-gray-400 inline-block" />}
+                                            {opt === "PAID" && <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />}
                                             {opt === "PENDING" && <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />}
-                                            {opt === "HOLD"    && <span className="w-2 h-2 rounded-full bg-orange-500 inline-block" />}
+                                            {opt === "HOLD" && <span className="w-2 h-2 rounded-full bg-orange-500 inline-block" />}
                                             {opt}
                                         </button>
                                     ))}
@@ -406,11 +406,11 @@ export default function GroupCSalary() {
                     </div>
                 </div>
                 <div className="overflow-x-auto">
-                    <table className="w-full text-[13px]">
+                    <table className="w-full text-[12px] sm:text-[13px] min-w-[700px]">
                         <thead>
                             <tr className="bg-[#EAF1F6] border-b border-[#C8DCEC]">
                                 {["Name", "Email", "Role", "Basic Salary", "Bonus", "Deductions", "Leave Days", "Net Salary", "Status", "Actions"].map(h => (
-                                    <th key={h} className="px-4 py-3 text-left text-[11px] font-bold text-[#27435B] uppercase tracking-wide whitespace-nowrap">{h}</th>
+                                    <th key={h} className="px-3 sm:px-4 py-2.5 sm:py-3 text-left text-[10px] sm:text-[11px] font-bold text-[#27435B] uppercase tracking-wide whitespace-nowrap">{h}</th>
                                 ))}
                             </tr>
                         </thead>
@@ -425,7 +425,7 @@ export default function GroupCSalary() {
                                 </td></tr>
                             ) : filtered.map((r, idx) => (
                                 <tr key={r.id || idx} className={`border-b border-[#EAF1F6] hover:bg-[#F5FAFE] transition-colors ${r._isPlaceholder ? "bg-[#FAFCFE]" : ""}`}>
-                                    <td className="px-4 py-3 font-semibold text-[#1A2E3D]">{rowName(r)}</td>
+                                    <td className="px-3 sm:px-4 py-2.5 sm:py-3 font-semibold text-[#1A2E3D]">{rowName(r)}</td>
                                     <td className="px-4 py-3 text-[#4A6B80] text-[12px]">{rowEmail(r)}</td>
                                     <td className="px-4 py-3"><span className="bg-[#EAF1F6] text-[#27435B] text-[11px] font-bold px-2.5 py-1 rounded-full">{rowRole(r)}</span></td>
                                     <td className="px-4 py-3 font-semibold text-[#27435B]">₹{Number(r.basicSalary || 0).toLocaleString("en-IN")}</td>
@@ -453,10 +453,10 @@ export default function GroupCSalary() {
                                     <td className="px-4 py-3">
                                         <div className="flex items-center gap-1">
                                             {[
-                                                { icon: Pencil,  fn: () => r._isPlaceholder ? createThenEdit(r) : openEditModal(r),    color: "text-[#27435B] hover:bg-[#EAF1F6]", disabled: false },
-                                                { icon: Trash2,  fn: () => openDeleteModal(r),   color: r._isPlaceholder ? "text-[#C8DCEC] cursor-not-allowed" : "text-red-500 hover:bg-red-50", disabled: r._isPlaceholder },
-                                                { icon: History, fn: () => openHistoryModal(r),  color: "text-[#4A6B80] hover:bg-[#EAF1F6]", disabled: false },
-                                                { icon: Eye,     fn: () => !r._isPlaceholder && openSlipModal(r), color: r._isPlaceholder ? "text-[#C8DCEC] cursor-not-allowed" : "text-[#27435B] hover:bg-[#EAF1F6]", disabled: r._isPlaceholder },
+                                                { icon: Pencil, fn: () => r._isPlaceholder ? createThenEdit(r) : openEditModal(r), color: "text-[#27435B] hover:bg-[#EAF1F6]", disabled: false },
+                                                { icon: Trash2, fn: () => openDeleteModal(r), color: r._isPlaceholder ? "text-[#C8DCEC] cursor-not-allowed" : "text-red-500 hover:bg-red-50", disabled: r._isPlaceholder },
+                                                { icon: History, fn: () => openHistoryModal(r), color: "text-[#4A6B80] hover:bg-[#EAF1F6]", disabled: false },
+                                                { icon: Eye, fn: () => !r._isPlaceholder && openSlipModal(r), color: r._isPlaceholder ? "text-[#C8DCEC] cursor-not-allowed" : "text-[#27435B] hover:bg-[#EAF1F6]", disabled: r._isPlaceholder },
                                             ].map(({ icon: Ic, fn, color, disabled }, i) => (
                                                 <button key={i} onClick={disabled ? undefined : fn} disabled={disabled}
                                                     className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${color}`}>
@@ -474,7 +474,7 @@ export default function GroupCSalary() {
 
             {/* ── HISTORY TABLE ── */}
             <div className="bg-white/85 backdrop-blur-sm rounded-2xl shadow-lg overflow-hidden border border-white/60">
-                <div className="bg-gradient-to-r from-[#27435B] to-[#1C3044] px-6 py-4 flex items-center justify-between">
+                <div className="bg-gradient-to-r from-[#27435B] to-[#1C3044] px-4 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <div className="flex items-center gap-2">
                         <ClipboardList size={15} color="#fff" />
                         <span className="text-white font-bold text-[14px]">Salary History — All Months</span>
@@ -482,7 +482,7 @@ export default function GroupCSalary() {
                     </div>
                     <div className="flex items-center gap-2">
                         <div className="flex rounded-xl overflow-hidden border border-white/20">
-                            {["ALL","PAID","HOLD"].map(opt => (
+                            {["ALL", "PAID", "HOLD"].map(opt => (
                                 <button key={opt} onClick={() => setHistoryStatusFilter(opt)}
                                     className={`px-3 py-1.5 text-[11.5px] font-bold transition-all ${historyStatusFilter === opt ? "bg-white/25 text-white" : "text-white/55 hover:text-white hover:bg-white/10"}`}>{opt}</button>
                             ))}
@@ -495,11 +495,11 @@ export default function GroupCSalary() {
                     </div>
                 </div>
                 <div className="overflow-x-auto">
-                    <table className="w-full text-[13px]">
+                    <table className="w-full text-[12px] sm:text-[13px] min-w-[700px]">
                         <thead>
                             <tr className="bg-[#EAF1F6] border-b border-[#C8DCEC]">
                                 {["Name", "Role", "Month / Year", "Basic Salary", "Bonus", "Leave Days", "Deductions", "Net Salary", "Status", "Payment Date"].map(h => (
-                                    <th key={h} className="px-4 py-3 text-left text-[11px] font-bold text-[#27435B] uppercase tracking-wide whitespace-nowrap">{h}</th>
+                                    <th key={h} className="px-3 sm:px-4 py-2.5 sm:py-3 text-left text-[10px] sm:text-[11px] font-bold text-[#27435B] uppercase tracking-wide whitespace-nowrap">{h}</th>
                                 ))}
                             </tr>
                         </thead>
@@ -510,7 +510,7 @@ export default function GroupCSalary() {
                                 </td></tr>
                             ) : filteredHistory.map((r, idx) => (
                                 <tr key={r.id || idx} className="border-b border-[#EAF1F6] hover:bg-[#F5FAFE] transition-colors">
-                                    <td className="px-4 py-3 font-semibold text-[#1A2E3D]">{rowName(r)}</td>
+                                    <td className="px-3 sm:px-4 py-2.5 sm:py-3 font-semibold text-[#1A2E3D]">{rowName(r)}</td>
                                     <td className="px-4 py-3 text-[#4A6B80] text-[12px]">{rowRole(r)}</td>
                                     <td className="px-4 py-3 text-[#4A6B80] font-medium">{monthName(r.month)} {r.year}</td>
                                     <td className="px-4 py-3 font-semibold text-[#27435B]">₹{Number(r.basicSalary || 0).toLocaleString("en-IN")}</td>
@@ -601,10 +601,10 @@ export default function GroupCSalary() {
                                     </div>
                                     <div className="grid grid-cols-2 gap-2.5">
                                         {[
-                                            { icon: Mail,        label: "Email",        val: staffDetail.email || "—" },
-                                            { icon: Wrench,      label: "Role",         val: staffDetail.role || "—" },
+                                            { icon: Mail, label: "Email", val: staffDetail.email || "—" },
+                                            { icon: Wrench, label: "Role", val: staffDetail.role || "—" },
                                             { icon: IndianRupee, label: "Basic Salary", val: `₹${Number(staffDetail.basicSalary || 0).toLocaleString("en-IN")}` },
-                                            { icon: Building2,   label: "Group",        val: staffDetail.groupType || "Group C" },
+                                            { icon: Building2, label: "Group", val: staffDetail.groupType || "Group C" },
                                         ].map((f, i) => (
                                             <div key={i} className="bg-white border border-[#C8DCEC] rounded-xl p-2.5">
                                                 <div className="flex items-center gap-1.5 text-[9.5px] font-bold text-[#4A6B80] uppercase tracking-wide mb-1"><f.icon size={10} />{f.label}</div>
@@ -616,8 +616,8 @@ export default function GroupCSalary() {
                             )}
                             <div className="grid grid-cols-3 gap-3">
                                 {[
-                                    { label: "Bonus (₹)",           color: "text-[#1E7E4E]", prefix: "+", val: bonus,     set: setBonus },
-                                    { label: "Leave Days",          color: "text-[#B08A00]", prefix: "L", val: leaveDays, set: setLeaveDays },
+                                    { label: "Bonus (₹)", color: "text-[#1E7E4E]", prefix: "+", val: bonus, set: setBonus },
+                                    { label: "Leave Days", color: "text-[#B08A00]", prefix: "L", val: leaveDays, set: setLeaveDays },
                                     { label: "Extra Deduction (₹)", color: "text-[#B83232]", prefix: "-", val: deduction, set: setDeduction },
                                 ].map((f, i) => (
                                     <div key={i} className="flex flex-col gap-1">
@@ -632,7 +632,7 @@ export default function GroupCSalary() {
                             {leaveDays > 0 && staffDetail && (
                                 <div className="bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-2.5 text-[12px] text-amber-700 flex items-center gap-2">
                                     <ClipboardList size={13} />
-                                    <span><span className="font-bold">{leaveDays} leave day(s)</span> × ₹{Math.round((Number(staffDetail.basicSalary||0)*12)/365).toLocaleString("en-IN")}/day = <span className="font-bold">₹{leaveDedPreview.toLocaleString("en-IN")}</span> auto-deducted</span>
+                                    <span><span className="font-bold">{leaveDays} leave day(s)</span> × ₹{Math.round((Number(staffDetail.basicSalary || 0) * 12) / 365).toLocaleString("en-IN")}/day = <span className="font-bold">₹{leaveDedPreview.toLocaleString("en-IN")}</span> auto-deducted</span>
                                 </div>
                             )}
                             <div className="bg-gradient-to-r from-[#27435B] to-[#1A2E3D] rounded-2xl px-5 py-3.5 flex items-center justify-between">
@@ -668,9 +668,9 @@ export default function GroupCSalary() {
                             <div className="grid grid-cols-3 gap-3">
                                 {[
                                     { label: "Staff Member", val: rowName(selectedSalary || {}) },
-                                    { label: "Role",         val: rowRole(selectedSalary || {}) },
-                                    { label: "Basic Salary", val: `₹${Number(selectedSalary?.basicSalary||0).toLocaleString("en-IN")}` },
-                                ].map((f,i) => (
+                                    { label: "Role", val: rowRole(selectedSalary || {}) },
+                                    { label: "Basic Salary", val: `₹${Number(selectedSalary?.basicSalary || 0).toLocaleString("en-IN")}` },
+                                ].map((f, i) => (
                                     <div key={i}>
                                         <div className="text-[9.5px] font-bold uppercase tracking-wide text-[#527a91] mb-0.5">{f.label}</div>
                                         <div className="text-[13px] font-semibold text-[#1A2E3D]">{f.val}</div>
@@ -681,8 +681,8 @@ export default function GroupCSalary() {
                         <div className="p-6 flex flex-col gap-4">
                             <div className="grid grid-cols-3 gap-3">
                                 {[
-                                    { label: "Bonus (₹)",           color: "text-[#1E7E4E]", prefix: "+", val: bonus,     set: setBonus },
-                                    { label: "Leave Days",          color: "text-[#B08A00]", prefix: "L", val: leaveDays, set: setLeaveDays },
+                                    { label: "Bonus (₹)", color: "text-[#1E7E4E]", prefix: "+", val: bonus, set: setBonus },
+                                    { label: "Leave Days", color: "text-[#B08A00]", prefix: "L", val: leaveDays, set: setLeaveDays },
                                     { label: "Extra Deduction (₹)", color: "text-[#B83232]", prefix: "-", val: deduction, set: setDeduction },
                                 ].map((f, i) => (
                                     <div key={i} className="flex flex-col gap-1">
@@ -749,10 +749,10 @@ export default function GroupCSalary() {
                                     </div>
                                     <div className="p-4 grid grid-cols-4 gap-3">
                                         {[
-                                            { label: "BASIC",      val: `₹${Number(h.basicSalary||0).toLocaleString("en-IN")}`,   color: "text-[#1A2E3D]" },
-                                            { label: "BONUS",      val: `+₹${Number(h.bonus||0).toLocaleString("en-IN")}`,         color: "text-green-600" },
-                                            { label: "DEDUCTIONS", val: `-₹${Number(h.deductions||0).toLocaleString("en-IN")} (${h.leaveDays??0}d)`, color: "text-red-500" },
-                                            { label: "NET SALARY", val: `₹${Number(h.netSalary||0).toLocaleString("en-IN")}`,      color: "text-[#27435B] font-bold" },
+                                            { label: "BASIC", val: `₹${Number(h.basicSalary || 0).toLocaleString("en-IN")}`, color: "text-[#1A2E3D]" },
+                                            { label: "BONUS", val: `+₹${Number(h.bonus || 0).toLocaleString("en-IN")}`, color: "text-green-600" },
+                                            { label: "DEDUCTIONS", val: `-₹${Number(h.deductions || 0).toLocaleString("en-IN")} (${h.leaveDays ?? 0}d)`, color: "text-red-500" },
+                                            { label: "NET SALARY", val: `₹${Number(h.netSalary || 0).toLocaleString("en-IN")}`, color: "text-[#27435B] font-bold" },
                                         ].map((f, j) => (
                                             <div key={j} className="bg-[#F5FAFE] border border-[#EAF1F6] rounded-xl p-3">
                                                 <div className="text-[9.5px] font-bold text-[#8AAFC4] uppercase tracking-wide mb-1">{f.label}</div>
@@ -782,11 +782,11 @@ export default function GroupCSalary() {
                         <div className="p-6">
                             <div className="bg-[#EAF1F6] rounded-2xl p-4 mb-4 grid grid-cols-2 gap-3">
                                 {[
-                                    { label: "Employee",   val: rowName(selectedSalary) },
-                                    { label: "Role",       val: rowRole(selectedSalary) },
+                                    { label: "Employee", val: rowName(selectedSalary) },
+                                    { label: "Role", val: rowRole(selectedSalary) },
                                     { label: "Pay Period", val: `${monthName(selectedSalary.month)} ${selectedSalary.year}` },
-                                    { label: "Group",      val: "Group C" },
-                                ].map((f,i) => (
+                                    { label: "Group", val: "Group C" },
+                                ].map((f, i) => (
                                     <div key={i}>
                                         <div className="text-[10px] font-bold text-[#527a91] uppercase tracking-wide mb-0.5">{f.label}</div>
                                         <div className="text-[13px] font-semibold text-[#1A2E3D]">{f.val}</div>
@@ -795,10 +795,10 @@ export default function GroupCSalary() {
                             </div>
                             <div className="grid grid-cols-3 gap-3 mb-4">
                                 {[
-                                    { label: "Basic Salary", val: `₹${Number(selectedSalary.basicSalary||0).toLocaleString("en-IN")}`, color: "text-[#1A2E3D]" },
-                                    { label: "Bonus",        val: `+₹${Number(selectedSalary.bonus||0).toLocaleString("en-IN")}`,       color: "text-green-600" },
-                                    { label: "Deductions",   val: `-₹${Number(selectedSalary.deductions||0).toLocaleString("en-IN")}`,  color: "text-red-500" },
-                                ].map((f,i) => (
+                                    { label: "Basic Salary", val: `₹${Number(selectedSalary.basicSalary || 0).toLocaleString("en-IN")}`, color: "text-[#1A2E3D]" },
+                                    { label: "Bonus", val: `+₹${Number(selectedSalary.bonus || 0).toLocaleString("en-IN")}`, color: "text-green-600" },
+                                    { label: "Deductions", val: `-₹${Number(selectedSalary.deductions || 0).toLocaleString("en-IN")}`, color: "text-red-500" },
+                                ].map((f, i) => (
                                     <div key={i} className="bg-[#F5FAFE] border border-[#EAF1F6] rounded-xl p-3">
                                         <div className="text-[9.5px] font-bold text-[#8AAFC4] uppercase tracking-wide mb-1">{f.label}</div>
                                         <div className={`text-[13px] font-semibold ${f.color}`}>{f.val}</div>
@@ -807,7 +807,7 @@ export default function GroupCSalary() {
                             </div>
                             <div className="bg-gradient-to-r from-[#1c3040] to-[#3c5d74] rounded-2xl px-5 py-4 flex justify-between items-center mb-4">
                                 <div><div className="text-[11px] font-bold text-white/60 uppercase tracking-wide mb-1">Net Salary Payable</div><div className="text-[11px] text-white/40">For {monthName(selectedSalary.month)} {selectedSalary.year}</div></div>
-                                <div className="text-[28px] font-bold text-white">₹{Number(selectedSalary.netSalary||0).toLocaleString("en-IN")}</div>
+                                <div className="text-[28px] font-bold text-white">₹{Number(selectedSalary.netSalary || 0).toLocaleString("en-IN")}</div>
                             </div>
                             <div className="text-[10.5px] text-[#527a91] text-center italic mb-4">This is a system-generated payslip and does not require a physical signature.</div>
                             <div className="flex justify-end gap-3">

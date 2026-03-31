@@ -1,15 +1,11 @@
 // server/src/parent/controllers/timetableController.js
 // ═══════════════════════════════════════════════════════════════
-//  Parent — Timetable Controller
-//  Mirrors student timetableController but:
-//    • Auth via req.user (set by authMiddleware, same JWT)
-//    • Requires ?studentId=<uuid> query param
-//    • Validates parent owns the student via StudentParent table
+//  Parent — Timetable Controller + Redis caching
 // ═══════════════════════════════════════════════════════════════
 
 import { prisma } from "../../config/db.js";
+import cache from "../../utils/cacheService.js";
 
-// ── Guard: verify parent owns student ──────────────────────────
 async function verifyParentOwnsStudent(parentId, studentId) {
   const link = await prisma.studentParent.findFirst({
     where: { parentId, studentId },
@@ -35,24 +31,26 @@ export const getTimetable = async (req, res) => {
     if (!owns)
       return res.status(403).json({ success: false, message: "Access denied" });
 
+    // ── Cache check ──────────────────────────────────────────
+    const cacheKey = `parent:timetable:${studentId}`;
+    const cached = await cache.get(cacheKey);
+    if (cached) return res.json(JSON.parse(cached));
+
     // 2. Active enrollment
     const enrollment = await prisma.studentEnrollment.findFirst({
       where: { studentId, status: "ACTIVE" },
       orderBy: { createdAt: "desc" },
-      include: {
-        academicYear: true,
-        classSection: true,
-      },
+      include: { academicYear: true, classSection: true },
     });
 
     if (!enrollment)
       return res.status(404).json({ success: false, message: "No active enrollment found" });
 
-    // 3. Timetable config for this school + academic year
+    // 3. Timetable config
     const config = await prisma.timetableConfig.findUnique({
       where: {
         schoolId_academicYearId: {
-          schoolId:      enrollment.classSection.schoolId,
+          schoolId:       enrollment.classSection.schoolId,
           academicYearId: enrollment.academicYearId,
         },
       },
@@ -62,7 +60,7 @@ export const getTimetable = async (req, res) => {
     if (!config)
       return res.status(404).json({ success: false, message: "No timetable configured for this academic year" });
 
-    // 4. All timetable entries for this class section + academic year
+    // 4. Timetable entries
     const entries = await prisma.timetableEntry.findMany({
       where: {
         classSectionId: enrollment.classSectionId,
@@ -70,16 +68,12 @@ export const getTimetable = async (req, res) => {
       },
       include: {
         subject: { select: { id: true, name: true, code: true } },
-        teacher: {
-          include: {
-            user: { select: { name: true } },
-          },
-        },
+        teacher: { include: { user: { select: { name: true } } } },
         periodDefinition: true,
       },
     });
 
-    // 5. Build a lookup: day → periodNumber → entry
+    // 5. Build lookup: day → periodNumber → entry
     const entryMap = {};
     for (const e of entries) {
       const day = e.day;
@@ -95,7 +89,6 @@ export const getTimetable = async (req, res) => {
     const WEEKDAYS  = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"];
     const SATURDAYS = ["SATURDAY"];
 
-    // Collect only days that actually have definitions
     const allDays = [];
     if (weekdayDefs.length  > 0) allDays.push(...WEEKDAYS);
     if (saturdayDefs.length > 0) allDays.push(...SATURDAYS);
@@ -107,48 +100,54 @@ export const getTimetable = async (req, res) => {
       timetable[day] = defs.map((def) => {
         const entry = entryMap[day]?.[def.periodNumber];
         return {
-          id:          def.id,
+          id:           def.id,
           periodNumber: def.periodNumber,
-          label:       def.label,
-          slotType:    def.slotType,
-          startTime:   def.startTime,
-          endTime:     def.endTime,
-          subject:     entry ? { id: entry.subject.id, name: entry.subject.name, code: entry.subject.code } : null,
-          teacher:     entry ? { name: entry.teacher?.user?.name ?? null } : null,
-          roomNumber:  null, // extend if your schema has room
+          label:        def.label,
+          slotType:     def.slotType,
+          startTime:    def.startTime,
+          endTime:      def.endTime,
+          subject: entry
+            ? { id: entry.subject.id, name: entry.subject.name, code: entry.subject.code }
+            : null,
+          teacher:    entry ? { name: entry.teacher?.user?.name ?? null } : null,
+          roomNumber: null,
         };
       });
     }
 
     // 8. Stats
-    const allDefs = [...weekdayDefs, ...saturdayDefs];
+    const allDefs   = [...weekdayDefs, ...saturdayDefs];
     const periodDefs = allDefs.filter(d => d.slotType === "PERIOD");
-    const times = allDefs.filter(d => d.startTime && d.endTime);
-    const dayStart = times.length > 0
+    const times     = allDefs.filter(d => d.startTime && d.endTime);
+    const dayStart  = times.length > 0
       ? times.reduce((min, d) => d.startTime < min ? d.startTime : min, times[0].startTime)
       : null;
     const dayEnd = times.length > 0
       ? times.reduce((max, d) => d.endTime > max ? d.endTime : max, times[0].endTime)
       : null;
 
-    return res.json({
+    const response = {
       success: true,
       data: {
         enrollment: {
-          className:   enrollment.classSection.name,
-          academicYear: enrollment.academicYear.name,
+          className:       enrollment.classSection.name,
+          academicYear:    enrollment.academicYear.name,
           admissionNumber: enrollment.admissionNumber,
         },
         days: allDays,
         timetable,
         stats: {
-          workingDays: allDays.length,
+          workingDays:  allDays.length,
           dayStart,
           dayEnd,
           totalPeriods: periodDefs.length,
         },
       },
-    });
+    };
+
+    await cache.set(cacheKey, response);
+    return res.json(response);
+
   } catch (err) {
     console.error("[parent/getTimetable]", err);
     return res.status(500).json({ success: false, message: "Server error" });
