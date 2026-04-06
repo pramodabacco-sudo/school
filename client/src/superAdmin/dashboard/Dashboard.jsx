@@ -1,334 +1,556 @@
-import React from "react";
+// client/src/superAdmin/dashboard/Dashboard.jsx
+import React, { useEffect, useState, useCallback } from "react";
 import {
-  Users,
-  BookOpen,
-  Calendar,
-  DollarSign,
-  TrendingUp,
-  TrendingDown,
-  MoreVertical,
-  ArrowUpRight,
+  GraduationCap, BookOpen, Building2, Users,
+  Calendar, RefreshCw, School, AlertCircle,
+  Activity, ShieldCheck, DollarSign, UserCheck,
 } from "lucide-react";
+import { getToken } from "../../auth/storage"; // ✅ same import as teacher dashboard
 
-function Dashboard() {
-  const stats = [
-    {
-      label: "Total Students",
-      value: "2,847",
-      change: "+12%",
-      trend: "up",
-      icon: Users,
-      color: "from-blue-500 to-blue-600",
-      bgColor: "bg-blue-50",
-      textColor: "text-blue-600",
-    },
-    {
-      label: "Total Teachers",
-      value: "142",
-      change: "+3%",
-      trend: "up",
-      icon: BookOpen,
-      color: "from-purple-500 to-purple-600",
-      bgColor: "bg-purple-50",
-      textColor: "text-purple-600",
-    },
-    {
-      label: "Events Today",
-      value: "8",
-      change: "-2",
-      trend: "down",
-      icon: Calendar,
-      color: "from-green-500 to-green-600",
-      bgColor: "bg-green-50",
-      textColor: "text-green-600",
-    },
-    {
-      label: "Revenue",
-      value: "$54,239",
-      change: "+18%",
-      trend: "up",
-      icon: DollarSign,
-      color: "from-orange-500 to-orange-600",
-      bgColor: "bg-orange-50",
-      textColor: "text-orange-600",
-    },
-  ];
+// ── API base — same pattern as teacher dashboard ──────────────
+// VITE_API_URL=http://localhost:5000  (no /api suffix)
+// per-call we add /api/...  e.g. ${API}/api/schools
+const API = import.meta.env.VITE_API_URL;
 
-  const recentStudents = [
-    {
-      name: "Emma Wilson",
-      grade: "10th Grade",
-      status: "Present",
-      avatar: "EW",
-      id: "#2847",
-    },
-    {
-      name: "Liam Brown",
-      grade: "9th Grade",
-      status: "Absent",
-      avatar: "LB",
-      id: "#2846",
-    },
-    {
-      name: "Olivia Davis",
-      grade: "11th Grade",
-      status: "Present",
-      avatar: "OD",
-      id: "#2845",
-    },
-    {
-      name: "Noah Martinez",
-      grade: "8th Grade",
-      status: "Late",
-      avatar: "NM",
-      id: "#2844",
-    },
-    {
-      name: "Ava Johnson",
-      grade: "10th Grade",
-      status: "Present",
-      avatar: "AJ",
-      id: "#2843",
-    },
-  ];
+// ── Design tokens — matching teacher dashboard palette ─────────
+const C = {
+  slate:       "#6A89A7",
+  mist:        "#BDDDFC",
+  sky:         "#88BDF2",
+  deep:        "#384959",
+  deepDark:    "#243340",
+  bg:          "#EDF3FA",
+  white:       "#FFFFFF",
+  border:      "#C8DCF0",
+  borderLight: "#DDE9F5",
+  text:        "#243340",
+  textLight:   "#6A89A7",
+};
 
-  const upcomingEvents = [
-    {
-      title: "Parent-Teacher Meeting",
-      date: "Feb 20, 2026",
-      time: "2:00 PM",
-      color: "bg-blue-500",
-    },
-    {
-      title: "Science Fair",
-      date: "Feb 25, 2026",
-      time: "10:00 AM",
-      color: "bg-purple-500",
-    },
-    {
-      title: "Sports Day",
-      date: "Mar 1, 2026",
-      time: "9:00 AM",
-      color: "bg-green-500",
-    },
-    {
-      title: "Annual Day Celebration",
-      date: "Mar 5, 2026",
-      time: "6:00 PM",
-      color: "bg-orange-500",
-    },
-  ];
+// ── Helpers ────────────────────────────────────────────────────
+const greeting   = () => { const h = new Date().getHours(); return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"; };
+const formatDate = () => new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+const acYear     = () => { const n = new Date(), y = n.getFullYear(); return n.getMonth() >= 5 ? `${y}-${String(y+1).slice(2)}` : `${y-1}-${String(y).slice(2)}`; };
 
-  const classPerformance = [
-    { class: "Grade 10-A", students: 45, avgScore: 87, status: "excellent" },
-    { class: "Grade 9-B", students: 42, avgScore: 78, status: "good" },
-    { class: "Grade 11-C", students: 38, avgScore: 92, status: "excellent" },
-    { class: "Grade 8-A", students: 40, avgScore: 72, status: "average" },
-  ];
+function getAdminName() {
+  try {
+    for (const k of ["user", "authUser", "userData", "currentUser"]) {
+      const raw = localStorage.getItem(k);
+      if (!raw) continue;
+      const p = JSON.parse(raw);
+      if (p?.name)       return p.name;
+      if (p?.user?.name) return p.user.name;
+    }
+  } catch { /* ignore */ }
+  return "Admin";
+}
+
+// ── Shared skeleton ────────────────────────────────────────────
+function Pulse({ w = "100%", h = 13, r = 8 }) {
+  return (
+    <div
+      className="animate-pulse"
+      style={{ width: w, height: h, borderRadius: r, background: `${C.mist}55` }}
+    />
+  );
+}
+
+function SkeletonRows({ n = 4 }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {Array.from({ length: n }).map((_, i) => (
+        <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderRadius: 12, background: C.bg, border: `1.5px solid ${C.borderLight}` }}>
+          <Pulse w={32} h={32} r={10} />
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+            <Pulse w="55%" h={12} r={5} />
+            <Pulse w="38%" h={10} r={4} />
+          </div>
+          <Pulse w={50} h={22} r={20} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Stat card ─────────────────────────────────────────────────
+function StatCard({ label, value, sub, icon: Icon, accent, loading }) {
+  return (
+    <div style={{ background: C.white, borderRadius: 18, border: `1.5px solid ${C.borderLight}`, boxShadow: "0 2px 14px rgba(56,73,89,0.07)", padding: "18px 20px", position: "relative", overflow: "hidden" }}>
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, ${accent}, ${C.deep})` }} />
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+        <div style={{ flex: 1 }}>
+          <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: C.textLight, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>{label}</p>
+          {loading ? (
+            <>
+              <Pulse w={60} h={28} r={6} />
+              <div style={{ marginTop: 6 }}><Pulse w={90} h={10} r={4} /></div>
+            </>
+          ) : (
+            <>
+              <p style={{ margin: 0, fontSize: 28, fontWeight: 900, color: C.text, lineHeight: 1 }}>{value ?? "—"}</p>
+              {sub && <p style={{ margin: "5px 0 0", fontSize: 12, color: C.textLight }}>{sub}</p>}
+            </>
+          )}
+        </div>
+        <div style={{ width: 44, height: 44, borderRadius: 14, background: `${accent}16`, border: `1px solid ${accent}28`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginLeft: 12 }}>
+          <Icon size={20} color={accent} strokeWidth={2} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Panel wrapper ─────────────────────────────────────────────
+function Panel({ icon: Icon, iconBg, title, badge, sub, children }) {
+  return (
+    <div style={{ background: C.white, borderRadius: 18, border: `1.5px solid ${C.borderLight}`, boxShadow: "0 2px 16px rgba(56,73,89,0.06)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+      <div style={{ padding: "14px 18px", borderBottom: `1.5px solid ${C.borderLight}`, display: "flex", alignItems: "center", gap: 10, background: `linear-gradient(90deg, ${C.bg}, ${C.white})` }}>
+        <div style={{ width: 38, height: 38, borderRadius: 12, background: iconBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <Icon size={17} color="#fff" strokeWidth={2} />
+        </div>
+        <div>
+          <p style={{ margin: 0, fontSize: 14, fontWeight: 800, color: C.text }}>
+            {title}
+            {badge && (
+              <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: `${C.sky}18`, color: C.deep }}>
+                {badge}
+              </span>
+            )}
+          </p>
+          <p style={{ margin: 0, fontSize: 11, color: C.textLight }}>{sub}</p>
+        </div>
+      </div>
+      <div style={{ padding: 16, flex: 1 }}>{children}</div>
+    </div>
+  );
+}
+
+// ── User row ──────────────────────────────────────────────────
+function UserRow({ user }) {
+  const initials = (user.name || "?").split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+
+  const roleConfig = {
+    ADMIN:       { bg: "#7C3AED22", color: "#7C3AED", label: "Admin"       },
+    TEACHER:     { bg: `${C.sky}22`, color: C.deep,   label: "Teacher"     },
+    STUDENT:     { bg: "#05966922", color: "#059669",  label: "Student"     },
+    PARENT:      { bg: "#D9770622", color: "#D97706",  label: "Parent"      },
+    FINANCE:     { bg: "#DC262622", color: "#DC2626",  label: "Finance"     },
+    SUPER_ADMIN: { bg: `${C.slate}22`, color: C.slate, label: "Super Admin" },
+  };
+  const role = roleConfig[user.role] || { bg: `${C.slate}18`, color: C.slate, label: user.role };
+
+  return (
+    <div
+      style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderRadius: 12, background: C.bg, border: `1.5px solid ${C.borderLight}`, transition: "box-shadow 0.2s" }}
+      onMouseEnter={(e) => (e.currentTarget.style.boxShadow = `0 3px 12px ${C.sky}22`)}
+      onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "none")}
+    >
+      <div style={{ width: 32, height: 32, borderRadius: 10, background: role.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <span style={{ fontSize: 11, fontWeight: 900, color: role.color }}>{initials}</span>
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.name}</p>
+        <p style={{ margin: 0, fontSize: 11, color: C.textLight, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.school?.name || user.email || "—"}</p>
+      </div>
+      <span style={{ fontSize: 9, fontWeight: 800, padding: "2px 8px", borderRadius: 20, background: role.bg, color: role.color, letterSpacing: "0.04em", flexShrink: 0, whiteSpace: "nowrap" }}>
+        {role.label.toUpperCase()}
+      </span>
+    </div>
+  );
+}
+
+// ── School row ────────────────────────────────────────────────
+function SchoolRow({ school }) {
+  return (
+    <div
+      style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderRadius: 12, background: C.bg, border: `1.5px solid ${C.borderLight}`, transition: "box-shadow 0.2s" }}
+      onMouseEnter={(e) => (e.currentTarget.style.boxShadow = `0 3px 12px ${C.sky}22`)}
+      onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "none")}
+    >
+      <div style={{ width: 32, height: 32, borderRadius: 10, background: `${C.sky}18`, border: `1px solid ${C.sky}33`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <School size={14} color={C.sky} strokeWidth={2} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{school.name}</p>
+        <p style={{ margin: 0, fontSize: 11, color: C.textLight }}>{school.city || "—"} · {school.students ?? 0} students</p>
+      </div>
+      <span style={{ width: 8, height: 8, borderRadius: "50%", background: school.isActive ? "#059669" : C.borderLight, flexShrink: 0 }} />
+    </div>
+  );
+}
+
+// ── Empty state ───────────────────────────────────────────────
+function Empty({ message }) {
+  return (
+    <div style={{ padding: "40px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+      <div style={{ width: 52, height: 52, borderRadius: 16, background: `${C.sky}18`, border: `1px solid ${C.sky}33`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <AlertCircle size={22} color={C.sky} strokeWidth={1.5} />
+      </div>
+      <p style={{ margin: 0, fontWeight: 700, fontSize: 13, color: C.text }}>No data</p>
+      <p style={{ margin: 0, fontSize: 12, color: C.textLight, textAlign: "center" }}>{message}</p>
+    </div>
+  );
+}
+
+// ── Main Dashboard ─────────────────────────────────────────────
+export default function Dashboard() {
+  // ✅ Exact same pattern as teacher dashboard
+  const headers = { Authorization: `Bearer ${getToken()}` };
+
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
+  const [usersLoading,     setUsersLoading]     = useState(true);
+  const [schoolsLoading,   setSchoolsLoading]   = useState(true);
+  const [analyticsError,   setAnalyticsError]   = useState("");
+  const [refreshKey,       setRefreshKey]       = useState(0);
+
+  const [stats,      setStats]      = useState({});
+  const [topSchools, setTopSchools] = useState([]);
+  const [users,      setUsers]      = useState([]);
+  const [counts,     setCounts]     = useState({});
+  const [schoolList, setSchoolList] = useState([]);
+
+  const adminName = getAdminName();
+
+  // ── Fetchers — same style as teacher dashboard ──────────────
+  const fetchAnalytics = useCallback(async () => {
+    setAnalyticsLoading(true); setAnalyticsError("");
+    try {
+      // GET /api/superadmin/analytics?range=30d
+      const json = await fetch(`${API}/api/superadmin/analytics?range=30d`, { headers }).then((r) => r.json());
+      if (json.stats) {
+        setStats(json.stats);
+        setTopSchools(json.topSchools ?? []);
+      } else {
+        setAnalyticsError(json.message || "Failed to load analytics");
+      }
+    } catch {
+      setAnalyticsError("Network error — could not load analytics");
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  }, [refreshKey]);
+
+  const fetchUsers = useCallback(async () => {
+    setUsersLoading(true);
+    try {
+      // GET /api/users/all?limit=8&page=1
+      const json = await fetch(`${API}/api/users/all?limit=8&page=1`, { headers }).then((r) => r.json());
+      setUsers(json.users  ?? []);
+      setCounts(json.counts ?? {});
+    } catch { /* silently fail */ }
+    finally   { setUsersLoading(false); }
+  }, [refreshKey]);
+
+  const fetchSchools = useCallback(async () => {
+    setSchoolsLoading(true);
+    try {
+      // GET /api/schools  → { source, schools }
+      const json = await fetch(`${API}/api/schools`, { headers }).then((r) => r.json());
+      setSchoolList(json.schools ?? []);
+    } catch { /* silently fail */ }
+    finally   { setSchoolsLoading(false); }
+  }, [refreshKey]);
+
+  useEffect(() => {
+    fetchAnalytics(); fetchUsers(); fetchSchools();
+  }, [fetchAnalytics, fetchUsers, fetchSchools]);
+
+  const anyLoading   = analyticsLoading || usersLoading || schoolsLoading;
+  const displaySchools = topSchools.length > 0 ? topSchools : schoolList;
 
   return (
     <>
-      <div className="p-4 md:p-6">
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-800">
-            Dashboard Overview
-          </h1>
-          <p className="text-gray-500 mt-1">
-            Welcome back, Admin! Here's what's happening today.
-          </p>
-        </div>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&display=swap');
+        *{font-family:'DM Sans',sans-serif}
+        .df{animation:dfUp 0.45s cubic-bezier(0.22,1,0.36,1) both}
+        .df1{animation-delay:.04s}.df2{animation-delay:.1s}.df3{animation-delay:.16s}
+        @keyframes dfUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+        .animate-pulse{animation:pulse 1.8s cubic-bezier(0.4,0,0.6,1) infinite}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+        .animate-spin{animation:spin 1s linear infinite}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        @media(max-width:700px){.two-col{grid-template-columns:1fr !important}.pills{grid-template-columns:1fr 1fr !important}}
+      `}</style>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6">
-          {stats.map((stat, idx) => (
-            <div
-              key={idx}
-              className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow"
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div
-                  className={`${stat.bgColor} w-12 h-12 rounded-lg flex items-center justify-center`}
-                >
-                  <stat.icon className={`w-6 h-6 ${stat.textColor}`} />
-                </div>
-                <span
-                  className={`flex items-center gap-1 text-sm font-semibold ${stat.trend === "up" ? "text-green-500" : "text-red-500"}`}
-                >
-                  {stat.trend === "up" ? (
-                    <TrendingUp className="w-4 h-4" />
-                  ) : (
-                    <TrendingDown className="w-4 h-4" />
-                  )}
-                  {stat.change}
+      <div style={{ minHeight: "100vh", background: C.bg, padding: "24px 20px 40px" }}>
+        <div style={{ maxWidth: 1400, margin: "0 auto" }}>
+
+          {/* ── Header ─────────────────────────────────────────── */}
+          <div className="df" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24, gap: 12, flexWrap: "wrap" }}>
+            <div>
+              <p style={{ margin: "0 0 4px 14px", fontSize: 11, fontWeight: 700, color: C.textLight, textTransform: "uppercase", letterSpacing: "0.1em" }}> Super Admin Dashboard</p>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                <div style={{ width: 4, height: 30, borderRadius: 99, background: `linear-gradient(180deg, ${C.sky}, ${C.deep})` }} />
+                <h1 style={{ margin: 0, fontSize: "clamp(20px,5vw,28px)", fontWeight: 900, color: C.text, letterSpacing: "-0.5px" }}>
+                  {greeting()},{" "}
+                  <span style={{ color: C.sky }}>{adminName}</span>
+                  {" "}👋
+                </h1>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, paddingLeft: 14, flexWrap: "wrap" }}>
+                <p style={{ margin: 0, fontSize: 13, color: C.textLight, fontWeight: 500 }}>{formatDate()}</p>
+                <span style={{ fontSize: 11, fontWeight: 800, padding: "2px 10px", borderRadius: 20, background: C.deep, color: C.white, letterSpacing: "0.05em" }}>
+                  {acYear()}
                 </span>
               </div>
-              <h3 className="text-gray-500 text-sm font-medium">
-                {stat.label}
-              </h3>
-              <p className="text-3xl font-bold text-gray-800 mt-1">
-                {stat.value}
-              </p>
             </div>
-          ))}
-        </div>
 
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          {/* Recent Students */}
-          <div className="lg:col-span-2 bg-white rounded-xl shadow-sm">
-            <div className="flex items-center justify-between p-6 border-b">
-              <h3 className="text-lg font-bold text-gray-800">
-                Recent Student Activity
-              </h3>
-              <button className="text-blue-600 text-sm font-medium hover:underline">
-                View All
-              </button>
-            </div>
-            <div className="p-6">
-              <div className="space-y-4">
-                {recentStudents.map((student, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition group"
-                  >
-                    <div className="flex items-center gap-3 flex-1">
-                      <div className="w-11 h-11 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                        {student.avatar}
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-semibold text-gray-800">
-                          {student.name}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          {student.grade} • {student.id}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          student.status === "Present"
-                            ? "bg-green-100 text-green-700"
-                            : student.status === "Absent"
-                              ? "bg-red-100 text-red-700"
-                              : "bg-yellow-100 text-yellow-700"
-                        }`}
-                      >
-                        {student.status}
-                      </span>
-                      <button className="opacity-0 group-hover:opacity-100 transition">
-                        <MoreVertical className="w-5 h-5 text-gray-400" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Upcoming Events */}
-          <div className="bg-white rounded-xl shadow-sm">
-            <div className="flex items-center justify-between p-6 border-b">
-              <h3 className="text-lg font-bold text-gray-800">
-                Upcoming Events
-              </h3>
-              <button className="text-blue-600 text-sm font-medium hover:underline">
-                View All
-              </button>
-            </div>
-            <div className="p-6">
-              <div className="space-y-4">
-                {upcomingEvents.map((event, idx) => (
-                  <div key={idx} className="flex gap-3 group cursor-pointer">
-                    <div className={`w-1 ${event.color} rounded-full`}></div>
-                    <div className="flex-1 pb-4 border-b last:border-0 group-hover:bg-gray-50 -m-2 p-2 rounded transition">
-                      <h4 className="font-semibold text-sm text-gray-800">
-                        {event.title}
-                      </h4>
-                      <p className="text-xs text-gray-500 mt-1">{event.date}</p>
-                      <p className="text-xs text-gray-400">{event.time}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Class Performance */}
-        <div className="bg-white rounded-xl shadow-sm">
-          <div className="flex items-center justify-between p-6 border-b">
-            <h3 className="text-lg font-bold text-gray-800">
-              Class Performance
-            </h3>
-            <button className="text-blue-600 text-sm font-medium hover:underline flex items-center gap-1">
-              Full Report <ArrowUpRight className="w-4 h-4" />
+            <button
+              onClick={() => setRefreshKey((k) => k + 1)}
+              title="Refresh"
+              style={{ width: 40, height: 40, borderRadius: 12, border: `1.5px solid ${C.borderLight}`, background: C.white, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: C.textLight, boxShadow: "0 1px 4px rgba(56,73,89,0.06)", flexShrink: 0 }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = `${C.mist}55`)}
+              onMouseLeave={(e) => (e.currentTarget.style.background = C.white)}
+            >
+              <RefreshCw size={15} className={anyLoading ? "animate-spin" : ""} />
             </button>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Class
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Students
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Avg Score
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Status
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {classPerformance.map((item, idx) => (
-                  <tr key={idx} className="hover:bg-gray-50 transition">
-                    <td className="px-6 py-4 text-sm font-medium text-gray-800">
-                      {item.class}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {item.students}
-                    </td>
-                    <td className="px-6 py-4 text-sm">
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 bg-gray-200 rounded-full h-2 max-w-[100px]">
-                          <div
-                            className={`h-2 rounded-full ${item.avgScore >= 85 ? "bg-green-500" : item.avgScore >= 75 ? "bg-blue-500" : "bg-yellow-500"}`}
-                            style={{ width: `${item.avgScore}%` }}
-                          ></div>
-                        </div>
-                        <span className="font-medium text-gray-800">
-                          {item.avgScore}%
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm">
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          item.status === "excellent"
-                            ? "bg-green-100 text-green-700"
-                            : item.status === "good"
-                              ? "bg-blue-100 text-blue-700"
-                              : "bg-yellow-100 text-yellow-700"
-                        }`}
-                      >
-                        {item.status.charAt(0).toUpperCase() +
-                          item.status.slice(1)}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+
+          {/* ── Quick Summary Bar ───────────────────────────────── */}
+          {!analyticsLoading && (
+            <div className="df df1" style={{ background: C.white, border: `1.5px solid ${C.borderLight}`, borderRadius: 14, padding: "10px 18px", marginBottom: 20, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", boxShadow: "0 1px 6px rgba(56,73,89,0.05)" }}>
+              <Activity size={13} color={C.sky} strokeWidth={2} />
+              <span style={{ fontSize: 12, fontWeight: 700, color: C.textLight, marginRight: 8 }}>Quick summary —</span>
+              {[
+                { label: "students", value: stats.totalStudents },
+                { label: "teachers", value: stats.totalTeachers },
+                { label: "schools",  value: stats.totalSchools  },
+                { label: "admins",   value: stats.totalAdmins   },
+              ].map(({ label, value }) => (
+                <span key={label} style={{ fontSize: 12, color: C.textLight }}>
+                  <span style={{ fontWeight: 800, color: C.text }}>{value?.toLocaleString() ?? "—"}</span>{" "}{label}
+                  <span style={{ margin: "0 10px", color: C.borderLight }}>·</span>
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* ── Stat Cards ──────────────────────────────────────── */}
+          <div className="df df1" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 14, marginBottom: 20 }}>
+            <StatCard label="Total Students" value={stats.totalStudents?.toLocaleString()} sub={`${stats.totalStudents ?? 0} enrolled`}        icon={GraduationCap} accent={C.sky}     loading={analyticsLoading} />
+            <StatCard label="Total Teachers" value={stats.totalTeachers?.toLocaleString()} sub={`${stats.totalTeachers ?? 0} active`}           icon={BookOpen}      accent="#059669"   loading={analyticsLoading} />
+            <StatCard label="Total Schools"  value={stats.totalSchools?.toLocaleString()}  sub={`${stats.activeSchools ?? 0} active schools`}    icon={Building2}     accent="#7C3AED"   loading={analyticsLoading} />
+            <StatCard label="Total Users"    value={stats.totalUsers?.toLocaleString()}    sub={`${counts.active ?? 0} active · ${counts.inactive ?? 0} inactive`} icon={Users} accent="#D97706" loading={analyticsLoading || usersLoading} />
           </div>
+
+          {/* ── Role Pills ──────────────────────────────────────── */}
+          {!analyticsLoading && (
+            <div className="df df2 pills" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 20 }}>
+              {[
+                { label: "Admins",         value: stats.totalAdmins,   accent: "#7C3AED" },
+                { label: "Teachers",       value: stats.totalTeachers, accent: C.deep    },
+                { label: "Parents",        value: stats.totalParents,  accent: "#D97706" },
+                { label: "Active Schools", value: stats.activeSchools, accent: "#059669" },
+              ].map(({ label, value, accent }) => (
+                <div key={label} style={{ background: C.white, border: `1.5px solid ${C.borderLight}`, borderRadius: 12, padding: "10px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 1px 4px rgba(56,73,89,0.05)" }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: C.textLight }}>{label}</span>
+                  <span style={{ fontSize: 18, fontWeight: 900, color: accent }}>{value?.toLocaleString() ?? "—"}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* ── Middle row: Recent Users | Schools ─────────────── */}
+          <div className="df df2 two-col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, marginBottom: 18, alignItems: "start" }}>
+
+            {/* Recent Users */}
+            <Panel
+              icon={Users}
+              iconBg={`linear-gradient(135deg, ${C.sky}, ${C.deep})`}
+              title="Recent Users"
+              badge={users.length ? `Last ${users.length}` : undefined}
+              sub={usersLoading ? "Loading…" : `${counts.total ?? 0} total users`}
+            >
+              {usersLoading ? <SkeletonRows n={5} /> : users.length === 0 ? (
+                <Empty message="No users found" />
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {users.slice(0, 6).map((u) => <UserRow key={u.id} user={u} />)}
+                </div>
+              )}
+
+              {!usersLoading && counts.total > 0 && (
+                <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1.5px solid ${C.borderLight}`, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, textAlign: "center" }}>
+                  {[
+                    { label: "Admins",   val: counts.admin   },
+                    { label: "Teachers", val: counts.teacher  },
+                    { label: "Students", val: counts.student  },
+                  ].map(({ label, val }) => (
+                    <div key={label}>
+                      <p style={{ margin: 0, fontSize: 17, fontWeight: 900, color: C.text }}>{val ?? 0}</p>
+                      <p style={{ margin: 0, fontSize: 11, color: C.textLight }}>{label}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Panel>
+
+            {/* Schools */}
+            <Panel
+              icon={Building2}
+              iconBg="linear-gradient(135deg, #7C3AED, #4C1D95)"
+              title="Schools"
+              badge={displaySchools.length ? `${displaySchools.length} listed` : undefined}
+              sub={schoolsLoading && analyticsLoading ? "Loading…" : `${stats.activeSchools ?? 0} active · ${(stats.totalSchools ?? 0) - (stats.activeSchools ?? 0)} inactive`}
+            >
+              {schoolsLoading && analyticsLoading ? <SkeletonRows n={5} /> : displaySchools.length === 0 ? (
+                <Empty message="No schools found" />
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {displaySchools.slice(0, 6).map((s) => <SchoolRow key={s.id} school={s} />)}
+                </div>
+              )}
+
+              {!analyticsLoading && stats.totalSchools > 0 && (
+                <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1.5px solid ${C.borderLight}`, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, textAlign: "center" }}>
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 2 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#059669", display: "inline-block" }} />
+                      <p style={{ margin: 0, fontSize: 17, fontWeight: 900, color: C.text }}>{stats.activeSchools ?? 0}</p>
+                    </div>
+                    <p style={{ margin: 0, fontSize: 11, color: C.textLight }}>Active</p>
+                  </div>
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 2 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: C.borderLight, display: "inline-block" }} />
+                      <p style={{ margin: 0, fontSize: 17, fontWeight: 900, color: C.textLight }}>{(stats.totalSchools ?? 0) - (stats.activeSchools ?? 0)}</p>
+                    </div>
+                    <p style={{ margin: 0, fontSize: 11, color: C.textLight }}>Inactive</p>
+                  </div>
+                </div>
+              )}
+            </Panel>
+          </div>
+
+          {/* ── Bottom row: Breakdown | School Table ───────────── */}
+          <div className="df df3 two-col" style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 18, alignItems: "start" }}>
+
+            {/* User breakdown bars */}
+            <Panel
+              icon={Activity}
+              iconBg={`linear-gradient(135deg, ${C.slate}, ${C.deep})`}
+              title="User Breakdown"
+              sub="Distribution across all roles"
+            >
+              {usersLoading ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                  {[...Array(5)].map((_, i) => <div key={i}><Pulse w="60%" h={10} r={4} /><div style={{ marginTop: 6 }}><Pulse w="100%" h={8} r={4} /></div></div>)}
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                  {[
+                    { role: "Super Admins",  count: counts.superAdmin, color: C.slate    },
+                    { role: "School Admins", count: counts.admin,      color: "#7C3AED"  },
+                    { role: "Teachers",      count: counts.teacher,    color: C.sky      },
+                    { role: "Students",      count: counts.student,    color: "#059669"  },
+                    { role: "Parents",       count: counts.parent,     color: "#D97706"  },
+                    { role: "Finance",       count: counts.finance,    color: "#DC2626"  },
+                  ].map(({ role, count, color }) => {
+                    const pct = counts.total ? Math.round(((count || 0) / counts.total) * 100) : 0;
+                    return (
+                      <div key={role}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: C.textLight }}>{role}</span>
+                          <span style={{ fontSize: 12, fontWeight: 800, color: C.text }}>{count ?? 0}</span>
+                        </div>
+                        <div style={{ height: 6, background: `${C.borderLight}88`, borderRadius: 99, overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 99, transition: "width 0.7s ease" }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {!usersLoading && counts.total > 0 && (
+                <div style={{ marginTop: 18, paddingTop: 14, borderTop: `1.5px solid ${C.borderLight}`, display: "flex", justifyContent: "space-between" }}>
+                  <div>
+                    <p style={{ margin: 0, fontSize: 22, fontWeight: 900, color: C.text }}>{counts.active ?? 0}</p>
+                    <p style={{ margin: 0, fontSize: 11, color: C.textLight }}>Active users</p>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <p style={{ margin: 0, fontSize: 22, fontWeight: 900, color: C.borderLight }}>{counts.inactive ?? 0}</p>
+                    <p style={{ margin: 0, fontSize: 11, color: C.textLight }}>Inactive</p>
+                  </div>
+                </div>
+              )}
+            </Panel>
+
+            {/* School detail table */}
+            <div style={{ background: C.white, borderRadius: 18, border: `1.5px solid ${C.borderLight}`, boxShadow: "0 2px 16px rgba(56,73,89,0.06)", overflow: "hidden" }}>
+              <div style={{ padding: "14px 18px", borderBottom: `1.5px solid ${C.borderLight}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: `linear-gradient(90deg, ${C.bg}, ${C.white})` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ width: 38, height: 38, borderRadius: 12, background: `linear-gradient(135deg, ${C.sky}, ${C.deep})`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <School size={17} color="#fff" strokeWidth={2} />
+                  </div>
+                  <div>
+                    <p style={{ margin: 0, fontSize: 14, fontWeight: 800, color: C.text }}>School Details</p>
+                    <p style={{ margin: 0, fontSize: 11, color: C.textLight }}>
+                      {analyticsLoading ? "Loading…" : `Top ${Math.min(topSchools.length, 5)} schools`}
+                    </p>
+                  </div>
+                </div>
+                {!analyticsLoading && (
+                  <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 10px", borderRadius: 20, background: `${C.sky}18`, color: C.deep }}>
+                    {topSchools.length} total
+                  </span>
+                )}
+              </div>
+
+              {analyticsLoading ? (
+                <div style={{ padding: 16 }}><SkeletonRows n={4} /></div>
+              ) : analyticsError ? (
+                <div style={{ padding: 16 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 14px", borderRadius: 12, background: `${C.mist}55`, border: `1px solid ${C.border}`, fontSize: 13, color: C.slate }}>
+                    <AlertCircle size={14} style={{ flexShrink: 0 }} />{analyticsError}
+                  </div>
+                </div>
+              ) : topSchools.length === 0 ? (
+                <div style={{ padding: 16 }}><Empty message="No school data available" /></div>
+              ) : (
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ background: C.bg }}>
+                        {["School", "Students", "Teachers", "Admins", "Status"].map((h) => (
+                          <th key={h} style={{ padding: "10px 18px", textAlign: "left", fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textLight, whiteSpace: "nowrap" }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {topSchools.slice(0, 5).map((s, i) => (
+                        <tr key={s.id} style={{ borderTop: `1.5px solid ${C.borderLight}`, transition: "background 0.15s" }}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = C.bg)}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                        >
+                          <td style={{ padding: "12px 18px" }}>
+                            <p style={{ margin: 0, fontWeight: 700, color: C.text, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</p>
+                            <p style={{ margin: 0, fontSize: 11, color: C.textLight }}>{s.city || "—"}</p>
+                          </td>
+                          <td style={{ padding: "12px 18px", fontWeight: 700, color: C.text }}>{s.students ?? 0}</td>
+                          <td style={{ padding: "12px 18px", fontWeight: 700, color: C.text }}>{s.teachers ?? 0}</td>
+                          <td style={{ padding: "12px 18px", fontWeight: 700, color: C.text }}>{s.admins ?? 0}</td>
+                          <td style={{ padding: "12px 18px" }}>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10, fontWeight: 800, padding: "3px 10px", borderRadius: 20, background: s.isActive ? "#05966918" : `${C.slate}18`, color: s.isActive ? "#059669" : C.slate }}>
+                              <span style={{ width: 6, height: 6, borderRadius: "50%", background: s.isActive ? "#059669" : C.borderLight, display: "inline-block" }} />
+                              {s.isActive ? "ACTIVE" : "INACTIVE"}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <p style={{ textAlign: "center", color: C.textLight, fontSize: 11, marginTop: 32 }}>
+            School Management System · {new Date().getFullYear()}
+          </p>
         </div>
       </div>
     </>
   );
 }
-
-export default Dashboard;
