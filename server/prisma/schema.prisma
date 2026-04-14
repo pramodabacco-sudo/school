@@ -2568,6 +2568,9 @@ model Device {
   name     String?
   isActive Boolean @default(true)
 
+  // ✅ NEW: IMSI / SIM number
+  deviceNumber String?
+
   // 🔗 Link to student
   studentId String?
   student   Student? @relation(fields: [studentId], references: [id], onDelete: SetNull)
@@ -2578,6 +2581,7 @@ model Device {
   locations DeviceLocation[]
 
   @@index([imei])
+  @@index([deviceNumber])
   @@index([studentId])
   @@map("devices")
 }
@@ -2588,21 +2592,48 @@ model DeviceLocation {
   deviceId String
   device   Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
 
+  // 📍 GPS Core
   latitude  Float?
   longitude Float?
   altitude  Float?
 
+  // 🔋 Basic telemetry
   battery Int?
-  speed   Float?
-  signal  Int?
+  speed   Float?   // km/h
+  signal  Int?     // signalLevel
 
+  // 🛰️ GPS quality
+  satelliteCount Int?
+  heading        Float?
+
+  // 📈 Motion / Accelerometer
+  accelX Int?
+  accelY Int?
+  accelZ Int?
+
+  accMagnitude Int?
+  motionAvg    Float?
+  accStatus    String?
+
+  // 🔋 Advanced battery info
+  batteryVoltage Int?     // mV
+  batteryStatus  String?
+
+  // ⚙️ Device behavior
+  historyFlag Boolean?
+  frequency   Int?
+
+  // ⏱️ Timestamp
   timestamp DateTime
 
-  raw Json? // 🔥 IMPORTANT: store full payload
+  // 🔥 Full raw payload (important for debugging / future)
+  raw Json?
 
   createdAt DateTime @default(now())
 
+  // ⚡ Indexes for performance
   @@index([deviceId, timestamp])
   @@index([timestamp])
+  @@index([deviceId])
   @@map("device_locations")
 }

@@ -1,9 +1,25 @@
 import express from "express";
 const router = express.Router();
 
-import * as controller from "./gps.controller.js";
+import { handleLocation } from "./gps.controller.js";
 import { validateToken } from "./gps.middleware.js";
 
-router.post("/location", validateToken, controller.handleLocation);
+/**
+ * 📍 GPS Location Ingestion (Single payload)
+ * POST /api/gps/v1/location
+ */
+router.post("/location", validateToken, handleLocation);
+
+/**
+ * 🩺 Health check (optional but useful for device testing)
+ * GET /api/gps/health
+ */
+router.get("/health", (req, res) => {
+  return res.status(200).json({
+    status: "success",
+    message: "GPS service is running",
+    timestamp: new Date(),
+  });
+});
 
 export default router;
