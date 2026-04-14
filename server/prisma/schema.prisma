@@ -2599,8 +2599,8 @@ model DeviceLocation {
 
   // 🔋 Basic telemetry
   battery Int?
-  speed   Float?   // km/h
-  signal  Int?     // signalLevel
+  speed   Float? // km/h
+  signal  Int? // signalLevel
 
   // 🛰️ GPS quality
   satelliteCount Int?
@@ -2616,7 +2616,7 @@ model DeviceLocation {
   accStatus    String?
 
   // 🔋 Advanced battery info
-  batteryVoltage Int?     // mV
+  batteryVoltage Int? // mV
   batteryStatus  String?
 
   // ⚙️ Device behavior

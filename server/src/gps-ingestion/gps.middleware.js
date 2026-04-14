@@ -1,26 +1,28 @@
-const AUTH_TOKEN = process.env.AUTH_TOKEN || "default_token";
+const AUTH_TOKEN = process.env.AUTH_TOKEN;
+
+if (!AUTH_TOKEN) {
+  throw new Error("❌ AUTH_TOKEN is not set in environment");
+}
 
 export const validateToken = (req, res, next) => {
   try {
-    // 🔑 Support token from multiple sources (device flexibility)
-    const token =
-      req.body?.api_token_data_auth ||
-      req.headers["x-api-token"] ||
-      req.headers["authorization"]?.replace("Bearer ", "");
+    const token = req.body?.api_token_data_auth;
 
-    // ⚠️ Do NOT log full tokens in production
-    console.log("🔐 Token received:", token ? "YES" : "NO");
-
-    if (!token || token !== AUTH_TOKEN) {
-      console.warn("❌ Unauthorized request");
-
+    // ❗ Strict validation (production)
+    if (!token) {
       return res.status(401).json({
         status: "error",
-        message: "Unauthorized",
+        message: "Missing api_token_data_auth",
       });
     }
 
-    console.log("✅ Token validated");
+    if (token !== AUTH_TOKEN) {
+      return res.status(401).json({
+        status: "error",
+        message: "Invalid api_token_data_auth",
+      });
+    }
+
     next();
   } catch (err) {
     next(err);
