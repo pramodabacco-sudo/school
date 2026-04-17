@@ -284,8 +284,7 @@ export default function Dashboard() {
                 <div style={{ width: 4, height: 30, borderRadius: 99, background: `linear-gradient(180deg, ${C.sky}, ${C.deep})` }} />
                 <h1 style={{ margin: 0, fontSize: "clamp(20px,5vw,28px)", fontWeight: 900, color: C.text, letterSpacing: "-0.5px" }}>
                   {greeting()},{" "}
-                  <span style={{ color: C.sky }}>{adminName}</span>
-                  {" "}👋
+                 
                 </h1>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 10, paddingLeft: 14, flexWrap: "wrap" }}>

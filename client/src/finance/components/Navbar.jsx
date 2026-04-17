@@ -1,4 +1,4 @@
-// client/src/finance/components/Navbar.jsx
+// client/src/admin/components/Navbar.jsx
 import React, { useState, useRef, useEffect } from "react";
 import {
   Search,
@@ -9,9 +9,13 @@ import {
   User,
   LogOut,
 } from "lucide-react";
+import { io } from "socket.io-client";
 import LogoutButton from "../../components/LogoutButton";
+import { getSocket } from "../../socket";
 
 const font = { fontFamily: "'DM Sans', sans-serif" };
+
+const API_URL = import.meta.env.VITE_API_URL;
 
 const initials = (name = "AU") =>
   name
@@ -25,71 +29,132 @@ const initials = (name = "AU") =>
 export default function Navbar({ onMenuClick, user }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [logoutModal, setLogoutModal] = useState(false);
-  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [search, setSearch] = useState("");
   const dropdownRef = useRef(null);
-  const mobileSearchRef = useRef(null);
-
+  const notifRef = useRef(null); // ✅ FIX 3: ref for notification panel
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const socketRef = useRef(null);
   const displayName = user?.name || "Admin User";
   const displayRole = user?.role || "Administrator";
-  const displayEmail = user?.email || "";
+  const notificationSound = new Audio("/Audio/notification.wav");
 
+useEffect(() => {
+  const socket = getSocket();
+
+  if (!socket) {
+    console.log("❌ Socket not ready in Navbar");
+    return;
+  }
+
+  console.log("✅ Navbar connected to socket");
+
+  socket.off("new_message"); // 🔥 prevent duplicate
+
+  socket.on("new_message", (msg) => {
+    console.log("🔥 NAVBAR RECEIVED:", msg);
+
+    setNotifOpen(true);
+    notificationSound.play().catch(() => {});
+
+    setNotifications((prev) => {
+      const existing = prev.find((n) => n.id === msg.chatRoomId);
+
+      if (existing) {
+        return prev.map((n) =>
+          n.id === msg.chatRoomId
+            ? { ...n, unreadCount: n.unreadCount + 1 }
+            : n
+        );
+      }
+
+      return [
+        {
+          id: msg.chatRoomId,
+          unreadCount: 1,
+          otherUser: {
+            name: msg.senderName || "User",
+          },
+        },
+        ...prev,
+      ];
+    });
+
+    setUnreadCount((c) => c + 1);
+  });
+}, [user]); // 🔥 VERY IMPORTANT
+
+  useEffect(() => {
+    console.log("Full user object:", user);
+    console.log("User name:", user?.name);
+    console.log("User role:", user?.role);
+  }, [user]);
+
+  // ✅ FIX 3: Combined outside-click handler for both dropdowns
   useEffect(() => {
     const h = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target))
         setDropdownOpen(false);
-      if (
-        mobileSearchOpen &&
-        mobileSearchRef.current &&
-        !mobileSearchRef.current.contains(e.target)
-      )
-        setMobileSearchOpen(false);
+      if (notifRef.current && !notifRef.current.contains(e.target))
+        setNotifOpen(false);
     };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
-  }, [mobileSearchOpen]);
+  }, []);
+
+  
+
+  useEffect(() => {
+  const handleChatOpened = (e) => {
+    const chatId = e.detail.chatRoomId;
+
+    setNotifications((prev) =>
+      prev.filter((n) => n.id !== chatId)
+    );
+
+    setUnreadCount((c) => Math.max(c - 1, 0));
+  };
+
+  window.addEventListener("chat_opened", handleChatOpened);
+
+  return () =>
+    window.removeEventListener("chat_opened", handleChatOpened);
+}, []);
+ 
+
+  useEffect(() => {
+    const fetchUnread = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/chat/list`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        });
+
+        const data = await res.json();
+
+        console.log("📦 CHAT LIST:", data); // 🔥 DEBUG
+
+        if (data.success) {
+          const unread = data.data.filter((c) => c.unreadCount > 0);
+
+          setNotifications(unread);
+          setUnreadCount(unread.length);
+        }
+      } catch (err) {
+        console.error("❌ fetch error", err);
+      }
+    };
+
+    fetchUnread();
+  }, []);
 
   return (
     <>
-      {/* ── Mobile search drawer ── */}
-      {mobileSearchOpen && (
-        <div
-          ref={mobileSearchRef}
-          className="sm:hidden fixed top-16 left-0 right-0 z-40 px-4 py-3"
-          style={{
-            background: "#fff",
-            borderBottom: "1.5px solid #e8f1fb",
-            boxShadow: "0 4px 12px rgba(56,73,89,0.08)",
-          }}
-        >
-          <div className="relative flex items-center">
-            <Search
-              size={15}
-              className="absolute left-3 pointer-events-none"
-              style={{ color: "#6A89A7" }}
-            />
-            <input
-              autoFocus
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search students, teachers…"
-              className="w-full pl-9 pr-4 py-2 text-sm rounded-xl outline-none"
-              style={{
-                border: "1.5px solid #88BDF2",
-                background: "#f8fbff",
-                color: "#384959",
-                boxShadow: "0 0 0 3px rgba(136,189,242,0.15)",
-                ...font,
-              }}
-            />
-          </div>
-        </div>
-      )}
-
       {/* ── Top bar ── */}
       <header
-        className="sticky top-0 z-30 flex items-center justify-between h-16 px-3 sm:px-6"
+        className="sticky top-0 z-30 flex items-center justify-between h-16 px-6"
         style={{
           background: "#fff",
           borderBottom: "1.5px solid #e8f1fb",
@@ -98,7 +163,7 @@ export default function Navbar({ onMenuClick, user }) {
         }}
       >
         {/* Left */}
-        <div className="flex items-center gap-2 sm:gap-4">
+        <div className="flex items-center gap-4">
           {/* Hamburger — mobile */}
           <button
             onClick={onMenuClick}
@@ -117,7 +182,7 @@ export default function Navbar({ onMenuClick, user }) {
             <Menu size={20} />
           </button>
 
-          {/* Search bar — tablet + desktop */}
+          {/* Search bar */}
           <div className="relative hidden sm:flex items-center">
             <Search
               size={15}
@@ -129,7 +194,7 @@ export default function Navbar({ onMenuClick, user }) {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search students, teachers…"
-              className="pl-9 pr-4 py-2 text-sm rounded-xl outline-none w-52 md:w-72 lg:w-96 transition-all"
+              className="pl-9 pr-4 py-2 text-sm rounded-xl outline-none w-72 lg:w-96 transition-all"
               style={{
                 border: "1.5px solid #BDDDFC",
                 background: "#f8fbff",
@@ -149,17 +214,16 @@ export default function Navbar({ onMenuClick, user }) {
         </div>
 
         {/* Right */}
-        <div className="flex items-center gap-0.5 sm:gap-1">
-          {/* Mobile search toggle */}
+        <div className="flex items-center gap-1">
+          {/* Mobile search */}
           <button
-            className="sm:hidden p-2 rounded-xl transition-colors"
+            className="sm:hidden p-2 rounded-xl"
             style={{
-              color: mobileSearchOpen ? "#88BDF2" : "#6A89A7",
-              background: mobileSearchOpen ? "#f3f8fd" : "none",
+              color: "#6A89A7",
+              background: "none",
               border: "none",
               cursor: "pointer",
             }}
-            onClick={() => setMobileSearchOpen((o) => !o)}
           >
             <Search size={18} />
           </button>
@@ -185,38 +249,70 @@ export default function Navbar({ onMenuClick, user }) {
             />
           </button>
 
-          {/* Bell */}
-          <button
-            className="relative p-2 rounded-xl transition-colors"
-            style={{
-              color: "#6A89A7",
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "#f3f8fd")}
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.background = "transparent")
-            }
-          >
-            <Bell size={19} />
-            <span
-              className="absolute top-2 right-2 w-2 h-2 rounded-full border-2 border-white"
-              style={{ background: "#ef4444" }}
-            />
-          </button>
+          {/* ✅ FIX 3: Bell — wrapped with notifRef */}
+          <div className="relative" ref={notifRef}>
+            <button
+              onClick={() => setNotifOpen((o) => !o)}
+              className="relative p-2 rounded-xl transition-colors mr-1"
+              style={{
+                color: "#6A89A7",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "#f3f8fd")}
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.background = "transparent")
+              }
+            >
+              <Bell size={19} />
 
-          {/* Divider — hide on very small screens */}
-          <div
-            className="hidden xs:block w-px h-7 mx-1 sm:mx-2"
-            style={{ background: "#BDDDFC" }}
-          />
+              {/* 🔴 count badge */}
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 text-[10px] bg-red-500 text-white px-1.5 rounded-full">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+
+            {/* 📩 Popup */}
+            {notifOpen && (
+              <div className="absolute right-0 mt-2 w-72 bg-white border rounded-xl shadow-lg z-50">
+                <div className="p-3 font-semibold border-b">Notifications</div>
+
+                {notifications.length === 0 ? (
+                  <div className="p-3 text-sm text-gray-500">
+                    No new messages
+                  </div>
+                ) : (
+                  notifications.map((n) => (
+                    <div
+                      key={n.id}
+                      className="p-3 border-b hover:bg-gray-50 cursor-pointer"
+                      onClick={() => {
+                        setNotifOpen(false);
+                        window.location.href = "/finance/chat";
+                      }}
+                    >
+                      <p className="text-sm font-medium">{n.otherUser.name}</p>
+                      <p className="text-xs text-gray-500">
+                        {n.unreadCount} new message{n.unreadCount > 1 ? "s" : ""}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Divider */}
+          <div className="w-px h-7 mx-2" style={{ background: "#BDDDFC" }} />
 
           {/* Profile */}
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setDropdownOpen((o) => !o)}
-              className="flex items-center gap-2 sm:gap-2.5 px-1.5 sm:px-2 py-1.5 rounded-xl transition-colors"
+              className="flex items-center gap-2.5 px-2 py-1.5 rounded-xl transition-colors"
               style={{ background: "none", border: "none", cursor: "pointer" }}
               onMouseEnter={(e) =>
                 (e.currentTarget.style.background = "#f3f8fd")
@@ -225,7 +321,7 @@ export default function Navbar({ onMenuClick, user }) {
                 (e.currentTarget.style.background = "transparent")
               }
             >
-              {/* Name — desktop only */}
+              {/* Name — desktop */}
               <div className="hidden md:block text-right">
                 <p
                   className="text-sm font-semibold leading-tight"
@@ -236,19 +332,11 @@ export default function Navbar({ onMenuClick, user }) {
                 <p className="text-[11px]" style={{ color: "#6A89A7" }}>
                   {displayRole}
                 </p>
-                {displayEmail && (
-                  <p
-                    className="text-[10px] truncate max-w-[140px]"
-                    style={{ color: "#88BDF2" }}
-                  >
-                    {displayEmail}
-                  </p>
-                )}
               </div>
 
               {/* Avatar */}
               <div
-                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold flex-shrink-0"
+                className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0"
                 style={{
                   background: "linear-gradient(135deg, #88BDF2, #6A89A7)",
                   color: "#fff",
@@ -259,8 +347,9 @@ export default function Navbar({ onMenuClick, user }) {
 
               <ChevronDown
                 size={14}
-                className={`hidden md:block transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""
-                  }`}
+                className={`hidden md:block transition-transform duration-200 ${
+                  dropdownOpen ? "rotate-180" : ""
+                }`}
                 style={{ color: "#6A89A7" }}
               />
             </button>
@@ -303,14 +392,6 @@ export default function Navbar({ onMenuClick, user }) {
                     >
                       {displayRole}
                     </p>
-                    {displayEmail && (
-                      <p
-                        className="text-[10px] truncate"
-                        style={{ color: "#88BDF2" }}
-                      >
-                        {displayEmail}
-                      </p>
-                    )}
                   </div>
                 </div>
 
@@ -378,7 +459,7 @@ export default function Navbar({ onMenuClick, user }) {
           }}
         >
           <div
-            className="w-full max-w-sm rounded-2xl p-5 sm:p-6"
+            className="w-full max-w-sm rounded-2xl p-6"
             style={{
               background: "#fff",
               boxShadow: "0 24px 64px rgba(56,73,89,0.22)",
@@ -389,10 +470,10 @@ export default function Navbar({ onMenuClick, user }) {
             <style>{`@keyframes popIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}`}</style>
 
             <div
-              className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center mx-auto mb-4"
+              className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4"
               style={{ background: "#fee2e2" }}
             >
-              <LogOut size={19} style={{ color: "#ef4444" }} />
+              <LogOut size={20} style={{ color: "#ef4444" }} />
             </div>
 
             <h3
@@ -402,7 +483,7 @@ export default function Navbar({ onMenuClick, user }) {
               Confirm Logout
             </h3>
             <p
-              className="text-sm text-center mb-5 sm:mb-6"
+              className="text-sm text-center mb-6"
               style={{ color: "#6A89A7" }}
             >
               Are you sure you want to logout? You'll need to sign in again.

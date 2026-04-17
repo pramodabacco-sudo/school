@@ -14,12 +14,29 @@ const post = async (url, body) => {
 
 // ── Login ──────────────────────────────────────────────────────────────────
 
-/**
- * Staff / Student / Parent login (all require schoolCode)
- * type: "staff" | "student" | "parent"
- */
-export const loginRequest = async (type, credentials) =>
-  post(`/api/auth/${type}/login`, credentials);
+const ROUTE_MAP = {
+  admin:    "staff",
+  teacher:  "staff",
+  financer: "finance",
+  student:  "student",
+  parent:   "parent",
+};
+
+// Role map: what DB role the selected tab must match
+const ROLE_MAP = {
+  admin:    "ADMIN",
+  teacher:  "TEACHER",
+  financer: "FINANCE",
+};
+
+export const loginRequest = async (type, credentials) => {
+  const route = ROUTE_MAP[type] || type;
+  // Pass selectedRole so backend can enforce it
+  const body = ROLE_MAP[type]
+    ? { ...credentials, selectedRole: ROLE_MAP[type] }
+    : credentials;
+  return post(`/api/auth/${route}/login`, body);
+};
 
 // ── Super Admin ────────────────────────────────────────────────────────────
 

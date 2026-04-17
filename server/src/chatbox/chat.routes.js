@@ -7,6 +7,7 @@ import {
   getUsersByRole,
   getParentTeachers,
   deleteChat,
+  markMessagesSeen,
 } from "./chat.controller.js";
 
 import authMiddleware from "../middlewares/authMiddleware.js"; // ✅ SAME AS YOUR WORKING FILE
@@ -30,4 +31,6 @@ router.get("/:chatRoomId/messages", getMessages);
 
 router.get("/", getUsersByRole);
 router.get("/parent-teachers", getParentTeachers);
+router.post("/mark-seen", markMessagesSeen);
+
 export default router;

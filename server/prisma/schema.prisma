@@ -2704,9 +2704,6 @@ model ChatRoom {
   @@map("ChatRoom")
 }
 
-// ─────────────────────────────
-// PARTICIPANTS
-// ─────────────────────────────
 model ChatParticipant {
   id String @id @default(uuid())
 
@@ -2725,9 +2722,6 @@ model ChatParticipant {
   @@map("ChatParticipant")
 }
 
-// ─────────────────────────────
-// MESSAGES
-// ─────────────────────────────
 model Message {
   id String @id @default(uuid())
 
@@ -2737,14 +2731,36 @@ model Message {
   senderId   String
   senderRole String
 
-  content String
-  type    MessageType @default(TEXT) // ✅ IMPORTANT (your code uses this)
-
-  createdAt DateTime @default(now())
+  content   String
+  type      MessageType @default(TEXT) // ✅ IMPORTANT (your code uses this)
+  isSeen    Boolean     @default(false)
+  createdAt DateTime    @default(now())
 
   @@index([chatRoomId])
   @@index([senderId])
   @@index([createdAt])
   // ⚠️ match DB table
   @@map("Message")
+}
+
+// Payment
+model Payment {
+  id         String @id @default(uuid())
+  fullName   String
+  schoolName String
+  email      String
+  address    String
+  phone      String
+
+  planId    String
+  userCount Int
+  amount    Int
+
+  razorpayOrderId   String?
+  razorpayPaymentId String?
+  razorpaySignature String?
+
+  status String @default("pending") // pending, success, failed
+
+  createdAt DateTime @default(now())
 }

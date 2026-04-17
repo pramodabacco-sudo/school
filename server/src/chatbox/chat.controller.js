@@ -1,3 +1,4 @@
+// server/src/chatbox/chat.controller.js
 import { prisma } from "../config/db.js";
 import {
   createChatService,
@@ -41,7 +42,7 @@ export const getChats = handle(async (req) => {
 // ✅ Get Messages
 export const getMessages = handle(async (req) => {
   const { chatRoomId } = req.params;
-  return await getMessagesService(chatRoomId);
+  return await getMessagesService(chatRoomId, req.user.id); 
 });
 // ✅ Delete Chat
 export const deleteChat = handle(async (req) => {
@@ -242,4 +243,22 @@ export const getParentTeachers = async (req, res) => {
     console.error("getParentTeachers error:", err);
     res.status(500).json({ success: false, message: err.message });
   }
+};
+
+export const markMessagesSeen = async (req, res) => {
+  const userId = req.user.id;
+  const { chatRoomId } = req.body;
+
+  await prisma.message.updateMany({
+    where: {
+      chatRoomId,
+      senderId: { not: userId }, // only messages from others
+      isSeen: false,
+    },
+    data: {
+      isSeen: true,
+    },
+  });
+
+  res.json({ success: true });
 };

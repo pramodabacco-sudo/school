@@ -1,7 +1,9 @@
 // src/admin/pages/chat/ChatPage.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import ChatList from "./components/ChatList";
 import MessageView from "./components/MessageView";
+
+const API_URL = import.meta.env.VITE_API_URL;
 
 const ChatPage = () => {
   const [selectedChat, setSelectedChat] = useState(null);
@@ -17,6 +19,27 @@ const ChatPage = () => {
   const handleBack = () => {
     setSelectedChat(null);
   };
+
+  useEffect(() => {
+  if (!selectedChat?.id) return;
+
+  // 🔥 mark messages as seen
+  fetch(`${API_URL}/api/chat/mark-seen`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${localStorage.getItem("token")}`,
+    },
+    body: JSON.stringify({ chatRoomId: selectedChat.id }),
+  });
+
+  // 🔥 notify Navbar to remove notification
+  window.dispatchEvent(
+    new CustomEvent("chat_opened", {
+      detail: { chatRoomId: selectedChat.id },
+    })
+  );
+}, [selectedChat]);
 
   // On mobile: show list OR message view (not both)
   // On desktop (sm+): show both side by side

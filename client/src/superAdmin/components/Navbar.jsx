@@ -1,4 +1,4 @@
-// client/src/admin/components/Navbar.jsx
+// client/src/superadmin/components/Navbar.jsx
 import React, { useState, useRef, useEffect } from "react";
 import {
   Search,
@@ -9,9 +9,13 @@ import {
   User,
   LogOut,
 } from "lucide-react";
+import { io } from "socket.io-client";
 import LogoutButton from "../../components/LogoutButton";
+import { getSocket } from "../../socket";
 
 const font = { fontFamily: "'DM Sans', sans-serif" };
+
+const API_URL = import.meta.env.VITE_API_URL;
 
 const initials = (name = "AU") =>
   name
@@ -27,22 +31,98 @@ export default function Navbar({ onMenuClick, user }) {
   const [logoutModal, setLogoutModal] = useState(false);
   const [search, setSearch] = useState("");
   const dropdownRef = useRef(null);
-
+  const notifRef = useRef(null); // ✅ FIX 3: ref for notification panel
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const socketRef = useRef(null);
   const displayName = user?.name || "Admin User";
   const displayRole = user?.role || "Administrator";
+  const notificationSound = new Audio("/Audio/notification.wav");
+
+useEffect(() => {
+  const socket = getSocket();
+
+  if (!socket) {
+    console.log("❌ Socket not ready in Navbar");
+    return;
+  }
+
+  console.log("✅ Navbar connected to socket");
+
+  socket.off("new_message"); // 🔥 prevent duplicate
+
+  socket.on("new_message", (msg) => {
+    console.log("🔥 NAVBAR RECEIVED:", msg);
+
+    setNotifOpen(true);
+    notificationSound.play().catch(() => {});
+
+    setNotifications((prev) => {
+      const existing = prev.find((n) => n.id === msg.chatRoomId);
+
+      if (existing) {
+        return prev.map((n) =>
+          n.id === msg.chatRoomId
+            ? { ...n, unreadCount: n.unreadCount + 1 }
+            : n
+        );
+      }
+
+      return [
+        {
+          id: msg.chatRoomId,
+          unreadCount: 1,
+          otherUser: {
+            name: msg.senderName || "User",
+          },
+        },
+        ...prev,
+      ];
+    });
+
+    setUnreadCount((c) => c + 1);
+  });
+}, [user]); // 🔥 VERY IMPORTANT
+
   useEffect(() => {
     console.log("Full user object:", user);
     console.log("User name:", user?.name);
     console.log("User role:", user?.role);
   }, [user]);
+
+  // ✅ FIX 3: Combined outside-click handler for both dropdowns
   useEffect(() => {
     const h = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target))
         setDropdownOpen(false);
+      if (notifRef.current && !notifRef.current.contains(e.target))
+        setNotifOpen(false);
     };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, []);
+
+
+  useEffect(() => {
+  const handleChatOpened = (e) => {
+    const chatId = e.detail.chatRoomId;
+
+    setNotifications((prev) =>
+      prev.filter((n) => n.id !== chatId)
+    );
+
+    setUnreadCount((c) => Math.max(c - 1, 0));
+  };
+
+  window.addEventListener("chat_opened", handleChatOpened);
+
+  return () =>
+    window.removeEventListener("chat_opened", handleChatOpened);
+}, []);
+ 
+
+ 
 
   return (
     <>
@@ -143,26 +223,61 @@ export default function Navbar({ onMenuClick, user }) {
             />
           </button>
 
-          {/* Bell */}
-          <button
-            className="relative p-2 rounded-xl transition-colors mr-1"
-            style={{
-              color: "#6A89A7",
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "#f3f8fd")}
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.background = "transparent")
-            }
-          >
-            <Bell size={19} />
-            <span
-              className="absolute top-2 right-2 w-2 h-2 rounded-full border-2 border-white"
-              style={{ background: "#ef4444" }}
-            />
-          </button>
+          {/* ✅ FIX 3: Bell — wrapped with notifRef */}
+          <div className="relative" ref={notifRef}>
+            <button
+              onClick={() => setNotifOpen((o) => !o)}
+              className="relative p-2 rounded-xl transition-colors mr-1"
+              style={{
+                color: "#6A89A7",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "#f3f8fd")}
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.background = "transparent")
+              }
+            >
+              <Bell size={19} />
+
+              {/* 🔴 count badge */}
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 text-[10px] bg-red-500 text-white px-1.5 rounded-full">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+
+            {/* 📩 Popup */}
+            {notifOpen && (
+              <div className="absolute right-0 mt-2 w-72 bg-white border rounded-xl shadow-lg z-50">
+                <div className="p-3 font-semibold border-b">Notifications</div>
+
+                {notifications.length === 0 ? (
+                  <div className="p-3 text-sm text-gray-500">
+                    No new messages
+                  </div>
+                ) : (
+                  notifications.map((n) => (
+                    <div
+                      key={n.id}
+                      className="p-3 border-b hover:bg-gray-50 cursor-pointer"
+                      onClick={() => {
+                        setNotifOpen(false);
+                        window.location.href = "/superadmin/chat";
+                      }}
+                    >
+                      <p className="text-sm font-medium">{n.otherUser.name}</p>
+                      <p className="text-xs text-gray-500">
+                        {n.unreadCount} new message{n.unreadCount > 1 ? "s" : ""}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Divider */}
           <div className="w-px h-7 mx-2" style={{ background: "#BDDDFC" }} />
@@ -206,7 +321,9 @@ export default function Navbar({ onMenuClick, user }) {
 
               <ChevronDown
                 size={14}
-                className={`hidden md:block transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`}
+                className={`hidden md:block transition-transform duration-200 ${
+                  dropdownOpen ? "rotate-180" : ""
+                }`}
                 style={{ color: "#6A89A7" }}
               />
             </button>
