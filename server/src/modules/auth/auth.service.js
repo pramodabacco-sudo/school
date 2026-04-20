@@ -124,7 +124,20 @@ export const loginSuperAdminService = async ({ email, password }) => {
 
 // ── Staff (Admin / Teacher) ────────────────────────────────────────────────
 
-export const loginStaffService = async ({ email, password }) => {
+// Helper: check if email belongs to another portal
+const detectPortalByEmail = async (email) => {
+  const [student, parent, superAdmin] = await Promise.all([
+    prisma.student.findFirst({ where: { email } }),
+    prisma.parent.findFirst({ where: { email } }),
+    prisma.superAdmin.findFirst({ where: { email } }),
+  ]);
+  if (student) return "Student";
+  if (parent) return "Parent";
+  if (superAdmin) return "Super Admin";
+  return null;
+};
+
+export const loginStaffService = async ({ email, password, selectedRole }) => {
   const user = await prisma.user.findFirst({
     where: { email, isActive: true },
     include: {
@@ -151,7 +164,21 @@ export const loginStaffService = async ({ email, password }) => {
     orderBy: { createdAt: "desc" },
   });
 
-  if (!user) throw { status: 401, message: "Invalid email or password" };
+  if (!user) {
+    // Check if this email exists in another portal
+    const portal = await detectPortalByEmail(email);
+    if (portal) throw { status: 403, message: `This email is registered as a ${portal}. Please use the ${portal} login.` };
+    throw { status: 401, message: "Invalid email or password" };
+  }
+
+  // Enforce selected role — e.g. teacher can't login via Admin tab
+  if (selectedRole && user.role !== selectedRole) {
+    const roleLabel = { ADMIN: "Admin", TEACHER: "Teacher", FINANCE: "Financer" };
+    const actualLabel = roleLabel[user.role] || user.role;
+    const selectedLabel = roleLabel[selectedRole] || selectedRole;
+    throw { status: 403, message: `This account is registered as ${actualLabel}. Please use the ${actualLabel} login tab.` };
+  }
+
   if (!user.school || user.school.isActive === false)
     throw { status: 403, message: "School is inactive" };
 
@@ -243,8 +270,17 @@ export const loginStudentService = async ({ email, password }) => {
     orderBy: { createdAt: "desc" },
   });
 
-  // 2️⃣ Student not found
+  // 2️⃣ Student not found — check other portals
   if (!student) {
+    const staffUser = await prisma.user.findFirst({ where: { email } });
+    if (staffUser) {
+      const label = { ADMIN: "Admin", TEACHER: "Teacher", FINANCE: "Financer" }[staffUser.role] || "Staff";
+      throw { status: 403, message: `This email is registered as ${label}. Please use the Staff → ${label} login.` };
+    }
+    const parent = await prisma.parent.findFirst({ where: { email } });
+    if (parent) throw { status: 403, message: "This email is registered as a Parent. Please use the Parent login." };
+    const superAdmin = await prisma.superAdmin.findFirst({ where: { email } });
+    if (superAdmin) throw { status: 403, message: "This email is registered as a Super Admin. Please use the Super Admin login." };
     throw { status: 401, message: "Invalid email or password" };
   }
 
@@ -307,7 +343,18 @@ export const loginParentService = async ({ email, password }) => {
     orderBy: { createdAt: "desc" },
   });
 
-  if (!parent) throw { status: 401, message: "Invalid email or password" };
+  if (!parent) {
+    const staffUser = await prisma.user.findFirst({ where: { email } });
+    if (staffUser) {
+      const label = { ADMIN: "Admin", TEACHER: "Teacher", FINANCE: "Financer" }[staffUser.role] || "Staff";
+      throw { status: 403, message: `This email is registered as ${label}. Please use the Staff → ${label} login.` };
+    }
+    const student = await prisma.student.findFirst({ where: { email } });
+    if (student) throw { status: 403, message: "This email is registered as a Student. Please use the Student login." };
+    const superAdmin = await prisma.superAdmin.findFirst({ where: { email } });
+    if (superAdmin) throw { status: 403, message: "This email is registered as a Super Admin. Please use the Super Admin login." };
+    throw { status: 401, message: "Invalid email or password" };
+  }
 
   const isValid = await bcrypt.compare(password, parent.password);
   if (!isValid) throw { status: 401, message: "Invalid email or password" };
@@ -346,33 +393,37 @@ export async function loginFinanceService({ email, password }) {
   });
 
   if (!user) {
+    const student = await prisma.student.findFirst({ where: { email } });
+    if (student) throw { status: 403, message: "This email is registered as a Student. Please use the Student login." };
+    const parent = await prisma.parent.findFirst({ where: { email } });
+    if (parent) throw { status: 403, message: "This email is registered as a Parent. Please use the Parent login." };
+    // Could be admin/teacher with same email
+    const otherStaff = await prisma.user.findFirst({ where: { email } });
+    if (otherStaff) {
+      const label = { ADMIN: "Admin", TEACHER: "Teacher" }[otherStaff.role] || "Staff";
+      throw { status: 403, message: `This email is registered as ${label}. Please use the Staff → ${label} login.` };
+    }
     throw { status: 401, message: "Invalid email or password" };
   }
 
   const valid = await bcrypt.compare(password, user.password);
+  if (!valid) throw { status: 401, message: "Invalid email or password" };
 
-  if (!valid) {
-    throw { status: 401, message: "Invalid email or password" };
-  }
-
-  const token = jwt.sign(
-    {
-      id: user.id,
-      role: user.role,
-      schoolId: user.schoolId,
-    },
-    process.env.JWT_SECRET,
-    { expiresIn: "7d" }
-  );
+  const token = generateToken({
+    id: user.id,
+    role: user.role,
+    userType: "staff",
+    schoolId: user.schoolId,
+  });
 
   return {
-    message: "Finance login successful",
     token,
     user: {
       id: user.id,
       name: user.name,
       email: user.email,
       role: user.role,
+      userType: "staff",
       schoolId: user.schoolId,
     },
   };

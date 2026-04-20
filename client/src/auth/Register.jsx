@@ -4,30 +4,71 @@ import { useNavigate } from "react-router-dom";
 import { registerSuperAdmin } from "./api";
 import { saveAuth } from "./storage";
 
+/* ─── helpers ─────────────────────────────────────────────── */
 const STEPS = [
-  { id: 1, label: "University Info" },
-  { id: 2, label: "Admin Account" },
-  { id: 3, label: "Review" },
+  { id: 1, label: "University Info",  desc: "Basic details"   },
+  { id: 2, label: "Admin Account",    desc: "Credentials"     },
+  { id: 3, label: "Review",           desc: "Confirm & submit"},
 ];
 
-const Input = ({ label, required, hint, ...props }) => (
-  <div>
-    <label className="block text-base font-medium text-[#384959] mb-1.5">
-      {label} {required && <span className="text-red-500">*</span>}
+/** Validate a single step; returns array of { field, msg } */
+const getErrors = (s, form) => {
+  const errs = [];
+  if (s === 1) {
+    if (!form.universityName.trim())
+      errs.push({ field: "universityName", msg: "University name is required" });
+    if (form.universityCode.length < 2)
+      errs.push({ field: "universityCode", msg: "Code must be at least 2 characters" });
+  }
+  if (s === 2) {
+    if (!form.adminName.trim())
+      errs.push({ field: "adminName", msg: "Full name is required" });
+    if (!/\S+@\S+\.\S+/.test(form.adminEmail))
+      errs.push({ field: "adminEmail", msg: "Valid email is required" });
+    if (form.adminPassword.length < 8)
+      errs.push({ field: "adminPassword", msg: "Password must be at least 8 characters" });
+    if (form.adminPassword !== form.adminConfirmPassword)
+      errs.push({ field: "adminConfirmPassword", msg: "Passwords do not match" });
+  }
+  return errs;
+};
+
+/* ─── reusable Input ───────────────────────────────────────── */
+const Input = ({ label, required, hint, error, ...props }) => (
+  <div className="flex flex-col gap-1">
+    <label className="text-xs font-semibold text-[#6A89A7] uppercase tracking-wide">
+      {label}{required && <span className="text-[#88BDF2] ml-0.5">*</span>}
     </label>
     <input
-      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#88BDF2] focus:border-[#6A89A7] outline-none text-base font-medium transition-all placeholder:text-gray-300"
+      className={`w-full px-3.5 py-2.5 rounded-xl text-sm font-medium text-[#384959] outline-none transition-all duration-200
+        bg-slate-50 border
+        ${error
+          ? "border-red-400 bg-red-50 focus:ring-2 focus:ring-red-200"
+          : "border-slate-200 hover:border-[#88BDF2] hover:bg-white focus:border-[#6A89A7] focus:bg-white focus:ring-2 focus:ring-[#88BDF2]/25"
+        }
+        placeholder:text-slate-300`}
       {...props}
     />
-    {hint && (
-      <p className="text-xs text-[#6A89A7] font-medium mt-1 italic">{hint}</p>
+    {error && (
+      <p className="text-xs text-red-500 font-medium flex items-center gap-1">
+        <span>⚠</span> {error}
+      </p>
+    )}
+    {hint && !error && (
+      <p className="text-xs text-[#6A89A7] italic">{hint}</p>
     )}
   </div>
 );
 
-export default function Register({ onSwitchToLogin }) {
+/* ─── main component ───────────────────────────────────────── */
+export default function Register() {
   const navigate = useNavigate();
-  const [step, setStep] = useState(1);
+  const [step, setStep]     = useState(1);
+  const [fieldErrors, setFieldErrors] = useState({});   // { fieldName: "msg" }
+  const [globalError, setGlobalError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [done, setDone]     = useState(false);
+
   const [form, setForm] = useState({
     universityName: "",
     universityCode: "",
@@ -41,292 +82,329 @@ export default function Register({ onSwitchToLogin }) {
     adminConfirmPassword: "",
     adminPhone: "",
   });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [done, setDone] = useState(false);
 
+  /* ── field updater ─────────────────────────── */
   const set = (field) => (e) => {
     let val = e.target.value;
     if (field === "universityCode")
       val = val.toUpperCase().replace(/[^A-Z0-9_]/g, "");
     setForm((f) => ({ ...f, [field]: val }));
+    // clear inline error on change
+    if (fieldErrors[field])
+      setFieldErrors((prev) => { const n = { ...prev }; delete n[field]; return n; });
   };
 
-  const validateStep = (s) => {
-    if (s === 1) {
-      if (!form.universityName.trim()) return "University name is required";
-      if (form.universityCode.length < 2)
-        return "University code must be at least 2 characters";
+  /* ── step tab click (allow free navigation) ─ */
+  const goToStep = (target) => {
+    // validate current step first before moving forward
+    if (target > step) {
+      for (let s = step; s < target; s++) {
+        const errs = getErrors(s, form);
+        if (errs.length) {
+          const map = {};
+          errs.forEach((e) => { map[e.field] = e.msg; });
+          setFieldErrors(map);
+          setGlobalError("");
+          return; // stay on current step
+        }
+      }
     }
-    if (s === 2) {
-      if (!form.adminName.trim()) return "Admin name is required";
-      if (!/\S+@\S+\.\S+/.test(form.adminEmail)) return "Valid email required";
-      if (form.adminPassword.length < 8)
-        return "Password must be at least 8 characters";
-      if (form.adminPassword !== form.adminConfirmPassword)
-        return "Passwords do not match";
-    }
-    return null;
+    setFieldErrors({});
+    setGlobalError("");
+    setStep(target);
   };
 
+  /* ── next button ────────────────────────────── */
   const next = () => {
-    const err = validateStep(step);
-    if (err) return setError(err);
-    setError("");
+    const errs = getErrors(step, form);
+    if (errs.length) {
+      const map = {};
+      errs.forEach((e) => { map[e.field] = e.msg; });
+      setFieldErrors(map);
+      return;
+    }
+    setFieldErrors({});
     setStep((s) => s + 1);
   };
 
+  /* ── submit ─────────────────────────────────── */
   const submit = async () => {
-    const err = validateStep(2);
-    if (err) {
-      setStep(2);
-      return setError(err);
+    // validate both steps before submitting
+    const errs1 = getErrors(1, form);
+    const errs2 = getErrors(2, form);
+    const allErrs = [...errs1, ...errs2];
+    if (allErrs.length) {
+      const map = {};
+      allErrs.forEach((e) => { map[e.field] = e.msg; });
+      setFieldErrors(map);
+      // jump to the first offending step
+      if (errs1.length) setStep(1);
+      else setStep(2);
+      return;
     }
-
     try {
       setLoading(true);
       const result = await registerSuperAdmin({
-        universityName: form.universityName,
-        universityCode: form.universityCode,
-        universityCity: form.universityCity,
+        universityName:  form.universityName,
+        universityCode:  form.universityCode,
+        universityCity:  form.universityCity,
         universityState: form.universityState,
         universityPhone: form.universityPhone,
         universityEmail: form.universityEmail,
-        adminName: form.adminName,
-        adminEmail: form.adminEmail,
-        adminPassword: form.adminPassword,
-        adminPhone: form.adminPhone,
+        adminName:       form.adminName,
+        adminEmail:      form.adminEmail,
+        adminPassword:   form.adminPassword,
+        adminPhone:      form.adminPhone,
       });
-
       saveAuth(result);
       setDone(true);
-      setTimeout(() => {
-        window.location.href = "/login";
-      }, 1500);
+      setTimeout(() => { window.location.href = "/login"; }, 2000);
     } catch (err) {
-      setError(err.message || "Registration failed");
-      setStep(1);
+      setGlobalError(err.message || "Registration failed. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
+  /* ── step completion status ─────────────────── */
+  const stepDone = (s) => getErrors(s, form).length === 0 && (
+    s === 1 ? (form.universityName.trim() && form.universityCode.length >= 2) :
+    s === 2 ? (form.adminName.trim() && /\S+@\S+\.\S+/.test(form.adminEmail) && form.adminPassword.length >= 8 && form.adminPassword === form.adminConfirmPassword) :
+    false
+  );
+
+  /* ── success screen ─────────────────────────── */
   if (done) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#BDDDFC]">
-        <div className="bg-white rounded-xl shadow-2xl p-12 text-center max-w-sm w-full border border-[#88BDF2]">
-          <div className="text-5xl mb-6">✅</div>
-          <h2 className="text-xl font-bold text-[#384959] mb-3">
-            Registration Successful!
-          </h2>
-          <p className="text-[#6A89A7] text-base font-medium">
-            Redirecting to your dashboard...
-          </p>
+      <div className="min-h-screen flex items-center justify-center bg-[#BDDDFC] p-4">
+        <div className="bg-white rounded-2xl shadow-2xl p-12 text-center max-w-sm w-full border border-[#88BDF2]/40">
+          <div className="w-16 h-16 rounded-full bg-[#88BDF2]/20 flex items-center justify-center mx-auto mb-5 animate-pulse">
+            <svg className="w-8 h-8 text-[#384959]" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold text-[#384959] mb-2">Registration Successful!</h2>
+          <p className="text-[#6A89A7] text-sm">Redirecting to login...</p>
           <div className="mt-8 flex justify-center">
-            <div className="w-8 h-8 border-4 border-[#6A89A7] border-t-transparent rounded-full animate-spin" />
+            <div className="w-7 h-7 border-[3px] border-[#6A89A7] border-t-transparent rounded-full animate-spin" />
           </div>
         </div>
       </div>
     );
   }
 
+  /* ── main layout ────────────────────────────── */
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#BDDDFC] p-4">
-      <div className="w-full max-w-lg bg-white rounded-xl shadow-2xl overflow-hidden border border-[#88BDF2]/30">
-        {/* Header - Weights: Title 700, Sub 500 */}
-        <div className="bg-[#384959] px-8 py-8">
-          <button
+      <div className="w-full max-w-7xl flex rounded-2xl shadow-2xl overflow-hidden border border-[#88BDF2]/20">
+
+        {/* ── LEFT PANEL ── */}
+        <div className="relative w-[42%] bg-[#384959] flex flex-col p-10 overflow-hidden">
+          {/* decorative circles */}
+          <div className="absolute -top-20 -right-20 w-72 h-72 rounded-full bg-[#88BDF2]/8 pointer-events-none" />
+          <div className="absolute -bottom-16 -left-16 w-52 h-52 rounded-full bg-[#BDDDFC]/6 pointer-events-none" />
+
+          <div className="relative z-10 mb-auto">
+            <p className="text-[10px] font-bold text-[#88BDF2] uppercase tracking-widest mb-8">
+              University Portal
+            </p>
+            <h1 className="text-2xl font-bold text-white leading-tight mb-3">
+              Register your institution
+            </h1>
+            <p className="text-sm text-[#BDDDFC]/65 leading-relaxed">
+              Set up your university and create a master administrator account in just a few steps.
+            </p>
+          </div>
+
+          {/* vertical stepper */}
+          <div className="relative z-10 mt-10 space-y-1">
+            {STEPS.map((s, i) => {
+              const isActive = step === s.id;
+              const isDone   = stepDone(s.id);
+              const isFuture = step < s.id && !isDone;
+              return (
+                <div key={s.id}>
+                  <button
+                    onClick={() => goToStep(s.id)}
+                    className={`w-full flex items-center gap-3 p-2.5 rounded-xl text-left transition-all duration-200 group
+                      ${isActive ? "bg-white/10" : "hover:bg-white/6"}`}
+                  >
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 transition-all duration-200
+                      ${isActive ? "bg-[#88BDF2] text-[#384959] scale-110 shadow-[0_0_0_4px_rgba(136,189,242,0.25)]" : ""}
+                      ${isDone && !isActive ? "bg-[#6A89A7] text-[#BDDDFC]" : ""}
+                      ${isFuture ? "bg-white/10 text-white/30 border border-white/15" : ""}
+                    `}>
+                      {isDone && !isActive
+                        ? <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                        : s.id
+                      }
+                    </div>
+                    <div>
+                      <p className={`text-sm font-semibold transition-colors
+                        ${isActive ? "text-white" : isDone ? "text-[#BDDDFC]" : "text-white/35"}`}>
+                        {s.label}
+                      </p>
+                      <p className={`text-xs transition-colors
+                        ${isActive ? "text-[#BDDDFC]/70" : isDone ? "text-[#BDDDFC]/45" : "text-white/20"}`}>
+                        {s.desc}
+                      </p>
+                    </div>
+                  </button>
+                  {i < STEPS.length - 1 && (
+                    <div className={`ml-7 w-0.5 h-6 mx-auto transition-colors duration-300
+                      ${isDone ? "bg-[#6A89A7]" : "bg-white/10"}`}
+                      style={{ marginLeft: "26px" }}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* bottom login link */}
+          <div className="relative z-10 mt-10 pt-8 border-t border-white/10">
+            <p className="text-xs text-[#BDDDFC]/45 mb-3">Already registered?</p>
+            <button
               onClick={() => navigate("/login")}
-            className="text-[#BDDDFC] hover:text-white text-sm font-bold mb-4 flex items-center gap-1 transition-colors"
-          >
-            ← Back to Login
-          </button>
-          <h1 className="text-xl font-bold text-white">Register University</h1>
-          <p className="text-[#BDDDFC]/80 text-sm mt-1 font-medium">
-            Establish your institution and master administrator account.
-          </p>
-        </div>
-
-        {/* Step indicator */}
-        <div className="flex border-b border-gray-100 bg-gray-50">
-          {STEPS.map((s) => (
-            <div
-              key={s.id}
-              className={`flex-1 py-4 text-center text-sm font-bold border-b-2 transition-all
-                ${step === s.id ? "border-[#6A89A7] text-[#384959] bg-white" : ""}
-                ${step > s.id ? "border-[#88BDF2] text-[#6A89A7]" : ""}
-                ${step < s.id ? "border-transparent text-gray-400" : ""}
-              `}
+              className="text-sm font-semibold text-[#88BDF2] border border-[#88BDF2]/30 px-4 py-2 rounded-xl
+                transition-all duration-200 hover:bg-[#88BDF2]/10 hover:border-[#88BDF2]/60 hover:text-white"
             >
-              {step > s.id ? "✓ " : `${s.id}. `}
-              {s.label}
-            </div>
-          ))}
+              ← Back to Login
+            </button>
+          </div>
         </div>
 
-        <div className="p-8 space-y-6">
-          {/* Error */}
-          {error && (
-            <div className="bg-red-50 border border-red-100 text-red-600 text-sm px-4 py-3 rounded-lg font-bold">
-              ⚠️ {error}
-            </div>
-          )}
+        {/* ── RIGHT PANEL ── */}
+        <div className="flex-1 bg-white flex flex-col min-h-[600px]">
 
-          {/* Step 1 */}
-          {step === 1 && (
-            <div className="space-y-4 animate-fadeIn">
-              <h2 className="text-lg font-bold text-[#384959]">
-                University Information
-              </h2>
-              <Input
-                label="University Name"
-                required
-                placeholder="e.g. Christ University"
-                value={form.universityName}
-                onChange={set("universityName")}
-              />
-              <Input
-                label="University Code"
-                required
-                hint="Uppercase, no spaces. e.g. CHRIST_UNI"
-                placeholder="CHRIST_UNI"
-                value={form.universityCode}
-                onChange={set("universityCode")}
-              />
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  label="City"
-                  placeholder="Bangalore"
-                  value={form.universityCity}
-                  onChange={set("universityCity")}
-                />
-                <Input
-                  label="State"
-                  placeholder="Karnataka"
-                  value={form.universityState}
-                  onChange={set("universityState")}
-                />
+          {/* top header */}
+          <div className="px-10 pt-10 pb-2">
+            {globalError && (
+              <div className="mb-4 bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-xl font-medium flex items-center gap-2">
+                <span>⚠</span> {globalError}
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  label="Phone"
-                  type="tel"
-                  placeholder="+91 98765 43210"
-                  value={form.universityPhone}
-                  onChange={set("universityPhone")}
-                />
-                <Input
-                  label="Email"
-                  type="email"
-                  placeholder="admin@university.edu"
-                  value={form.universityEmail}
-                  onChange={set("universityEmail")}
-                />
-              </div>
-            </div>
-          )}
+            )}
+            <h2 className="text-xl font-bold text-[#384959]">
+              {step === 1 ? "University Information" : step === 2 ? "Super Admin Account" : "Review & Finalize"}
+            </h2>
+            <p className="text-sm text-[#6A89A7] mt-1">
+              {step === 1 ? "Tell us about your institution." :
+               step === 2 ? "Create the master administrator credentials." :
+               "Check all details before completing registration."}
+            </p>
+          </div>
 
-          {/* Step 2 */}
-          {step === 2 && (
-            <div className="space-y-4 animate-fadeIn">
-              <h2 className="text-lg font-bold text-[#384959]">
-                Super Admin Account
-              </h2>
-              <p className="text-sm text-[#6A89A7] font-medium">
-                The primary administrator responsible for system-wide
-                configuration.
-              </p>
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  label="Full Name"
-                  required
-                  placeholder="John Doe"
-                  value={form.adminName}
-                  onChange={set("adminName")}
-                />
-                <Input
-                  label="Phone"
-                  type="tel"
-                  placeholder="+91 98765 43210"
-                  value={form.adminPhone}
-                  onChange={set("adminPhone")}
-                />
-              </div>
-              <Input
-                label="Email Address"
-                required
-                type="email"
-                hint="Your primary login credential"
-                placeholder="super@university.edu"
-                value={form.adminEmail}
-                onChange={set("adminEmail")}
-              />
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  label="Password"
-                  required
-                  type="password"
-                  hint="Min. 8 chars"
-                  placeholder="••••••••"
-                  value={form.adminPassword}
-                  onChange={set("adminPassword")}
-                />
-                <Input
-                  label="Confirm Password"
-                  required
-                  type="password"
-                  placeholder="••••••••"
-                  value={form.adminConfirmPassword}
-                  onChange={set("adminConfirmPassword")}
-                />
-              </div>
-            </div>
-          )}
+          {/* form body */}
+          <div className="flex-1 px-10 py-6 overflow-y-auto">
 
-          {/* Step 3 — Review */}
-          {step === 3 && (
-            <div className="space-y-5 animate-fadeIn">
-              <h2 className="text-lg font-bold text-[#384959]">
-                Review & Finalize
-              </h2>
-
-              <div className="bg-[#f8fafc] rounded-lg border border-gray-200 p-5 space-y-3 text-base font-medium">
-                <div className="flex justify-between border-b border-gray-100 pb-2">
-                  <span className="text-[#6A89A7]">University</span>
-                  <span className="text-[#384959]">{form.universityName}</span>
+            {/* ── Step 1 ── */}
+            {step === 1 && (
+              <div className="space-y-4 animate-[fadeIn_0.3s_ease]">
+                <Input
+                  label="University Name" required
+                  placeholder="e.g. Christ University"
+                  value={form.universityName}
+                  onChange={set("universityName")}
+                  error={fieldErrors.universityName}
+                />
+                <Input
+                  label="University Code" required
+                  placeholder="CHRIST_UNI"
+                  hint="Uppercase letters, numbers, underscores only"
+                  value={form.universityCode}
+                  onChange={set("universityCode")}
+                  error={fieldErrors.universityCode}
+                />
+                <div className="grid grid-cols-2 gap-4">
+                  <Input label="City"  placeholder="Bangalore" value={form.universityCity}  onChange={set("universityCity")} />
+                  <Input label="State" placeholder="Karnataka" value={form.universityState} onChange={set("universityState")} />
                 </div>
-                <div className="flex justify-between border-b border-gray-100 pb-2">
-                  <span className="text-[#6A89A7]">Code</span>
-                  <span className="font-mono text-[#6A89A7] bg-[#BDDDFC]/30 px-2 rounded">
-                    {form.universityCode}
-                  </span>
-                </div>
-                <div className="flex justify-between border-b border-gray-100 pb-2">
-                  <span className="text-[#6A89A7]">Super Admin</span>
-                  <span className="text-[#384959]">{form.adminName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[#6A89A7]">Admin Email</span>
-                  <span className="text-[#384959]">{form.adminEmail}</span>
+                <div className="grid grid-cols-2 gap-4">
+                  <Input label="Phone" type="tel"   placeholder="+91 98765 43210"   value={form.universityPhone} onChange={set("universityPhone")} />
+                  <Input label="Email" type="email" placeholder="admin@university.edu" value={form.universityEmail} onChange={set("universityEmail")} />
                 </div>
               </div>
+            )}
 
-              <div className="bg-[#88BDF2]/10 border border-[#88BDF2]/40 rounded-lg p-4 text-sm text-[#384959] font-medium italic">
-                Note: Upon completion, log in as Super Admin to manage
-                institutional divisions.
+            {/* ── Step 2 ── */}
+            {step === 2 && (
+              <div className="space-y-4 animate-[fadeIn_0.3s_ease]">
+                <p className="text-xs text-[#6A89A7] bg-[#BDDDFC]/20 border border-[#88BDF2]/25 rounded-xl px-4 py-2.5">
+                  The primary administrator responsible for all system-wide configuration.
+                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  <Input label="Full Name" required placeholder="John Doe"
+                    value={form.adminName} onChange={set("adminName")}
+                    error={fieldErrors.adminName} />
+                  <Input label="Phone" type="tel" placeholder="+91 98765 43210"
+                    value={form.adminPhone} onChange={set("adminPhone")} />
+                </div>
+                <Input label="Email Address" required type="email"
+                  placeholder="super@university.edu"
+                  hint="Your primary login credential"
+                  value={form.adminEmail} onChange={set("adminEmail")}
+                  error={fieldErrors.adminEmail} />
+                <div className="grid grid-cols-2 gap-4">
+                  <Input label="Password" required type="password"
+                    placeholder="••••••••" hint="Min. 8 characters"
+                    value={form.adminPassword} onChange={set("adminPassword")}
+                    error={fieldErrors.adminPassword} />
+                  <Input label="Confirm Password" required type="password"
+                    placeholder="••••••••"
+                    value={form.adminConfirmPassword} onChange={set("adminConfirmPassword")}
+                    error={fieldErrors.adminConfirmPassword} />
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Navigation - Button Weight 700 */}
-          <div className="flex gap-4 pt-4">
+            {/* ── Step 3 — Review ── */}
+            {step === 3 && (
+              <div className="space-y-5 animate-[fadeIn_0.3s_ease]">
+
+                {/* University section */}
+                <ReviewSection
+                  title="University"
+                  onEdit={() => goToStep(1)}
+                  rows={[
+                    { key: "Name",     val: form.universityName, field: "universityName",  required: true,  step: 1 },
+                    { key: "Code",     val: form.universityCode, field: "universityCode",  required: true,  step: 1, mono: true },
+                    { key: "City",     val: form.universityCity,  field: "universityCity",  required: false, step: 1 },
+                    { key: "State",    val: form.universityState, field: "universityState", required: false, step: 1 },
+                    { key: "Phone",    val: form.universityPhone, field: "universityPhone", required: false, step: 1 },
+                    { key: "Email",    val: form.universityEmail, field: "universityEmail", required: false, step: 1 },
+                  ]}
+                  errors={fieldErrors}
+                  onGoToStep={goToStep}
+                />
+
+                {/* Admin section */}
+                <ReviewSection
+                  title="Super Admin"
+                  onEdit={() => goToStep(2)}
+                  rows={[
+                    { key: "Full Name", val: form.adminName,    field: "adminName",    required: true,  step: 2 },
+                    { key: "Email",     val: form.adminEmail,   field: "adminEmail",   required: true,  step: 2 },
+                    { key: "Phone",     val: form.adminPhone,   field: "adminPhone",   required: false, step: 2 },
+                    { key: "Password",  val: form.adminPassword ? "••••••••" : "",  field: "adminPassword",  required: true, step: 2 },
+                  ]}
+                  errors={fieldErrors}
+                  onGoToStep={goToStep}
+                />
+
+                <div className="bg-[#88BDF2]/10 border-l-4 border-[#88BDF2] rounded-r-xl px-4 py-3 text-sm text-[#384959] italic">
+                  Upon completion, log in as Super Admin to manage institutional divisions.
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* nav buttons */}
+          <div className="px-10 pb-8 flex gap-3">
             {step > 1 && (
               <button
-                onClick={() => {
-                  setStep((s) => s - 1);
-                  setError("");
-                }}
-                className="flex-1 py-3 rounded-lg border-2 border-[#88BDF2] text-[#384959] font-bold hover:bg-[#BDDDFC]/20 transition-all"
+                onClick={() => { setStep((s) => s - 1); setFieldErrors({}); setGlobalError(""); }}
+                className="flex-1 py-3 rounded-xl border-2 border-[#88BDF2] text-[#384959] font-bold text-sm
+                  transition-all duration-200 hover:bg-[#BDDDFC]/25 hover:border-[#6A89A7] hover:-translate-y-0.5"
               >
                 ← Back
               </button>
@@ -334,7 +412,8 @@ export default function Register({ onSwitchToLogin }) {
             {step < 3 ? (
               <button
                 onClick={next}
-                className="flex-1 py-3 rounded-lg bg-[#6A89A7] hover:bg-[#384959] text-white font-bold transition-all shadow-md"
+                className="flex-1 py-3 rounded-xl bg-[#6A89A7] hover:bg-[#384959] text-white font-bold text-sm
+                  transition-all duration-200 shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0"
               >
                 Next Step →
               </button>
@@ -342,13 +421,74 @@ export default function Register({ onSwitchToLogin }) {
               <button
                 onClick={submit}
                 disabled={loading}
-                className="flex-1 py-3 rounded-lg bg-[#384959] hover:bg-black text-white font-bold transition-all shadow-xl disabled:opacity-50"
+                className="flex-1 py-3 rounded-xl bg-[#384959] hover:bg-black text-white font-bold text-sm
+                  transition-all duration-200 shadow-xl hover:shadow-2xl hover:-translate-y-0.5 active:translate-y-0
+                  disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
               >
-                {loading ? "Registering..." : "🚀 Complete Registration"}
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Registering...
+                  </span>
+                ) : "🚀 Complete Registration"}
               </button>
             )}
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── ReviewSection sub-component ─────────────────────────── */
+function ReviewSection({ title, rows, errors, onEdit, onGoToStep }) {
+  return (
+    <div className="rounded-xl border border-slate-200 overflow-hidden">
+      {/* section header */}
+      <div className="flex items-center justify-between px-5 py-3 bg-slate-50 border-b border-slate-200">
+        <span className="text-xs font-bold text-[#384959] uppercase tracking-wider">{title}</span>
+        <button
+          onClick={onEdit}
+          className="text-xs text-[#6A89A7] font-semibold hover:text-[#384959] transition-colors px-2 py-1 rounded-lg hover:bg-[#88BDF2]/15"
+        >
+          Edit
+        </button>
+      </div>
+
+      {/* rows */}
+      <div className="divide-y divide-slate-100">
+        {rows.map(({ key, val, field, required, step, mono }) => {
+          const isEmpty = required && !val.trim();
+          const hasErr  = !!errors[field];
+          const showWarning = isEmpty || hasErr;
+          return (
+            <div
+              key={field}
+              className={`flex items-center justify-between px-5 py-3 text-sm transition-colors
+                ${showWarning ? "bg-red-50" : "bg-white"}`}
+            >
+              <span className="text-[#6A89A7] font-medium w-32 shrink-0">{key}</span>
+              {showWarning ? (
+                <button
+                  onClick={() => onGoToStep(step)}
+                  className="flex items-center gap-1.5 text-red-500 font-semibold text-xs
+                    hover:text-red-700 transition-colors group"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                  </svg>
+                  {hasErr ? errors[field] : "Complete this field"}
+                  <span className="opacity-0 group-hover:opacity-100 transition-opacity">→</span>
+                </button>
+              ) : (
+                <span className={`text-[#384959] font-medium text-right break-all
+                  ${mono ? "font-mono text-xs bg-[#BDDDFC]/30 text-[#6A89A7] px-2 py-0.5 rounded-md" : ""}`}>
+                  {val || <span className="text-slate-300 italic text-xs">—</span>}
+                </span>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

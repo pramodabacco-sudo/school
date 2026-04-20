@@ -3,13 +3,11 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { loginRequest, loginSuperAdmin } from "./api";
 import { saveAuth } from "./storage";
-
-const TABS = [
-  { label: "Staff", value: "staff" },
-  { label: "Student", value: "student" },
-  { label: "Parent", value: "parent" },
-  { label: "Super Admin", value: "superAdmin" },
-];
+import {
+  GraduationCap, Users, ShieldCheck, Building2,
+  Mail, Lock, Eye, EyeOff, ChevronRight, BookOpen,
+  BarChart3, UserCog, ArrowRight
+} from "lucide-react";
 
 const REDIRECT = {
   ADMIN: "/admin/dashboard",
@@ -17,151 +15,236 @@ const REDIRECT = {
   STUDENT: "/student/dashboard",
   PARENT: "/parent/dashboard",
   SUPER_ADMIN: "/superAdmin/dashboard",
+  FINANCER: "/financer/dashboard",
 };
+
+const STAFF_ROLES = [
+  { label: "Admin", value: "admin", icon: UserCog, desc: "Manage university operations" },
+  { label: "Teacher", value: "teacher", icon: BookOpen, desc: "Access classes & grades" },
+  { label: "Financer", value: "financer", icon: BarChart3, desc: "Manage fees & accounts" },
+];
+
+const TOP_TABS = [
+  { label: "Staff", value: "staff", icon: Users },
+  { label: "Student", value: "student", icon: GraduationCap },
+  { label: "Parent", value: "parent", icon: Building2 },
+  { label: "Super Admin", value: "superAdmin", icon: ShieldCheck },
+];
 
 export default function Login({ onSwitchToRegister }) {
   const navigate = useNavigate();
   const [type, setType] = useState("staff");
+  const [staffRole, setStaffRole] = useState("admin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-const handleLogin = async () => {
-  setError("");
-  if (!email || !password) return setError("Please enter email and password");
-
-  try {
-    setLoading(true);
-
-    let result;
-    if (type === "superAdmin") {
-      result = await loginSuperAdmin({ email, password });
-    } else {
-      result = await loginRequest(type, { email, password });
+  const handleLogin = async () => {
+    setError("");
+    if (!email || !password) return setError("Please enter email and password");
+    try {
+      setLoading(true);
+      let result;
+      const loginType = type === "staff" ? staffRole : type;
+      if (type === "superAdmin") {
+        result = await loginSuperAdmin({ email, password });
+      } else {
+        result = await loginRequest(loginType, { email, password });
+      }
+      saveAuth(result);
+      const role = result?.user?.role;
+      if (!role) { setError("Login failed: role not found"); return; }
+      window.location.href = REDIRECT[role] || "/dashboard";
+    } catch (err) {
+      setError(err.message || "Login failed");
+    } finally {
+      setLoading(false);
     }
+  };
 
-    console.log("LOGIN RESULT:", result);
-
-    // ✅ FIX HERE
-    saveAuth(result);
-
-    const role = result?.user?.role;
-
-    if (!role) {
-      setError("Login failed: role not found");
-      return;
-    }
-
-    window.location.href = REDIRECT[role] || "/dashboard";
-
-  } catch (err) {
-    setError(err.message || "Login failed");
-  } finally {
-    setLoading(false);
-  }
-};
+  const activeTab = TOP_TABS.find(t => t.value === type);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#BDDDFC] p-4">
-      <div className="w-full max-w-lg bg-white rounded-xl shadow-2xl p-10 border border-[#88BDF2]/30">
-        {/* Heading - 700 Weight */}
-        <h1 className="text-xl font-bold text-center text-[#384959] mb-8">
-          University Portal Login
-        </h1>
+    <div style={{ minHeight: "100vh", display: "flex", background: "#f0f6ff", fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
 
-        {/* Tabs */}
-        <div className="flex gap-1 mb-8 bg-[#f4f7fa] p-1.5 rounded-lg border border-gray-100">
-          {TABS.map((tab) => (
-            <button
-              key={tab.value}
-              onClick={() => {
-                setType(tab.value);
-                setError("");
-              }}
-              className={`flex-1 py-2 rounded-md text-sm font-medium transition-all duration-200
-                ${type === tab.value
-                  ? "bg-[#6A89A7] text-white shadow-md"
-                  : "text-[#6A89A7] hover:bg-[#BDDDFC]/20"
-                }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+      {/* LEFT PANEL */}
+      <div style={{
+        flex: "0 0 45%", background: "linear-gradient(145deg, #384959 0%, #4a6278 60%, #6A89A7 100%)",
+        display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "flex-start",
+        padding: "60px 56px", position: "relative", overflow: "hidden"
+      }}>
+        <div style={{ position: "absolute", top: -80, right: -80, width: 320, height: 320, borderRadius: "50%", background: "rgba(136,189,242,0.12)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", bottom: -60, left: -60, width: 240, height: 240, borderRadius: "50%", background: "rgba(189,221,252,0.10)", pointerEvents: "none" }} />
+
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 48 }}>
+          <div style={{ width: 44, height: 44, borderRadius: 12, background: "#88BDF2", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <GraduationCap size={24} color="#384959" />
+          </div>
+          <span style={{ color: "#BDDDFC", fontWeight: 700, fontSize: 18, letterSpacing: 0.5 }}>UniPortal</span>
         </div>
 
-        {error && (
-          <div className="text-red-600 text-sm mb-6 text-center bg-red-50 py-2.5 px-3 rounded-lg border border-red-100 font-medium">
-            {error}
-          </div>
-        )}
+        <h1 style={{ color: "#fff", fontSize: 38, fontWeight: 800, lineHeight: 1.2, marginBottom: 18, maxWidth: 340 }}>
+          Welcome Back to Your Campus Hub
+        </h1>
+        <p style={{ color: "#BDDDFC", fontSize: 15, lineHeight: 1.7, maxWidth: 340, marginBottom: 48 }}>
+          One platform for staff, students, parents and administrators to manage university life seamlessly.
+        </p>
 
-        {/* Form Fields - 500 Weight */}
-        <div className="space-y-5 mb-8">
-          <div>
-            <label className="block text-base font-medium text-[#384959] mb-1.5">
-              Email Address
-            </label>
-            <input
-              type="email"
-              placeholder="name@university.edu"
-              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#88BDF2] focus:border-[#6A89A7] outline-none text-base font-medium transition-all"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-            />
+        <div style={{ display: "flex", flexDirection: "column", gap: 16, width: "100%", maxWidth: 320 }}>
+          {[
+            { icon: Users, text: "Staff & Faculty Management" },
+            { icon: GraduationCap, text: "Student Academic Portal" },
+            { icon: BarChart3, text: "Finance & Fee Tracking" },
+          ].map(({ icon: Icon, text }) => (
+            <div key={text} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(136,189,242,0.18)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Icon size={17} color="#88BDF2" />
+              </div>
+              <span style={{ color: "#BDDDFC", fontSize: 14, fontWeight: 500 }}>{text}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* RIGHT PANEL */}
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 32px" }}>
+        <div style={{ width: "100%", maxWidth: 440 }}>
+
+          <h2 style={{ color: "#384959", fontSize: 26, fontWeight: 800, marginBottom: 6 }}>Sign In</h2>
+          <p style={{ color: "#6A89A7", fontSize: 14, marginBottom: 28 }}>Select your role and enter your credentials</p>
+
+          {/* Top Role Tabs */}
+          <div style={{ display: "flex", gap: 6, marginBottom: type === "staff" ? 16 : 24, background: "#eaf3fc", borderRadius: 12, padding: 5 }}>
+            {TOP_TABS.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button key={tab.value} onClick={() => { setType(tab.value); setError(""); }}
+                  style={{
+                    flex: 1, padding: "8px 4px", borderRadius: 8, border: "none", cursor: "pointer",
+                    background: type === tab.value ? "#384959" : "transparent",
+                    color: type === tab.value ? "#fff" : "#6A89A7",
+                    fontWeight: 600, fontSize: 12, display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+                    transition: "all 0.2s", boxShadow: type === tab.value ? "0 2px 8px rgba(56,73,89,0.18)" : "none"
+                  }}>
+                  <Icon size={15} />
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
 
-          <div>
-            <label className="block text-base font-medium text-[#384959] mb-1.5">
-              Password
-            </label>
-            <div className="relative">
-              <input
-                type={showPassword ? "text" : "password"}
-                placeholder="••••••••"
-                className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#88BDF2] focus:border-[#6A89A7] outline-none text-base font-medium pr-16 transition-all"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+          {/* Staff Sub-roles */}
+          {type === "staff" && (
+            <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
+              {STAFF_ROLES.map(({ label, value, icon: Icon, desc }) => (
+                <button key={value} onClick={() => { setStaffRole(value); setError(""); }}
+                  style={{
+                    flex: 1, padding: "10px 8px", borderRadius: 10, cursor: "pointer", textAlign: "left",
+                    border: staffRole === value ? "2px solid #6A89A7" : "2px solid #dde8f5",
+                    background: staffRole === value ? "#eaf3fc" : "#fff",
+                    transition: "all 0.2s"
+                  }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+                    <Icon size={14} color={staffRole === value ? "#384959" : "#6A89A7"} />
+                    <span style={{ fontSize: 12, fontWeight: 700, color: staffRole === value ? "#384959" : "#6A89A7" }}>{label}</span>
+                  </div>
+                  <p style={{ fontSize: 10, color: "#88BDF2", margin: 0, lineHeight: 1.4 }}>{desc}</p>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Active role badge */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20, padding: "8px 14px", background: "#BDDDFC", borderRadius: 8 }}>
+            {activeTab && <activeTab.icon size={14} color="#384959" />}
+            <span style={{ fontSize: 12, color: "#384959", fontWeight: 600 }}>
+              Logging in as: {type === "staff" ? `${STAFF_ROLES.find(r => r.value === staffRole)?.label} (Staff)` : activeTab?.label}
+            </span>
+          </div>
+
+          {error && (
+            <div style={{ background: "#fff0f0", border: "1px solid #fcc", borderRadius: 8, padding: "10px 14px", marginBottom: 18, color: "#c0392b", fontSize: 13, fontWeight: 500 }}>
+              {error}
+            </div>
+          )}
+
+          {/* Email */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#384959", marginBottom: 6 }}>Email Address</label>
+            <div style={{ position: "relative" }}>
+              <Mail size={16} color="#88BDF2" style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)" }} />
+              <input type="email" placeholder="name@university.edu" value={email}
+                onChange={e => setEmail(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && handleLogin()}
+                style={{
+                  width: "100%", padding: "11px 14px 11px 40px", border: "1.5px solid #dde8f5", borderRadius: 10,
+                  fontSize: 14, fontWeight: 500, color: "#384959", outline: "none", boxSizing: "border-box",
+                  background: "#fff", transition: "border 0.2s"
+                }}
+                onFocus={e => e.target.style.borderColor = "#6A89A7"}
+                onBlur={e => e.target.style.borderColor = "#dde8f5"}
               />
-              <button
-                type="button"
-                onClick={() => setShowPassword((s) => !s)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-[#6A89A7] hover:text-[#384959]"
-              >
-                {showPassword ? "Hide" : "Show"}
+            </div>
+          </div>
+
+          {/* Password */}
+          <div style={{ marginBottom: 26 }}>
+            <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#384959", marginBottom: 6 }}>Password</label>
+            <div style={{ position: "relative" }}>
+              <Lock size={16} color="#88BDF2" style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)" }} />
+              <input type={showPassword ? "text" : "password"} placeholder="••••••••" value={password}
+                onChange={e => setPassword(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && handleLogin()}
+                style={{
+                  width: "100%", padding: "11px 44px 11px 40px", border: "1.5px solid #dde8f5", borderRadius: 10,
+                  fontSize: 14, fontWeight: 500, color: "#384959", outline: "none", boxSizing: "border-box",
+                  background: "#fff", transition: "border 0.2s"
+                }}
+                onFocus={e => e.target.style.borderColor = "#6A89A7"}
+                onBlur={e => e.target.style.borderColor = "#dde8f5"}
+              />
+              <button type="button" onClick={() => setShowPassword(s => !s)}
+                style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", padding: 2 }}>
+                {showPassword ? <EyeOff size={17} color="#6A89A7" /> : <Eye size={17} color="#6A89A7" />}
               </button>
             </div>
           </div>
-        </div>
 
-        <div className="space-y-4">
-          <button
-            onClick={handleLogin}
-            disabled={loading}
-            className="w-full py-3 rounded-lg bg-[#384959] hover:bg-[#2c3a47] text-white font-bold transition-all shadow-lg disabled:opacity-50 active:scale-[0.98]"
-          >
-            {loading
-              ? "Authenticating..."
-              : `Login as ${TABS.find((t) => t.value === type)?.label}`}
+          {/* Login Button */}
+          <button onClick={handleLogin} disabled={loading}
+            style={{
+              width: "100%", padding: "13px", borderRadius: 10, border: "none", cursor: loading ? "not-allowed" : "pointer",
+              background: loading ? "#6A89A7" : "#384959", color: "#fff", fontWeight: 700, fontSize: 15,
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+              boxShadow: "0 4px 14px rgba(56,73,89,0.22)", transition: "all 0.2s", marginBottom: 14,
+              opacity: loading ? 0.75 : 1
+            }}>
+            {loading ? "Authenticating..." : <><span>Sign In</span><ArrowRight size={17} /></>}
           </button>
 
-          <div className="relative flex py-2 items-center">
-            <div className="flex-grow border-t border-gray-200"></div>
-            <span className="flex-shrink mx-4 text-gray-400 text-xs font-bold uppercase tracking-widest">
-              or
-            </span>
-            <div className="flex-grow border-t border-gray-200"></div>
+          {/* Divider */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "4px 0 14px" }}>
+            <div style={{ flex: 1, height: 1, background: "#dde8f5" }} />
+            <span style={{ fontSize: 11, color: "#88BDF2", fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>or</span>
+            <div style={{ flex: 1, height: 1, background: "#dde8f5" }} />
           </div>
 
-          <button
-             onClick={() => navigate("/register")}
-            className="w-full py-3 rounded-lg border-2 border-[#88BDF2] text-[#384959] hover:bg-[#BDDDFC]/30 font-bold transition-all text-sm flex items-center justify-center gap-2"
-          >
-            🏛️ Register New University
+          {/* Register */}
+          <button onClick={() => navigate("/register")}
+            style={{
+              width: "100%", padding: "12px", borderRadius: 10, border: "2px solid #88BDF2",
+              background: "#fff", color: "#384959", fontWeight: 700, fontSize: 14, cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "all 0.2s"
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = "#eaf3fc"}
+            onMouseLeave={e => e.currentTarget.style.background = "#fff"}>
+            <Building2 size={16} color="#6A89A7" />
+            <span>Register New University</span>
+            <ChevronRight size={15} color="#6A89A7" />
           </button>
+
         </div>
       </div>
     </div>

@@ -67,12 +67,37 @@ export const sendMessageService = async (sender, chatRoomId, content) => {
       senderRole: sender.role,
       content,
       type: chat.type === "NOTIFICATION" ? "NOTIFICATION" : "TEXT",
+      isSeen: false,
     },
   });
 
-  return message;
-};
+  // find receiver
+  const receiver = chat.participants.find(
+    (p) => p.userId !== sender.id
+  );
 
+  let senderName = "User";
+
+  const userData = await prisma.user.findUnique({
+    where: { id: sender.id },
+    select: { name: true },
+  });
+
+  senderName = userData?.name || "User";
+
+  // ✅ emit ONLY to receiver
+  if (receiver) {
+    global.io.to(String(receiver.userId)).emit("new_message", {
+      ...message,
+      senderName,
+      receiverId: receiver.userId,
+    });
+  }
+
+  return message;
+
+ 
+};
 export const getChatsService = async (user) => {
   const chats = await prisma.chatRoom.findMany({
     where: {
@@ -86,6 +111,19 @@ export const getChatsService = async (user) => {
         orderBy: { createdAt: "desc" },
         take: 1,
       },
+      _count: {
+        select: {
+          messages: {
+            where: {
+              senderId: { not: user.id },
+              isSeen: false,
+            },
+          },
+        },
+      },
+    },
+    orderBy: {
+      createdAt: "desc",
     },
   });
 
@@ -96,48 +134,39 @@ export const getChatsService = async (user) => {
       (p) => p.userId !== user.id
     );
 
-    // ❗ FIX: prevent crash
-    if (!other) {
-      console.log("Invalid chat (no other user):", chat.id);
-      continue;
-    }
+    if (!other) continue;
 
     let userData = null;
 
-    try {
-      if (other.role === "SUPER_ADMIN") {
-        userData = await prisma.superAdmin.findUnique({
-          where: { id: other.userId },
-          select: { name: true, email: true },
-        });
-      } else if (other.role === "ADMIN" || other.role === "TEACHER") {
-        userData = await prisma.user.findUnique({
-          where: { id: other.userId },
-          select: { name: true, email: true },
-        });
-      } else if (other.role === "FINANCE") {
-        userData = await prisma.user.findUnique({
-          where: { id: other.userId },
-          select: { name: true, email: true },
-        });
-      } else if (other.role === "PARENT") {
-        userData = await prisma.parent.findUnique({
-          where: { id: other.userId },
-          select: { name: true, email: true },
-        });
-      } else if (other.role === "STUDENT") {
-        userData = await prisma.student.findUnique({
-          where: { id: other.userId },
-          select: { name: true, email: true },
-        });
-      }
-    } catch (err) {
-      console.log("User fetch error:", err.message);
+    // 🔥 FETCH BASED ON ROLE
+    if (other.role === "SUPER_ADMIN") {
+      userData = await prisma.superAdmin.findUnique({
+        where: { id: other.userId },
+        select: { name: true, email: true },
+      });
+    } else if (["ADMIN", "TEACHER", "FINANCE"].includes(other.role)) {
+      userData = await prisma.user.findUnique({
+        where: { id: other.userId },
+        select: { name: true, email: true },
+      });
+    } else if (other.role === "PARENT") {
+      userData = await prisma.parent.findUnique({
+        where: { id: other.userId },
+        select: { name: true, email: true },
+      });
+    } else if (other.role === "STUDENT") {
+      userData = await prisma.student.findUnique({
+        where: { id: other.userId },
+        select: { name: true, email: true },
+      });
     }
 
     result.push({
-      ...chat,
+      id: chat.id,
+      unreadCount: chat._count.messages,
+      messages: chat.messages,
       otherUser: {
+        id: other.userId,
         name: userData?.name || "User",
         email: userData?.email || "",
         role: other.role,
@@ -148,7 +177,17 @@ export const getChatsService = async (user) => {
   return result;
 };
 
-export const getMessagesService = async (chatRoomId) => {
+export const getMessagesService = async (chatRoomId, userId) => {
+  // mark as seen
+  await prisma.message.updateMany({
+    where: {
+      chatRoomId,
+      senderId: { not: userId },
+      isSeen: false,
+    },
+    data: { isSeen: true },
+  });
+
   return await prisma.message.findMany({
     where: { chatRoomId },
     orderBy: { createdAt: "asc" },
