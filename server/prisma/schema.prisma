@@ -1567,7 +1567,8 @@ model SubjectSyllabus {
   school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   totalChapters Int
-  chapterNames  String[] @default([])
+  chapters      Json    @default("[]") // ← ADD THIS (replaces chapterNames)
+  description   String?
 
   createdById String
   createdBy   TeacherProfile @relation("SyllabusCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
