@@ -9,7 +9,7 @@ import {
   User,
   LogOut,
 } from "lucide-react";
-import { io } from "socket.io-client";
+// import { io } from "socket.io-client";
 import LogoutButton from "../../components/LogoutButton";
 import { getSocket } from "../../socket";
 
@@ -41,49 +41,61 @@ export default function Navbar({ onMenuClick, user }) {
   const notificationSound = new Audio("/Audio/notification.wav");
 
 useEffect(() => {
-  const socket = getSocket();
+  let interval;
 
-  if (!socket) {
-    console.log("❌ Socket not ready in Navbar");
-    return;
-  }
+  const attachSocket = () => {
+    const socket = getSocket();
 
-  console.log("✅ Navbar connected to socket");
+    if (!socket) {
+      console.log("⏳ Waiting for socket...");
+      return;
+    }
 
-  socket.off("new_message"); // 🔥 prevent duplicate
+    console.log("✅ Navbar connected to socket");
 
-  socket.on("new_message", (msg) => {
-    console.log("🔥 NAVBAR RECEIVED:", msg);
+    socket.off("new_message");
 
-    setNotifOpen(true);
-    notificationSound.play().catch(() => {});
+    socket.on("new_message", (msg) => {
+      console.log("🔥 NAVBAR RECEIVED:", msg);
 
-    setNotifications((prev) => {
-      const existing = prev.find((n) => n.id === msg.chatRoomId);
+      setNotifOpen(true);
+      notificationSound.play().catch(() => {});
 
-      if (existing) {
-        return prev.map((n) =>
-          n.id === msg.chatRoomId
-            ? { ...n, unreadCount: n.unreadCount + 1 }
-            : n
-        );
-      }
+      setNotifications((prev) => {
+        const existing = prev.find((n) => n.id === msg.chatRoomId);
 
-      return [
-        {
-          id: msg.chatRoomId,
-          unreadCount: 1,
-          otherUser: {
-            name: msg.senderName || "User",
+        if (existing) {
+          return prev.map((n) =>
+            n.id === msg.chatRoomId
+              ? { ...n, unreadCount: n.unreadCount + 1 }
+              : n
+          );
+        }
+
+        return [
+          {
+            id: msg.chatRoomId,
+            unreadCount: 1,
+            otherUser: {
+              name: msg.senderName || "User",
+            },
           },
-        },
-        ...prev,
-      ];
+          ...prev,
+        ];
+      });
+
+      setUnreadCount((c) => c + 1);
     });
 
-    setUnreadCount((c) => c + 1);
-  });
-}, [user]); // 🔥 VERY IMPORTANT
+    clearInterval(interval);
+  };
+
+  attachSocket();
+
+  interval = setInterval(attachSocket, 1000);
+
+  return () => clearInterval(interval);
+}, []);
 
   useEffect(() => {
     console.log("Full user object:", user);

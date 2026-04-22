@@ -4,7 +4,7 @@ import {
   Search, Bell, Mail, Menu, ChevronDown,
   User, LogOut, Cake, X, MessageSquare,
 } from "lucide-react";
-import { io } from "socket.io-client";
+// import { io } from "socket.io-client";
 import LogoutButton from "../../components/LogoutButton";
 import { getSocket } from "../../socket";
 
