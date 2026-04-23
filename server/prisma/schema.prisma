@@ -2411,6 +2411,8 @@ model TransportFeePlan {
   isActive      Boolean               @default(true)
 
   studentTransports StudentTransport[]
+  School            School?            @relation(fields: [schoolId], references: [id])
+  schoolId          String?
 
   @@unique([routeId, stopId, academicYearId]) // ✅ FIXED: confirmed unique constraint
   @@index([routeId])
