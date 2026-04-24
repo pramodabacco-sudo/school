@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { C } from "./shared.jsx";
 import Avatar3D from "../../../../components/Avatar3D.jsx";
  
@@ -11,16 +11,52 @@ const STATUS_COLOR = {
   FAILED: "#dc2626",
   PENDING_READMISSION: "#d97706",
 };
- 
+
+const BOY_IMAGES = [
+  "/student-avatars/boys/boy1.jpg",
+  "/student-avatars/boys/boy2.jpg",
+];
+
+const GIRL_IMAGES = [
+  "/student-avatars/girls/girl1.jpg",
+  "/student-avatars/girls/girl2.jpg",
+];
+
 export default function ProfileSidebar({ profileData, enrollment, parents, loading }) {
   const pi = profileData?.personalInfo;
  
   const fullName = pi
     ? `${pi.firstName} ${pi.lastName ?? ""}`.trim()
-    : (profileData?.name ?? "Student");
- 
+    : profileData?.name ?? "Student";
+
   const className = enrollment?.classSection?.name ?? "—";
-  const grade = enrollment?.classSection?.grade ?? "—";
+
+  const grade =
+    enrollment?.classSection?.grade ??
+    profileData?.currentEnrollment?.classSection?.grade ??
+    "0";
+
+  const numericGrade = parseInt(grade, 10) || 0;
+
+  const gender = pi?.gender?.toUpperCase() || "UNKNOWN";
+
+  const IMAGE_LIST =
+    gender === "MALE"
+      ? BOY_IMAGES
+      : gender === "FEMALE"
+      ? GIRL_IMAGES
+      : [...BOY_IMAGES, ...GIRL_IMAGES];
+
+  const avatarImage = useMemo(() => {
+    const key = (profileData?.id || "") + gender;
+    let hash = 0;
+    for (let i = 0; i < key.length; i++) {
+      hash += key.charCodeAt(i);
+    }
+    const index = hash % IMAGE_LIST.length;
+    return IMAGE_LIST[index];
+  }, [profileData?.id, gender, IMAGE_LIST]);
+
   const section = enrollment?.classSection?.section ?? "—";
   const admNo = enrollment?.admissionNumber ?? "—";
   const rollNo = enrollment?.rollNumber ?? "—";
@@ -40,151 +76,88 @@ export default function ProfileSidebar({ profileData, enrollment, parents, loadi
   ];
  
   return (
-    <div className="pf-sidebar"> 
- 
-      {/* 🔥 FULL WIDTH 3D AVATAR (NO SHAPE, NO BACKGROUND) */}
-      <div
-        style={{
-          width: "100%",
-          height: 260,
-          marginBottom: 10,
-        }}
-      >
-        <Avatar3D />
+    <div className="pf-sidebar">
+
+      {/* Avatar */}
+      <div style={{
+        width: "100%",
+        marginBottom: 10,
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+      }}>
+        {numericGrade < 5 ? (
+          <img
+            src={avatarImage}
+            alt="student avatar"
+            style={{
+              width: "100%",
+              height: "auto",
+              maxHeight: 280,
+              objectFit: "contain",
+              objectPosition: "center top",
+              borderRadius: 10,
+              display: "block",
+            }}
+          />
+        ) : (
+          <div style={{ height: 280, width: "100%" }}>
+            <Avatar3D gender={gender} studentId={profileData?.id} />
+          </div>
+        )}
       </div>
  
       {/* Name */}
-      <div style={{ padding: "60px 4px" }}>
-        <div
-          style={{
-            fontWeight: 800,
-            fontSize: 14,
-            color: C.dark,
-            lineHeight: 1.3,
-          }}
-        >
+      <div style={{ padding: "12px 4px" }}>
+        <div style={{ fontWeight: 800, fontSize: 14, color: C.dark }}>
           {loading ? "Loading…" : fullName}
         </div>
- 
-        <div style={{ fontSize: 11, color: C.mid, marginTop: 2 }}>
-          {className}
-        </div>
- 
-        <div
-          style={{
-            fontSize: 11,
-            fontWeight: 700,
-            color: C.light,
-            marginTop: 1,
-          }}
-        >
+
+        <div style={{ fontSize: 11, color: C.mid }}>{className}</div>
+
+        <div style={{ fontSize: 11, fontWeight: 700, color: C.light }}>
           {admNo}
         </div>
- 
-        {/* Status pills */}
+
+        {/* Status */}
         <div style={{ display: "flex", gap: 5, marginTop: 8 }}>
-          <span
-            className="pf-badge"
-            style={{
-              background: `${statusColor}15`,
-              color: statusColor,
-              border: `1px solid ${statusColor}40`,
-            }}
-          >
+          <span className="pf-badge" style={{
+            background: `${statusColor}15`,
+            color: statusColor,
+            border: `1px solid ${statusColor}40`,
+          }}>
             {status}
           </span>
- 
-          <span
-            className="pf-badge"
-            style={{
-              background: "rgba(237,243,250,0.90)",
-              color: C.mid,
-              border: `1px solid ${C.pale}`,
-            }}
-          >
+
+          <span className="pf-badge" style={{
+            background: "rgba(237,243,250,0.90)",
+            color: C.mid,
+            border: `1px solid ${C.pale}`,
+          }}>
             {ayName}
           </span>
         </div>
       </div>
  
       {/* Stats */}
-      <div
-        className="pf-stat-grid"
-        style={{ marginTop: 16, marginBottom: 14 }}
-      >
+      <div className="pf-stat-grid" style={{ marginTop: 16 }}>
         {STATS.map(({ label, value, color }) => (
-          <div
-            key={label}
-            style={{
-              background: C.bg,
-              borderRadius: 10,
-              padding: "8px",
-              textAlign: "center",
-              border: `1px solid ${C.pale}`,
-            }}
-          >
+          <div key={label} style={{
+            background: C.bg,
+            borderRadius: 10,
+            padding: "8px",
+            textAlign: "center",
+            border: `1px solid ${C.pale}`,
+          }}>
             <div style={{ fontSize: 13, fontWeight: 800, color }}>
               {value}
             </div>
-            <div
-              style={{
-                fontSize: 9,
-                color: C.mid,
-                marginTop: 3,
-                textTransform: "uppercase",
-              }}
-            >
+            <div style={{ fontSize: 9, color: C.mid }}>
               {label}
             </div>
           </div>
         ))}
       </div>
- 
-      {/* Divider */}
-      <div style={{ height: 1, background: C.pale, marginBottom: 14 }} />
- 
-      {/* Parents */}
-      {parents.length > 0 && (
-        <div>
-          <div
-            style={{
-              fontSize: 9,
-              fontWeight: 800,
-              color: C.mid,
-              marginBottom: 9,
-            }}
-          >
-            PARENTS / GUARDIAN
-          </div>
- 
-          {parents.map(({ relation, parent: p }) => (
-            <div
-              key={p.id}
-              style={{
-                background: C.bg,
-                border: `1px solid ${C.pale}`,
-                borderRadius: 10,
-                padding: "9px 12px",
-                marginBottom: 6,
-              }}
-            >
-              <div style={{ fontSize: 12, fontWeight: 700 }}>
-                {p.name}
-              </div>
- 
-              <div style={{ fontSize: 10, color: C.mid }}>
-                {relation} {p.phone ? `· ${p.phone}` : ""}
-              </div>
- 
-              {p.occupation && (
-                <div style={{ fontSize: 10, color: C.mid }}>
-                  {p.occupation}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
