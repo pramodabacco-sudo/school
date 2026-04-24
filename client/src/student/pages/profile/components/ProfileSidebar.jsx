@@ -1,7 +1,7 @@
 import React from "react";
 import { C } from "./shared.jsx";
 import Avatar3D from "../../../../components/Avatar3D.jsx";
-
+ 
 const STATUS_COLOR = {
   ACTIVE: "#16a34a",
   COMPLETED: "#2563eb",
@@ -11,14 +11,14 @@ const STATUS_COLOR = {
   FAILED: "#dc2626",
   PENDING_READMISSION: "#d97706",
 };
-
+ 
 export default function ProfileSidebar({ profileData, enrollment, parents, loading }) {
   const pi = profileData?.personalInfo;
-
+ 
   const fullName = pi
     ? `${pi.firstName} ${pi.lastName ?? ""}`.trim()
     : (profileData?.name ?? "Student");
-
+ 
   const className = enrollment?.classSection?.name ?? "—";
   const grade = enrollment?.classSection?.grade ?? "—";
   const section = enrollment?.classSection?.section ?? "—";
@@ -27,7 +27,7 @@ export default function ProfileSidebar({ profileData, enrollment, parents, loadi
   const ayName = enrollment?.academicYear?.name ?? "—";
   const status = enrollment?.status ?? "ACTIVE";
   const statusColor = STATUS_COLOR[status] ?? C.mid;
-
+ 
   const STATS = [
     { label: "Grade", value: grade, color: C.light },
     { label: "Section", value: section, color: "#8b5cf6" },
@@ -38,10 +38,10 @@ export default function ProfileSidebar({ profileData, enrollment, parents, loadi
       color: statusColor,
     },
   ];
-
+ 
   return (
-    <div className="pf-sidebar">
-
+    <div className="pf-sidebar"> 
+ 
       {/* 🔥 FULL WIDTH 3D AVATAR (NO SHAPE, NO BACKGROUND) */}
       <div
         style={{
@@ -52,9 +52,9 @@ export default function ProfileSidebar({ profileData, enrollment, parents, loadi
       >
         <Avatar3D />
       </div>
-
+ 
       {/* Name */}
-      <div style={{ padding: "0 4px" }}>
+      <div style={{ padding: "60px 4px" }}>
         <div
           style={{
             fontWeight: 800,
@@ -65,11 +65,11 @@ export default function ProfileSidebar({ profileData, enrollment, parents, loadi
         >
           {loading ? "Loading…" : fullName}
         </div>
-
+ 
         <div style={{ fontSize: 11, color: C.mid, marginTop: 2 }}>
           {className}
         </div>
-
+ 
         <div
           style={{
             fontSize: 11,
@@ -80,7 +80,7 @@ export default function ProfileSidebar({ profileData, enrollment, parents, loadi
         >
           {admNo}
         </div>
-
+ 
         {/* Status pills */}
         <div style={{ display: "flex", gap: 5, marginTop: 8 }}>
           <span
@@ -93,7 +93,7 @@ export default function ProfileSidebar({ profileData, enrollment, parents, loadi
           >
             {status}
           </span>
-
+ 
           <span
             className="pf-badge"
             style={{
@@ -106,7 +106,7 @@ export default function ProfileSidebar({ profileData, enrollment, parents, loadi
           </span>
         </div>
       </div>
-
+ 
       {/* Stats */}
       <div
         className="pf-stat-grid"
@@ -139,10 +139,10 @@ export default function ProfileSidebar({ profileData, enrollment, parents, loadi
           </div>
         ))}
       </div>
-
+ 
       {/* Divider */}
       <div style={{ height: 1, background: C.pale, marginBottom: 14 }} />
-
+ 
       {/* Parents */}
       {parents.length > 0 && (
         <div>
@@ -156,7 +156,7 @@ export default function ProfileSidebar({ profileData, enrollment, parents, loadi
           >
             PARENTS / GUARDIAN
           </div>
-
+ 
           {parents.map(({ relation, parent: p }) => (
             <div
               key={p.id}
@@ -171,11 +171,11 @@ export default function ProfileSidebar({ profileData, enrollment, parents, loadi
               <div style={{ fontSize: 12, fontWeight: 700 }}>
                 {p.name}
               </div>
-
+ 
               <div style={{ fontSize: 10, color: C.mid }}>
                 {relation} {p.phone ? `· ${p.phone}` : ""}
               </div>
-
+ 
               {p.occupation && (
                 <div style={{ fontSize: 10, color: C.mid }}>
                   {p.occupation}
