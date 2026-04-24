@@ -3,10 +3,9 @@ import { useGLTF, OrbitControls } from "@react-three/drei";
 import { useRef, useEffect, useMemo } from "react";
 import * as THREE from "three";
 
-const MODELS = [
-  "/avatars/model1.glb",
-  "/avatars/model2.glb",
-];
+function Model() {
+  const group = useRef();
+  const { scene, animations } = useGLTF("/avatars/girl-1.glb");
 
 function Model({ url }) {
   const group = useRef();
