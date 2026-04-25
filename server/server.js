@@ -23,6 +23,8 @@ const allowedOrigins = [
   "https://www.eduabaccotech.com",
   "https://school-crm.onrender.com",
   "https://cqw6v494-5173.inc1.devtunnels.ms",
+  "capacitor://localhost",
+  "http://localhost"
 ];
 // CORS
 app.use(cors({
