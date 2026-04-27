@@ -1,10 +1,13 @@
 // server/src/staffRoutes/teachersRoutes.js
+
 import express from "express";
 import multer from "multer";
 import authMiddleware from "../middlewares/authMiddleware.js";
+
 import {
   getTeachers,
   getTeacherById,
+  getMyTeacherProfile,
   createTeacher,
   updateTeacher,
   deleteTeacher,
@@ -14,47 +17,126 @@ import {
   getProfileImage,
   uploadTeacherDocument,
   getTeacherDocumentUrl,
-  bulkImportTeachers,   // ← ADD THIS IMPORT
+  bulkImportTeachers,
 } from "../staffControlls/teacherController.js";
 
 const router = express.Router();
-const upload = multer({ storage: multer.memoryStorage() });
 
-// ── IMPORTANT: Static routes MUST come before /:id ────────────────────────────
-// If bulk-import is placed after router.get("/:id"), Express will treat
-// "bulk-import" as an :id value and call getTeacherById instead.
+const upload = multer({
+  storage: multer.memoryStorage(),
+});
 
-router.post("/bulk-import", authMiddleware, bulkImportTeachers); // ← BEFORE /:id
+/* =========================================================
+   STATIC ROUTES FIRST
+   ========================================================= */
 
-// ── List & Create ─────────────────────────────────────────────────────────────
-router.get("/", authMiddleware, getTeachers);
-router.post("/", authMiddleware, createTeacher);
+// Bulk Import
+router.post(
+  "/bulk-import",
+  authMiddleware,
+  bulkImportTeachers
+);
 
-// ── Single teacher (dynamic :id — must come AFTER static routes) ──────────────
-router.get("/:id", authMiddleware, getTeacherById);
-router.patch("/:id", authMiddleware, updateTeacher);
-router.delete("/:id", authMiddleware, deleteTeacher);
+// Logged-in Teacher Own Profile
+router.get(
+  "/me",
+  authMiddleware,
+  getMyTeacherProfile
+);
 
-// ── Assignments ───────────────────────────────────────────────────────────────
-router.post("/:id/assignments", authMiddleware, addAssignment);
-router.delete("/:id/assignments/:aId", authMiddleware, removeAssignment);
+// Teachers List
+router.get(
+  "/",
+  authMiddleware,
+  getTeachers
+);
 
-// ── Profile image ─────────────────────────────────────────────────────────────
+// Create Teacher
+router.post(
+  "/",
+  authMiddleware,
+  createTeacher
+);
+
+/* =========================================================
+   DYNAMIC ROUTES AFTER STATIC
+   ========================================================= */
+
+// Get Teacher By ID
+router.get(
+  "/:id",
+  authMiddleware,
+  getTeacherById
+);
+
+// Update Teacher
+router.patch(
+  "/:id",
+  authMiddleware,
+  updateTeacher
+);
+
+// Delete Teacher
+router.delete(
+  "/:id",
+  authMiddleware,
+  deleteTeacher
+);
+
+/* =========================================================
+   ASSIGNMENTS
+   ========================================================= */
+
+// Add Assignment
+router.post(
+  "/:id/assignments",
+  authMiddleware,
+  addAssignment
+);
+
+// Remove Assignment
+router.delete(
+  "/:id/assignments/:aId",
+  authMiddleware,
+  removeAssignment
+);
+
+/* =========================================================
+   PROFILE IMAGE
+   ========================================================= */
+
+// Upload Profile Image
 router.post(
   "/:id/profile-image",
   authMiddleware,
   upload.single("profileImage"),
-  uploadProfileImage,
+  uploadProfileImage
 );
-router.get("/:id/profile-image", authMiddleware, getProfileImage);
 
-// ── Documents ─────────────────────────────────────────────────────────────────
+// Get Profile Image
+router.get(
+  "/:id/profile-image",
+  authMiddleware,
+  getProfileImage
+);
+
+/* =========================================================
+   DOCUMENTS
+   ========================================================= */
+
+// Upload Teacher Document
 router.post(
   "/:id/documents",
   authMiddleware,
   upload.single("file"),
-  uploadTeacherDocument,
+  uploadTeacherDocument
 );
-router.get("/:id/documents/:docId/view", authMiddleware, getTeacherDocumentUrl);
+
+// View Teacher Document
+router.get(
+  "/:id/documents/:docId/view",
+  authMiddleware,
+  getTeacherDocumentUrl
+);
 
 export default router;

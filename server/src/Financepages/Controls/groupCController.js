@@ -15,7 +15,7 @@ const calcLeaveDeduction = (monthlySalary, leaveDays) => {
 // ─────────────────────────────────────────────────────────────────────────────
 export const getGroupCStaff = async (req, res) => {
   try {
-    const { schoolId } = req.params;
+   const { schoolId } = req.params;
     if (req.user.schoolId !== schoolId && req.user.role !== "SUPER_ADMIN") {
       return res.status(403).json({ message: "Access denied" });
     }
@@ -168,7 +168,7 @@ export const getGroupCSalaryList = async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 export const getGroupCSalaryHistoryBySchool = async (req, res) => {
   try {
-    const { schoolId } = req.params;
+   const { schoolId } = req.params;
     if (req.user.schoolId !== schoolId && req.user.role !== "SUPER_ADMIN") {
       return res.status(403).json({ message: "Access denied" });
     }

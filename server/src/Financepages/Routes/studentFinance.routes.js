@@ -16,7 +16,7 @@ router.post("/addStudentFinance", authMiddleware, async (req, res) => {
     }
 
     const {
-      name, email, phone, course, fees,
+      studentId, name, email, phone, course, fees,
       collegeFee, tuitionFee, examFee,
       transportFee, booksFee, labFee, miscFee, customFees
     } = req.body;
