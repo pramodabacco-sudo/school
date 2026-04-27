@@ -493,7 +493,7 @@ export default function StudentFeesPage() {
                                         const status = student.paymentStatus || (remaining === 0 && totalFee > 0 ? "PAID" : "UNPAID");
                                         const isPaid = status === "PAID";
                                         const isPartial = status === "PARTIAL";
-
+ 
                                         return (
                                             <tr key={student.id}>
                                                 <td style={{ color: "#8fa3b1", fontSize: 12 }}>{idx + 1}</td>
