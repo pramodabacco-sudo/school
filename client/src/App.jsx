@@ -26,8 +26,9 @@ import ScrollToTop from "./components/ScrollToTop";
 import ForgotPassword from "./auth/ForgotPassword";
 import VerifyOtp from "./auth/VerifyOtp";
 import ResetPassword from "./auth/ResetPassword";
-
-
+import Terms from "./LandingPages/components/terms";
+import FAQ from "./LandingPages/components/FAQ";
+import PrivacyPolicy from "./LandingPages/components/PrivacyPolicy";
 function App() {
   const [auth] = useState(getAuth());
 
@@ -57,6 +58,10 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/verify-otp" element={<VerifyOtp />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/faq" element={<FAQ />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+
         </Route>
         {/* PUBLIC */}
         {/* <Route path="/" element={<Navigate to="/login" />} />
