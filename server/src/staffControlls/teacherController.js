@@ -736,3 +736,56 @@ export async function bulkImportTeachers(req, res) {
     res.status(500).json({ error: "Bulk import failed: " + err.message });
   }
 }
+
+export async function getMyTeacherProfile(req, res) {
+  try {
+    const userId = req.user?.id;
+    const schoolId = req.user?.schoolId;
+
+    const teacher = await prisma.teacherProfile.findFirst({
+      where: {
+        userId,
+        schoolId,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            isActive: true,
+          },
+        },
+        assignments: {
+          include: {
+            classSection: true,
+            subject: true,
+            academicYear: true,
+          },
+        },
+        documents: true,
+      },
+    });
+
+    if (!teacher) {
+      return res.status(404).json({
+        error: "Teacher profile not found",
+      });
+    }
+
+    if (teacher.profileImage) {
+      teacher.profileImage = await generateSignedUrl(
+        teacher.profileImage,
+        86400
+      );
+    }
+
+    res.json({
+      data: teacher,
+    });
+  } catch (err) {
+    console.error("[getMyTeacherProfile]", err);
+    res.status(500).json({
+      error: "Failed to fetch profile",
+    });
+  }
+}

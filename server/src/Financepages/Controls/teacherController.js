@@ -45,7 +45,7 @@ class TeacherSalaryController {
           user: { select: { email: true } }
         }
       });
-
+ 
       res.json(teachers);
     } catch (e) {
       res.status(400).json({ message: e.message });
@@ -363,8 +363,8 @@ class TeacherSalaryController {
       res.status(400).json({ message: e.message });
     }
   }
-
   // =====================================================
+
   // 🔥 DELETE SALARY
   // =====================================================
   async deleteTeacherSalary(req, res) {

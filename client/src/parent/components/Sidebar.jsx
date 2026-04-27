@@ -37,7 +37,7 @@ function Sidebar({ isOpen, onClose }) {
     { icon: BarChart2, label: "Results", href: `${base}/marks` },
     { icon: Calendar, label: "Time Table", href: `${base}/timetable` },
     { icon: Award, label: "Certificates", href: `${base}/certificates` },
-    { icon: Library, label: "curriculums", href: `${base}/certificates` },
+    { icon: Library, label: "curriculums", href: `${base}/syllabus-progress` },
     { icon: CreditCard, label: "Fees & Payments", href: `${base}/fees-payments` },
     { icon: MessageCircle, label: "Chat", href: `${base}/chat` },
   ];
