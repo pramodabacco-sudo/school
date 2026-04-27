@@ -385,12 +385,20 @@ export async function loginFinanceService({ email, password }) {
     throw { status: 400, message: "Email and password required" };
   }
 
-  const user = await prisma.user.findFirst({
-    where: {
-      email,
-      role: "FINANCE",
+const user = await prisma.user.findFirst({
+  where: {
+    email,
+    role: "FINANCE",
+  },
+  include: {
+    school: {
+      select: {
+        id: true,
+        name: true,
+      },
     },
-  });
+  },
+});
 
   if (!user) {
     const student = await prisma.student.findFirst({ where: { email } });
@@ -424,7 +432,7 @@ export async function loginFinanceService({ email, password }) {
       email: user.email,
       role: user.role,
       userType: "staff",
-      schoolId: user.schoolId,
+      school: user. School,
     },
   };
 }
