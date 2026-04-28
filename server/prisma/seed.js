@@ -36,6 +36,46 @@ const OCCS    = ["Engineer","Doctor","Teacher","Business Owner","Government Empl
 const GENDERS = ["MALE","FEMALE"];
 
 const pick = (arr, i) => arr[Math.abs(i) % arr.length];
+const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const NUMBERS = "0123456789";
+
+function generateStudentCode() {
+  let code = "";
+
+  // 6 numbers
+  for (let i = 0; i < 6; i++) {
+    code += NUMBERS.charAt(
+      Math.floor(Math.random() * NUMBERS.length)
+    );
+  }
+
+  // 4 alphabets
+  for (let i = 0; i < 4; i++) {
+    code += LETTERS.charAt(
+      Math.floor(Math.random() * LETTERS.length)
+    );
+  }
+
+  return code;
+}
+
+async function createUniqueStudentCode() {
+  let studentCode;
+  let exists = true;
+
+  while (exists) {
+    studentCode = generateStudentCode();
+
+    const student = await prisma.student.findUnique({
+      where: { studentCode },
+      select: { id: true },
+    });
+
+    exists = !!student;
+  }
+
+  return studentCode;
+}
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
 function studentDOB(idx, baseAge = 8) {
@@ -250,8 +290,19 @@ const ln  = pick(LAST_NAMES, sn);
     const an    = `ADM${String(sn).padStart(6,"0")}`;
 
     let stu = await prisma.student.findFirst({ where:{ email, schoolId: school.id } });
-    if (!stu) stu = await prisma.student.create({ data:{ name:`${fn} ${ln}`, email, password, schoolId: school.id } });
+if (!stu) {
+  const studentCode = await createUniqueStudentCode();
 
+  stu = await prisma.student.create({
+    data: {
+      studentCode,
+      name: `${fn} ${ln}`,
+      email,
+      password,
+      schoolId: school.id,
+    },
+  });
+}
     await prisma.studentPersonalInfo.upsert({
       where:  { studentId: stu.id },
       update: {},

@@ -47,7 +47,15 @@ student.use(
     credentials: true,
   }),
 );
-student.use(express.json());
+// student.use(express.json());
+student.use(express.json({
+  limit: "50mb",
+}));
+
+student.use(express.urlencoded({
+  extended: true,
+  limit: "50mb",
+}));
 
 // existing routes
 student.use("/dashboard", dashboardRouter);

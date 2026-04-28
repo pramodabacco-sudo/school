@@ -42,7 +42,15 @@ parent.use(
   }),
 );
 
-parent.use(express.json());
+// parent.use(express.json());
+parent.use(express.json({
+  limit: "50mb",
+}));
+
+parent.use(express.urlencoded({
+  extended: true,
+  limit: "50mb",
+}));
 
 // existing routes
 parent.use("/attendance", attendanceRoutes);

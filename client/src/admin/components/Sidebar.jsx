@@ -20,6 +20,7 @@ import {
   Medal,
   Bus,
   MessageCircle,
+  MapPinned
 } from "lucide-react";
 
 const NAV = [
@@ -38,6 +39,7 @@ const NAV = [
   { icon: Images,          label: "Gallery",     to: "/admin/gallery" },
   { icon: Bus,             label: "Transport", to: "/admin/transport" },
   { icon: MessageCircle,        label: "Chat",    to: "/admin/chat" },
+  { icon: MapPinned, label: "Tracking", to: "/admin/tracking" },
 ];
 
 const initials = (name = "AU") =>

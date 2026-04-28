@@ -11,6 +11,7 @@ import finance from "./src/finance.js";
 import student from "./src/student.js";
 import parent from "./src/parent.js";
 import gpsRoutes from "./src/gps-ingestion/gps.routes.js";
+import trackingRoutes from "./src/gpsTracking/tracking.routes.js";
 import paymentRoutes from "./src/payment/payment.routes.js";
 import whatsappRoutes from "./src/whatsapp/whatsapp.routes.js";
 import "./src/whatsapp/birthdayCron.js";
@@ -91,6 +92,7 @@ app.use(student);
 app.use(finance);
 app.use("/api/parent", parent);
 app.use("/api/device", gpsRoutes);
+app.use("/api/tracking", trackingRoutes);
 app.use("/api/payment", paymentRoutes);
 app.use("/api/whatsapp", whatsappRoutes);
 
