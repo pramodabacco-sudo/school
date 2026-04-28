@@ -30,19 +30,19 @@ import Terms from "./LandingPages/components/terms";
 import FAQ from "./LandingPages/components/FAQ";
 import PrivacyPolicy from "./LandingPages/components/PrivacyPolicy";
 function App() {
-  const [auth] = useState(getAuth());
+  const auth = getAuth();
 
-  useEffect(() => {
-    const userId = auth?.user?.id;
+useEffect(() => {
+  const userId = auth?.user?.id;
 
-    if (!userId) return;
+  if (!userId) return;
 
-    const socket = connectSocket(userId);
+  const socket = connectSocket(userId);
 
-    return () => {
-      socket?.disconnect();
-    };
-  }, []);
+  return () => {
+    socket?.disconnect();
+  };
+}, [auth?.user?.id]); // ✅ IMPORTANT CHANGE
   return (
     <>
       <Toaster position="top-right" reverseOrder={false} />
