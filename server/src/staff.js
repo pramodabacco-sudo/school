@@ -42,6 +42,7 @@ import chatRoutes from "../src/chatbox/chat.routes.js";
 import staffNotificationRoutes from "./staffRoutes/staffNotificationRoutes.js";
 import logoRoutes from "./utils/logoRoutes.js";
 import { requireAuth } from "./middlewares/auth.middleware.js";
+import deleteAccountRoutes from "./superAdmin/routes/DeleteAccount.routes.js";
 
 // ── NEW: shared read-only holiday route for teacher/staff logins ──────────────
 import makeHolidayRouter from "./sharedRoutes/holidayRoute.js";
@@ -85,6 +86,7 @@ staff.use("/api/users", userRoutes);
 staff.use("/api/superadmin/analytics", analyticsRouter);
 staff.use("/api/finance-profiles", financeProfileRoutes);
 staff.use("/api/fees", feeRoutes);
+staff.use("/api/superadmin/delete-account", deleteAccountRoutes); // NEW: delete account route
 
 // staff / teacher routes
 staff.use("/api/students", studentsRoutes);

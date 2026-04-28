@@ -240,7 +240,8 @@ model SuperAdmin {
   university   University @relation(fields: [universityId], references: [id], onDelete: Cascade)
 
   schoolAccess SuperAdminSchoolAccess[]
-  schoolId     String?
+  schoolId     String
+  school       School                   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@index([universityId])
   @@map("super_admins")
@@ -313,6 +314,11 @@ model School {
   ClassFee              ClassFee[]
   TransportFeePlan      TransportFeePlan[]
   Subscription          Subscription[]
+  SuperAdmin            SuperAdmin[]
+  StudentFinance        StudentFinance[]
+  StudentList           StudentList[]
+  GroupDStaffSalary     GroupDStaffSalary[]
+  Payment               Payment[]
 
   @@index([universityId])
   @@index([type])
@@ -961,7 +967,7 @@ model PeriodDefinition {
   updatedAt DateTime @updatedAt
 
   configId String
-  config   TimetableConfig @relation(fields: [configId], references: [id], onDelete: Restrict)
+  config   TimetableConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
 
   periodNumber Int
   label        String
@@ -1002,7 +1008,7 @@ model TimetableEntry {
   config   TimetableConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
 
   periodDefinitionId String
-  periodDefinition   PeriodDefinition @relation(fields: [periodDefinitionId], references: [id], onDelete: Restrict)
+  periodDefinition   PeriodDefinition @relation(fields: [periodDefinitionId], references: [id], onDelete: Cascade)
 
   day WeekDay
 
@@ -1310,11 +1316,10 @@ model TeacherAttendance {
   academicYearId String
   academicYear   AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
 
-  markedById String
-  markedBy   User   @relation("TeacherAttendanceMarkedBy", fields: [markedById], references: [id], onDelete: Restrict)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  markedById String?
+  markedBy   User?    @relation("TeacherAttendanceMarkedBy", fields: [markedById], references: [id], onDelete: SetNull)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@unique([teacherId, date, academicYearId])
   @@index([date])
@@ -1366,6 +1371,8 @@ model StudentFinance {
   fees      Decimal?
   address   String?
   createdAt DateTime @default(now())
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@map("student_finance")
 }
@@ -1374,10 +1381,10 @@ model TeacherMonthlySalary {
   id String @id @default(uuid())
 
   teacherId String
-  teacher   TeacherProfile @relation(fields: [teacherId], references: [id])
+  teacher   TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
 
   schoolId String
-  school   School @relation(fields: [schoolId], references: [id])
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   teacherName  String // e.g. "Ravi Kumar"
   teacherEmail String // e.g. "ravi@school.com"
@@ -1438,11 +1445,11 @@ model StaffProfile {
 
   // 🔗 School Relation
   schoolId String
-  school   School @relation(fields: [schoolId], references: [id])
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   // 🔗 Optional login (same like teacher)
   userId         String?             @unique
-  user           User?               @relation(fields: [userId], references: [id])
+  user           User?               @relation(fields: [userId], references: [id], onDelete: Cascade)
   groupBSalaries GroupBStaffSalary[]
   groupCSalaries GroupCStaffSalary[]
 
@@ -1450,37 +1457,46 @@ model StaffProfile {
 }
 
 model StudentList {
-  id        Int     @id @default(autoincrement())
-  studentId String?
-  name      String
-  email     String
-  phone     String
+  id Int @id @default(autoincrement())
 
-  course        String?
-  fees          Decimal?
-  address       String?
-  feeBreakdown  String?
-  createdAt     DateTime  @default(now())
-  schoolId      String
-  // Payment tracking
+  studentId String? // optional reference (if linked to Student table)
+
+  name  String
+  email String
+  phone String
+
+  course       String?
+  fees         Decimal?
+  address      String?
+  feeBreakdown String?
+
+  createdAt DateTime @default(now())
+
+  // 🔥 IMPORTANT FIX (School relation)
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  // 💰 Payment tracking
   paidAmount    Decimal? // How much has been paid so far
   paymentStatus String? // "UNPAID" | "PARTIAL" | "PAID"
   paymentMode   String? // "UPI" | "Cash" | "Net Banking" | "Card" | "Cheque"
   paymentDate   DateTime? // Date of last payment
 
+  // ⚡ Recommended indexes
+  @@index([schoolId])
+  @@index([email])
+  @@index([phone])
   @@map("student_list")
 }
 
 model GroupBStaffSalary {
   id String @id @default(uuid())
 
-  // ✅ Now links to StaffProfile (not TeacherProfile)
   staffId String
-  staff   StaffProfile @relation(fields: [staffId], references: [id])
+  staff   StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
 
   schoolId String
 
-  // Snapshot fields (so payslip works even if staff is edited later)
   staffName  String
   staffEmail String
   staffRole  String
@@ -1511,9 +1527,8 @@ model GroupCStaffSalary {
   id String @id @default(uuid())
 
   // ✅ Now links to StaffProfile
-  staffId String
-  staff   StaffProfile @relation(fields: [staffId], references: [id])
-
+  staffId  String
+  staff    StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
   schoolId String
 
   // Snapshot fields
@@ -1546,14 +1561,20 @@ model GroupDStaffSalary {
 
   name        String
   designation String
-  school      String
   department  String?
+
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   basicSalary Decimal
   allowances  Decimal
 
   status     String  @default("Active")
   salaryPaid Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([schoolId])
 }
 
 model SubjectSyllabus {
@@ -1574,11 +1595,11 @@ model SubjectSyllabus {
   chapters      Json    @default("[]") // ← ADD THIS (replaces chapterNames)
   description   String?
 
-  createdById String
-  createdBy   TeacherProfile @relation("SyllabusCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  createdById String?
+  createdBy   TeacherProfile? @relation("SyllabusCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
-  updatedById String
-  updatedBy   TeacherProfile @relation("SyllabusUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  updatedById String?
+  updatedBy   TeacherProfile? @relation("SyllabusUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1607,8 +1628,8 @@ model SectionPortionProgress {
   completedChapters       Int   @default(0)
   completedChapterIndices Int[] @default([]) // ADD THIS
 
-  updatedById String
-  updatedBy   TeacherProfile @relation(fields: [updatedById], references: [id], onDelete: Restrict)
+  updatedById String?
+  updatedBy   TeacherProfile? @relation(fields: [updatedById], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1769,7 +1790,7 @@ model Activity {
   academicYearId String
   academicYear   AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
   createdById    String
-  createdBy      User         @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  createdBy      User         @relation(fields: [createdById], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1800,11 +1821,11 @@ model StudentActivityEnrollment {
   id String @id @default(uuid())
 
   studentId      String
-  student        Student      @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  student        Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
   activityId     String
-  activity       Activity     @relation(fields: [activityId], references: [id], onDelete: Restrict)
+  activity       Activity     @relation(fields: [activityId], references: [id], onDelete: Cascade)
   academicYearId String
-  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
 
   status     MembershipStatus @default(ACTIVE)
   enrolledAt DateTime         @default(now())
@@ -1838,7 +1859,7 @@ model ActivityEvent {
   academicYearId String
   academicYear   AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
   createdById    String
-  createdBy      User         @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  createdBy      User         @relation(fields: [createdById], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1896,7 +1917,7 @@ model EventTeamMember {
   teamId    String
   team      EventTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
   studentId String
-  student   Student   @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  student   Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
   role      String?
 
   @@unique([teamId, studentId])
@@ -1908,9 +1929,9 @@ model EventParticipant {
   id String @id @default(uuid())
 
   eventId   String
-  event     ActivityEvent @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  event     ActivityEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
   studentId String
-  student   Student       @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  student   Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   role         String?
   participated Boolean @default(true)
@@ -1927,11 +1948,11 @@ model EventResult {
   id String @id @default(uuid())
 
   eventId   String
-  event     ActivityEvent @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  event     ActivityEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
   studentId String?
-  student   Student?      @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  student   Student?      @relation(fields: [studentId], references: [id], onDelete: Cascade)
   teamId    String?
-  team      EventTeam?    @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  team      EventTeam?    @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
   resultType ResultType
   position   Int?
@@ -1958,19 +1979,19 @@ model Certificate {
   id String @id @default(uuid())
 
   studentId String
-  student   Student @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   eventId String?
-  event   ActivityEvent? @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  event   ActivityEvent? @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   teamId String?
-  team   EventTeam? @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  team   EventTeam? @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
   resultId String?
-  result   EventResult? @relation(fields: [resultId], references: [id], onDelete: Restrict)
+  result   EventResult? @relation(fields: [resultId], references: [id], onDelete: Cascade)
 
   studentAwardId String?
-  studentAward   StudentAward? @relation(fields: [studentAwardId], references: [id], onDelete: Restrict)
+  studentAward   StudentAward? @relation(fields: [studentAwardId], references: [id], onDelete: Cascade)
 
   studentName     String
   eventName       String?
@@ -2043,16 +2064,16 @@ model StudentAward {
   student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   awardId String
-  award   Award  @relation(fields: [awardId], references: [id], onDelete: Restrict)
+  award   Award  @relation(fields: [awardId], references: [id], onDelete: Cascade)
 
   classSectionId String?
   classSection   ClassSection? @relation(fields: [classSectionId], references: [id], onDelete: SetNull)
 
   academicYearId String
-  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
 
   givenById String
-  givenBy   User   @relation(fields: [givenById], references: [id], onDelete: Restrict)
+  givenBy   User   @relation(fields: [givenById], references: [id], onDelete: Cascade)
 
   remarks String?
 
@@ -2233,10 +2254,10 @@ model Assignment {
 
   // Relations
   subjectId String
-  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
 
   teacherId String
-  teacher   TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  teacher   TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
 
   schoolId String
   school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
@@ -2411,7 +2432,7 @@ model TransportFeePlan {
   isActive      Boolean               @default(true)
 
   studentTransports StudentTransport[]
-  School            School?            @relation(fields: [schoolId], references: [id])
+  School            School?            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   schoolId          String?
 
   @@unique([routeId, stopId, academicYearId]) // ✅ FIXED: confirmed unique constraint
@@ -2430,19 +2451,18 @@ model StudentTransport {
 
   // ✅ FIXED: schoolId was missing — added for multi-school queries
   schoolId String
-  school   School @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   routeId String
-  route   TransportRoute @relation(fields: [routeId], references: [id], onDelete: Restrict)
+  route   TransportRoute @relation(fields: [routeId], references: [id], onDelete: Cascade)
 
   stopId String
-  stop   TransportStop @relation(fields: [stopId], references: [id], onDelete: Restrict)
+  stop   TransportStop @relation(fields: [stopId], references: [id], onDelete: Cascade)
 
   academicYearId String
-  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
-
-  feePlanId String?
-  feePlan   TransportFeePlan? @relation(fields: [feePlanId], references: [id], onDelete: SetNull)
+  academicYear   AcademicYear      @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  feePlanId      String?
+  feePlan        TransportFeePlan? @relation(fields: [feePlanId], references: [id], onDelete: SetNull)
 
   pickupType PickupType @default(BOTH)
 
@@ -2695,6 +2715,8 @@ model Payment {
   // 📊 Status
   status       PaymentStatus  @default(PENDING)
   Subscription Subscription[]
+  schoolId     String
+  school       School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@index([email])
   @@index([razorpayOrderId])

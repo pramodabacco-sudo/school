@@ -1,5 +1,4 @@
 // src/socket.js
-
 import { io } from "socket.io-client";
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -12,26 +11,28 @@ export const connectSocket = (userId) => {
     return null;
   }
 
-  // If already connected, return existing socket
+  // reuse existing connection
   if (socket && socket.connected) {
     return socket;
   }
 
-  // Remove old disconnected socket
   if (socket) {
     socket.disconnect();
     socket = null;
   }
 
   socket = io(API_URL, {
-    transports: ["websocket", "polling"],
+    transports: ["websocket"], // ✅ remove polling (important)
     withCredentials: true,
+
     reconnection: true,
-    reconnectionAttempts: Infinity,
-    reconnectionDelay: 1000,
+    reconnectionAttempts: 5, // ✅ LIMIT retries
+    reconnectionDelay: 2000,
     reconnectionDelayMax: 5000,
-    timeout: 20000,
+
+    timeout: 10000,
     autoConnect: true,
+
     auth: {
       userId: String(userId),
     },
@@ -46,15 +47,15 @@ export const connectSocket = (userId) => {
   });
 
   socket.on("connect_error", (err) => {
-    console.log("❌ Socket Connect Error:", err.message);
-  });
-
-  socket.io.on("reconnect", (attempt) => {
-    console.log("🔁 Socket Reconnected after attempts:", attempt);
+    console.log("❌ Socket Error:", err.message);
   });
 
   socket.io.on("reconnect_attempt", (attempt) => {
     console.log("⏳ Reconnect attempt:", attempt);
+  });
+
+  socket.io.on("reconnect_failed", () => {
+    console.log("🚫 Reconnect failed (stopped retrying)");
   });
 
   return socket;

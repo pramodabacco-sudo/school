@@ -278,3 +278,68 @@ export const markMessagesSeen = async (req, res) => {
 
   res.json({ success: true });
 };
+
+export const getTeachersBySubject = async (req, res) => {
+  try {
+    const schoolId = req.user.schoolId;
+
+    const entries = await prisma.timetableEntry.findMany({
+      where: {
+        teacher: {
+          schoolId: schoolId, // ✅ FIXED
+        },
+      },
+      include: {
+        subject: true,
+        teacher: {
+          include: {
+            user: {
+              select: { id: true, name: true, email: true },
+            },
+          },
+        },
+      },
+    });
+
+    console.log("ENTRIES:", entries.length); // 👈 DEBUG
+
+    const map = new Map();
+
+    entries.forEach((e) => {
+      if (!e.subject || !e.teacher?.user) return;
+
+      const subjectId = e.subject.id;
+
+      if (!map.has(subjectId)) {
+        map.set(subjectId, {
+          subjectId,
+          subjectName: e.subject.name,
+          teachers: [],
+        });
+      }
+
+      const group = map.get(subjectId);
+
+      if (!group.teachers.find(t => t.id === e.teacher.user.id)) {
+        group.teachers.push({
+          id: e.teacher.user.id,
+          name: e.teacher.user.name,
+          email: e.teacher.user.email,
+        });
+      }
+    });
+
+    const result = Array.from(map.values()).map((s) => ({
+      ...s,
+      count: s.teachers.length,
+    }));
+
+    console.log("RESULT:", result); // 👈 DEBUG
+
+    res.json({ success: true, data: result });
+
+  } catch (err) {
+    console.log("ERROR:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};

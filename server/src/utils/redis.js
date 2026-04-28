@@ -5,33 +5,56 @@ const redisUrl = process.env.REDIS_URL;
 
 let redisClient = null;
 
+export const isRedisReady = () =>
+  redisClient && redisClient.isOpen && redisClient.isReady;
+
 if (redisUrl) {
+  const isTLS = redisUrl.startsWith("rediss://"); // ✅ detect automatically
+
   redisClient = createClient({
     url: redisUrl,
+
     socket: {
+      ...(isTLS && {
+        tls: true,
+        rejectUnauthorized: false,
+      }),
+
       reconnectStrategy(retries) {
         if (retries > 10) {
-          console.error("Redis reconnect failed after 10 attempts.");
+          console.error("❌ Redis reconnect failed");
           return new Error("Retry attempts exhausted");
         }
-        return Math.min(retries * 100, 3000); // exponential backoff
+        return Math.min(retries * 200, 3000);
       },
     },
   });
 
-  redisClient.on("error", (err) => {
-    console.error("Redis Error:", err.message);
+  redisClient.on("connect", () => {
+    console.log("🟡 Redis connecting...");
   });
 
-  redisClient.on("connect", () => {
-    console.log("Redis Connected ✅");
+  redisClient.on("ready", () => {
+    console.log("🟢 Redis Connected ✅");
+  });
+
+  redisClient.on("error", (err) => {
+    console.error("🔴 Redis Error:", err.message);
+  });
+
+  redisClient.on("end", () => {
+    console.warn("⚠️ Redis connection closed");
+  });
+
+  redisClient.on("reconnecting", () => {
+    console.log("🔄 Redis reconnecting...");
   });
 
   (async () => {
     try {
       await redisClient.connect();
     } catch (err) {
-      console.error("Redis initial connection failed:", err.message);
+      console.error("❌ Redis connection failed:", err.message);
     }
   })();
 } else {

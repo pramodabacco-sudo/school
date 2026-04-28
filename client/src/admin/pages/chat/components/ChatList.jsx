@@ -1,7 +1,7 @@
 // src/admin/pages/chat/components/ChatList.jsx
 import React, { useState, useEffect } from "react";
 import { getToken, getUser } from "../../../../auth/storage";
-
+import GroupMessageModal from "./GroupMessage";
 const API_URL = import.meta.env.VITE_API_URL;
 
 const TABS = ["SUPER_ADMIN", "TEACHER", "FINANCE", "PARENT", "STUDENT"];
@@ -52,7 +52,7 @@ const ChatList = ({ selectedChat, onSelectChat, onChatCreated }) => {
   const [showUserList, setShowUserList] = useState(false);
   const [users, setUsers] = useState([]);
   const [activeTab, setActiveTab] = useState("SUPER_ADMIN");
-
+  const [showGroupModal, setShowGroupModal] = useState(false);
   const fetchChats = async () => {
     try {
       const res = await fetch(`${API_URL}/api/chat/list`, {
@@ -147,6 +147,9 @@ const ChatList = ({ selectedChat, onSelectChat, onChatCreated }) => {
             }}
           >
             + New Chat
+          </button>
+          <button onClick={() => setShowGroupModal(true)}>
+            Group Message
           </button>
         </div>
 
@@ -264,6 +267,10 @@ const ChatList = ({ selectedChat, onSelectChat, onChatCreated }) => {
             })
           )}
         </div>
+        {/* Group Message Modal */}
+        {showGroupModal && (
+          <GroupMessageModal onClose={() => setShowGroupModal(false)} />
+        )}
       </div>
     </>
   );

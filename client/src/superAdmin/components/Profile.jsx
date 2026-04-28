@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { key: "basic",    label: "Basic information", icon: User  },
   { key: "password", label: "Change password",   icon: Lock  },
   { key: "logo",     label: "School logo",        icon: ImageIcon },
+  { key: "delete",   label: "Delete Account", icon: ChevronRight },
 ];
 
 export default function Profile() {
@@ -24,7 +25,7 @@ export default function Profile() {
   const [preview, setPreview] = useState(null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
-
+  const [deleting, setDeleting] = useState(false);
 useEffect(() => {
   fetchProfile();
   fetchLogo(); // 👈 ADD THIS
@@ -104,35 +105,64 @@ useEffect(() => {
     setSaving(false);
   };
 
-const handleLogoUpload = async () => {
-  if (!logo) return showToast("Please select a file", "error");
+  const handleLogoUpload = async () => {
+    if (!logo) return showToast("Please select a file", "error");
 
-  setSaving(true);
+    setSaving(true);
 
-  try {
-    const formData = new FormData();
-    formData.append("logo", logo);
+    try {
+      const formData = new FormData();
+      formData.append("logo", logo);
 
-    const res = await fetch(`${API_URL}/api/superadmin/profile/upload-logo`, {
-      method: "PUT",
-      headers: authHeaders(),
-      body: formData,
-    });
+      const res = await fetch(`${API_URL}/api/superadmin/profile/upload-logo`, {
+        method: "PUT",
+        headers: authHeaders(),
+        body: formData,
+      });
 
-    if (!res.ok) throw new Error();
+      if (!res.ok) throw new Error();
 
-    showToast("Logo uploaded successfully");
+      showToast("Logo uploaded successfully");
 
-    await fetchLogo();      // ✅ refresh from backend
-    setPreview(null);       // ✅ remove preview
-    setLogo(null);          // ✅ clear selected file
+      await fetchLogo();      // ✅ refresh from backend
+      setPreview(null);       // ✅ remove preview
+      setLogo(null);          // ✅ clear selected file
 
-  } catch {
-    showToast("Failed to upload logo", "error");
-  }
+    } catch {
+      showToast("Failed to upload logo", "error");
+    }
 
-  setSaving(false);
-};
+    setSaving(false);
+  };
+
+  const handleDeleteAccount = async () => {
+    const input = prompt("Type DELETE to confirm account deletion");
+    if (input !== "DELETE") return showToast("Type DELETE correctly", "error");
+
+    setDeleting(true);
+
+    try {
+      const res = await fetch(`${API_URL}/api/superadmin/delete-account`, {
+        method: "DELETE",
+        headers: {
+          ...authHeaders(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ confirm: "DELETE" }),
+      });
+
+      if (!res.ok) throw new Error();
+
+      alert("Account deleted successfully");
+
+      localStorage.clear();
+      navigate("/login");
+    } catch {
+      showToast("Failed to delete account", "error");
+    }
+
+    setDeleting(false);
+  };
 
   const initials = form.name
     ? form.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()
@@ -341,6 +371,31 @@ const handleLogoUpload = async () => {
                   className="px-5 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 disabled:opacity-50 transition"
                 >
                   {saving ? "Uploading…" : "Upload logo"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "delete" && (
+            <div className="bg-white border border-red-100 rounded-xl shadow-sm p-5">
+              <div className="border-b border-red-100 pb-4 mb-5">
+                <h2 className="text-sm font-semibold text-red-600">Delete Account</h2>
+                <p className="text-xs text-gray-500 mt-1">
+                  This action will permanently delete your account and ALL school data.
+                </p>
+              </div>
+
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-700">
+                ⚠️ Warning: This action cannot be undone. All students, staff, payments, chats, etc. will be deleted.
+              </div>
+
+              <div className="mt-5 flex justify-end">
+                <button
+                  onClick={handleDeleteAccount}
+                  disabled={deleting}
+                  className="px-5 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 disabled:opacity-50"
+                >
+                  {deleting ? "Deleting..." : "Delete My Account"}
                 </button>
               </div>
             </div>
