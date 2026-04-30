@@ -1,6 +1,8 @@
 // client/src/student/pages/Homework/HomeworkPage.jsx
 
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+
 import {
   BookOpen,
   Calendar,
@@ -127,7 +129,7 @@ function SkeletonCard() {
 }
 
 // ── Assignment card ──────────────────────────────────────────
-function AssignmentCard({ hw }) {
+function AssignmentCard({ hw, onOpen }) {
   const [expanded, setExpanded] = useState(false);
   const isOverdue = hw.dueDate && new Date(hw.dueDate) < new Date();
   const dateColor = dueDateColor(hw.dueDate);
@@ -322,12 +324,34 @@ function AssignmentCard({ hw }) {
     </div>
   </div>
 )}
+  <button
+    onClick={(e) => {
+      e.stopPropagation();
+      onOpen();
+    }}
+    style={{
+      marginTop: 14,
+      width: "100%",
+      padding: "11px 14px",
+      borderRadius: 12,
+      border: "none",
+      background: `linear-gradient(135deg, ${C.slate}, ${C.deep})`,
+      color: "#fff",
+      fontSize: 12,
+      fontWeight: 700,
+      cursor: "pointer",
+      fontFamily: "'DM Sans', sans-serif",
+    }}
+  >
+    Start Assignment
+  </button>
     </div>
   );
 }
 
 // ── Main page ────────────────────────────────────────────────
 export default function HomeworkPage() {
+    const navigate = useNavigate();
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState("");
@@ -339,7 +363,7 @@ export default function HomeworkPage() {
     try {
       setLoading(true);
       setError("");
-      const res = await fetch(`${API_URL}/api/student/homework`, {
+      const res = await fetch(`${API_URL}/api/student/assignments`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -530,7 +554,13 @@ export default function HomeworkPage() {
         ) : (
           <div className="hw-grid fade-up">
             {filtered.map((hw) => (
-              <AssignmentCard key={hw.id} hw={hw} />
+              <AssignmentCard
+          key={hw.id}
+          hw={hw}
+          onOpen={() =>
+            navigate(`/student/assignment/${hw.id}`)
+          }
+        />
             ))}
           </div>
         )}

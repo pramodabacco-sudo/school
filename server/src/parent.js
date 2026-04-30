@@ -11,6 +11,8 @@ import dashboardRoutes from "./parent/routes/Dashboardroutes.js";
 import profileRoutes from "./parent/routes/Profileroutes.js";
 import certificatesRoutes from "./parent/routes/Certificatesroutes.js";
 import syllabusProgressRoutes from "./parent/routes/SyllabusProgressRoutes.js";
+import tutorialRoutes from "./parent/routes/tutorialRoutes.js";
+
 import logoRoutes from "./utils/logoRoutes.js";
 import { requireAuth } from "./middlewares/auth.middleware.js";
 
@@ -62,6 +64,7 @@ parent.use("/dashboard", dashboardRoutes);
 parent.use("/profile", profileRoutes);
 parent.use("/certificates", certificatesRoutes);
 parent.use("/syllabus-progress", syllabusProgressRoutes);
+parent.use("/tutorial-recommendations", tutorialRoutes);
 
 // ── Parent read-only holidays  (GET / and GET /check) ────────────────────────
 // NOTE: parent server uses no /api prefix on most routes — keeping consistent

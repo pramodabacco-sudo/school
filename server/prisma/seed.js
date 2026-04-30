@@ -1607,6 +1607,7 @@ async function seedSchool(university, password) {
       { n: 21, fn: "Mohan",   ln: "Das",      dept: "Physical Education", si: 6 },
     ],
   });
+
   console.log(`   ✅  ${allProfiles.length} teachers  (teacher${tStart}@gmail.com … teacher${TEACHER_CTR - 1}@gmail.com)`);
 
   // ── Timetable config ───────────────────────────────────────────────────────
@@ -1642,8 +1643,24 @@ async function seedSchool(university, password) {
         },
       });
 
-      await linkSubjectsAndTeachers({ cs, subjects, tBySubject, ay, gi, si });
-      allSections.push({ id: cs.id, grade, section, name });
+    await linkSubjectsAndTeachers({
+      cs,
+      subjects,
+      tBySubject,
+      ay,
+      gi,
+      si,
+    });
+
+    allSections.push({
+      id: cs.id,
+      grade,
+      section,
+      name,
+    });
+    console.log(`   ✅  ${allSections.length} class sections`);
+        // ── Tutorial profiles ─────────────────────────────
+
     }
   }
   console.log(`   ✅  ${allSections.length} class sections`);
@@ -1664,6 +1681,12 @@ async function seedSchool(university, password) {
 
   // ── Assessments ────────────────────────────────────────────────────────────
   await seedAssessments({ school, ay, allSections, subjects, allEnrollments });
+  // ── Tutorial profiles ─────────────────────────────
+await seedTeacherTutorialProfiles({
+  school,
+  teachers: allProfiles,
+  subjects,
+});
 
   // ── Attendance ─────────────────────────────────────────────────────────────
   await seedAttendance({ school, ay, allSections, allEnrollments, adminUser });
@@ -1697,7 +1720,103 @@ async function seedSchool(university, password) {
     totalTT,
   };
 }
+// ═══════════════════════════════════════════════
+//  TEACHER TUTORIAL PROFILE SEEDER
+// ═══════════════════════════════════════════════
+async function seedTeacherTutorialProfiles({ school, teachers, subjects }) {
+  console.log(`\n   🎓 Seeding Teacher Tutorial Profiles...`);
 
+  let count = 0;
+
+  for (let ti = 0; ti < teachers.length; ti++) {
+    const teacher = teachers[ti];
+
+    // Each teacher gets 1–3 subjects
+    const subjectCount = 1 + (ti % 3);
+
+    for (let si = 0; si < subjectCount; si++) {
+      const subject = subjects[(ti + si) % subjects.length];
+
+      // check if already exists
+      const exists = await prisma.teacherTutorialProfile.findFirst({
+        where: {
+          teacherId: teacher.id,
+
+          subjects: {
+            has: subject.name,
+          },
+        },
+      });
+
+      if (!exists) {
+      await prisma.teacherTutorialProfile.create({
+        data: {
+
+          school: {
+            connect: {
+              id: school.id,
+            },
+          },
+
+          teacher: {
+            connect: {
+              id: teacher.id,
+            },
+          },
+
+          subjects: [subject.name],
+
+          grades: ["8", "9", "10"],
+
+          bio:
+            `${teacher.firstName} specializes in ${subject.name}`,
+
+          mode:
+            ti % 2 === 0
+              ? "ONLINE"
+              : "OFFLINE",
+
+          monthlyFee:
+            1500 + ti * 250,
+
+          capacity:
+            20 + (ti % 15),
+
+          rating: parseFloat(
+            (
+              3.5 +
+              Math.random() * 1.5
+            ).toFixed(1)
+          ),
+
+          passPercentage:
+            60 + (ti % 40),
+
+          averageStudentScore:
+            65 + (ti % 30),
+
+          rankingScore:
+            70 + (ti % 25),
+
+          rankingType:
+            ti % 2 === 0
+              ? "RESULT_BASED"
+              : "EXPERIENCE_BASED",
+
+          adminPriority:
+            ti % 5,
+
+          isActive: true,
+        },
+      });
+
+        count++;
+      }
+    }
+  }
+
+  console.log(`      ✅ ${count} tutorial profiles created`);
+}
 // ═══════════════════════════════════════════════════════════════════════════════
 //  MAIN
 // ═══════════════════════════════════════════════════════════════════════════════
