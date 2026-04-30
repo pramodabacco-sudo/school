@@ -277,48 +277,49 @@ model School {
   universityId String
   university   University @relation(fields: [universityId], references: [id], onDelete: Cascade)
 
-  superAdminAccess      SuperAdminSchoolAccess[]
-  users                 User[]
-  students              Student[]
-  parents               Parent[]
-  teachers              TeacherProfile[]
-  academicYears         AcademicYear[]
-  classSections         ClassSection[]
-  subjects              Subject[]
-  timetableConfigs      TimetableConfig[]
-  assessmentTerms       AssessmentTerm[]
-  assessmentGroups      AssessmentGroup[]
-  FinanceProfile        FinanceProfile[]
-  TeacherMonthlySalary  TeacherMonthlySalary[]
-  Stream                Stream[]
-  Course                Course[]
-  SchoolPromotionConfig SchoolPromotionConfig?
-  PromotionLog          PromotionLog[]
-  ExtraClass            ExtraClass[]
-  Meeting               Meeting[]
-  TeacherAttendance     TeacherAttendance[]
-  TimetableEntry        TimetableEntry[]
-  subjectSyllabus       SubjectSyllabus[]
-  portionProgress       SectionPortionProgress[]
-  galleryAlbums         GalleryAlbum[]
-  holidays              SchoolHoliday[]
-  activities            Activity[]
-  activityEvents        ActivityEvent[]
-  Award                 Award[]
-  liveClasses           LiveClass[]
-  StaffProfile          StaffProfile[]
-  assignments           Assignment[]
-  transportRoutes       TransportRoute[]
-  transportStops        TransportStop[]
-  StudentTransport      StudentTransport[]
-  ClassFee              ClassFee[]
-  TransportFeePlan      TransportFeePlan[]
-  Subscription          Subscription[]
-  SuperAdmin            SuperAdmin[]
-  StudentFinance        StudentFinance[]
-  StudentList           StudentList[]
-  GroupDStaffSalary     GroupDStaffSalary[]
-  Payment               Payment[]
+  superAdminAccess       SuperAdminSchoolAccess[]
+  users                  User[]
+  students               Student[]
+  parents                Parent[]
+  teachers               TeacherProfile[]
+  academicYears          AcademicYear[]
+  classSections          ClassSection[]
+  subjects               Subject[]
+  timetableConfigs       TimetableConfig[]
+  assessmentTerms        AssessmentTerm[]
+  assessmentGroups       AssessmentGroup[]
+  FinanceProfile         FinanceProfile[]
+  TeacherMonthlySalary   TeacherMonthlySalary[]
+  Stream                 Stream[]
+  Course                 Course[]
+  SchoolPromotionConfig  SchoolPromotionConfig?
+  PromotionLog           PromotionLog[]
+  ExtraClass             ExtraClass[]
+  Meeting                Meeting[]
+  TeacherAttendance      TeacherAttendance[]
+  TimetableEntry         TimetableEntry[]
+  subjectSyllabus        SubjectSyllabus[]
+  portionProgress        SectionPortionProgress[]
+  galleryAlbums          GalleryAlbum[]
+  holidays               SchoolHoliday[]
+  activities             Activity[]
+  activityEvents         ActivityEvent[]
+  Award                  Award[]
+  liveClasses            LiveClass[]
+  StaffProfile           StaffProfile[]
+  assignments            Assignment[]
+  transportRoutes        TransportRoute[]
+  transportStops         TransportStop[]
+  StudentTransport       StudentTransport[]
+  ClassFee               ClassFee[]
+  TransportFeePlan       TransportFeePlan[]
+  Subscription           Subscription[]
+  SuperAdmin             SuperAdmin[]
+  StudentFinance         StudentFinance[]
+  StudentList            StudentList[]
+  GroupDStaffSalary      GroupDStaffSalary[]
+  Payment                Payment[]
+  TeacherTutorialProfile TeacherTutorialProfile[]
 
   @@index([universityId])
   @@index([type])
@@ -548,24 +549,26 @@ model Student {
   schoolId String
   school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
-  personalInfo         StudentPersonalInfo?
-  documents            StudentDocumentInfo[]
-  enrollments          StudentEnrollment[]
-  marks                Marks[]
-  resultSummaries      ResultSummary[]
-  parentLinks          StudentParent[]
-  meetings             MeetingStudent[]
-  attendanceRecords    AttendanceRecord[]
-  readmissions         StudentReadmission[]
-  activityEnrollments  StudentActivityEnrollment[]
-  eventParticipants    EventParticipant[]
-  teamMemberships      EventTeamMember[]
-  eventResults         EventResult[]
-  certificates         Certificate[]
-  StudentAward         StudentAward[]
-  liveClassAttendance  LiveClassAttendance[]
-  transportAssignments StudentTransport[]
-  devices              Device[]
+  personalInfo                  StudentPersonalInfo?
+  documents                     StudentDocumentInfo[]
+  enrollments                   StudentEnrollment[]
+  marks                         Marks[]
+  resultSummaries               ResultSummary[]
+  parentLinks                   StudentParent[]
+  meetings                      MeetingStudent[]
+  attendanceRecords             AttendanceRecord[]
+  readmissions                  StudentReadmission[]
+  activityEnrollments           StudentActivityEnrollment[]
+  eventParticipants             EventParticipant[]
+  teamMemberships               EventTeamMember[]
+  eventResults                  EventResult[]
+  certificates                  Certificate[]
+  StudentAward                  StudentAward[]
+  liveClassAttendance           LiveClassAttendance[]
+  transportAssignments          StudentTransport[]
+  devices                       Device[]
+  assignmentSubmissions         AssignmentSubmission[]
+  StudentTutorialRecommendation StudentTutorialRecommendation[]
 
   @@unique([email, schoolId])
   @@index([schoolId])
@@ -694,15 +697,16 @@ model Subject {
   schoolId String
   school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
-  classSubjects       ClassSubject[]
-  assessmentSchedules AssessmentSchedule[]
-  TeacherAssignment   TeacherAssignment[]
-  extraClasses        ExtraClass[]
-  timetableEntries    TimetableEntry[]
-  subjectSyllabus     SubjectSyllabus[]
-  portionProgress     SectionPortionProgress[]
-  liveClasses         LiveClass[]
-  assignments         Assignment[]
+  classSubjects                 ClassSubject[]
+  assessmentSchedules           AssessmentSchedule[]
+  TeacherAssignment             TeacherAssignment[]
+  extraClasses                  ExtraClass[]
+  timetableEntries              TimetableEntry[]
+  subjectSyllabus               SubjectSyllabus[]
+  portionProgress               SectionPortionProgress[]
+  liveClasses                   LiveClass[]
+  assignments                   Assignment[]
+  StudentTutorialRecommendation StudentTutorialRecommendation[]
 
   @@unique([code, schoolId])
   @@index([schoolId])
@@ -770,19 +774,20 @@ model TeacherProfile {
   medicalConditions String? // free-text e.g. "Diabetes, Hypertension"
   allergies         String? // free-text e.g. "Penicillin, Peanuts"
 
-  assignments          TeacherAssignment[]
-  documents            TeacherDocument[]
-  classTeacherOf       ClassSectionAcademicYear[]
-  extraClasses         ExtraClass[]
-  teacherAttendances   TeacherAttendance[]
-  TeacherMonthlySalary TeacherMonthlySalary[]
-  GroupBStaffSalary    GroupBStaffSalary[]
-  timetableEntries     TimetableEntry[]
-  syllabusCreated      SubjectSyllabus[]          @relation("SyllabusCreatedBy")
-  syllabusUpdated      SubjectSyllabus[]          @relation("SyllabusUpdatedBy")
-  portionProgress      SectionPortionProgress[]
-  liveClasses          LiveClass[]
-  homeworkAssignments  Assignment[]
+  assignments            TeacherAssignment[]
+  documents              TeacherDocument[]
+  classTeacherOf         ClassSectionAcademicYear[]
+  extraClasses           ExtraClass[]
+  teacherAttendances     TeacherAttendance[]
+  TeacherMonthlySalary   TeacherMonthlySalary[]
+  GroupBStaffSalary      GroupBStaffSalary[]
+  timetableEntries       TimetableEntry[]
+  syllabusCreated        SubjectSyllabus[]          @relation("SyllabusCreatedBy")
+  syllabusUpdated        SubjectSyllabus[]          @relation("SyllabusUpdatedBy")
+  portionProgress        SectionPortionProgress[]
+  liveClasses            LiveClass[]
+  homeworkAssignments    Assignment[]
+  TeacherTutorialProfile TeacherTutorialProfile[]
 
   @@index([schoolId])
   @@index([department])
@@ -2250,6 +2255,9 @@ model Assignment {
   dueDate    DateTime
   isArchived Boolean  @default(false)
 
+  questions   AssignmentQuestion[]
+  submissions AssignmentSubmission[]
+
   // Files (R2 keys)
   attachmentKeys  String[] @default([])
   attachmentNames String[] @default([])
@@ -2789,4 +2797,180 @@ model Otp {
   expiresAt  DateTime
   verified   Boolean  @default(false)
   createdAt  DateTime @default(now())
+}
+
+// ── Assignment Questions & Submissions ─────────────────────────
+
+enum QuestionType {
+  MCQ
+  WRITTEN
+}
+
+model AssignmentQuestion {
+  id           String     @id @default(uuid())
+  assignmentId String
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  questionText String
+  type         QuestionType @default(MCQ)
+  order        Int          @default(0)
+  marks        Float        @default(1)
+
+  // MCQ fields
+  options      String[] @default([]) // ["Paris", "London", "Berlin", "Madrid"]
+  correctIndex Int? // 0-based index of correct option
+
+  // Written: no extra fields (student uploads file)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  responses AssignmentResponse[]
+
+  @@index([assignmentId])
+  @@map("assignment_questions")
+}
+
+model AssignmentSubmission {
+  id           String     @id @default(uuid())
+  assignmentId String
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  submittedAt DateTime @default(now())
+  isLate      Boolean  @default(false)
+
+  // Auto-calculated for MCQ
+  mcqScore    Float?
+  mcqMaxScore Float?
+
+  // Teacher-graded for written
+  writtenScore    Float?
+  writtenMaxScore Float?
+  teacherFeedback String?
+  gradedAt        DateTime?
+
+  totalScore    Float?
+  totalMaxScore Float?
+  percentage    Float?
+  grade         String?
+
+  status SubmissionStatus @default(SUBMITTED)
+
+  responses AssignmentResponse[]
+
+  @@unique([assignmentId, studentId])
+  @@index([assignmentId])
+  @@index([studentId])
+  @@map("assignment_submissions")
+}
+
+enum SubmissionStatus {
+  SUBMITTED
+  GRADED
+  RETURNED
+}
+
+model AssignmentResponse {
+  id           String               @id @default(uuid())
+  submissionId String
+  submission   AssignmentSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  questionId String
+  question   AssignmentQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  // MCQ
+  selectedIndex Int?
+  isCorrect     Boolean?
+
+  // Written
+  answerText String?
+  fileKey    String?
+  fileUrl    String?
+  fileType   String?
+
+  @@unique([submissionId, questionId])
+  @@index([submissionId])
+  @@map("assignment_responses")
+}
+
+enum TutorialMode {
+  ONLINE
+  OFFLINE
+  HYBRID
+}
+
+model TeacherTutorialProfile {
+  id String @id @default(cuid())
+
+  teacherId String
+  schoolId  String
+
+  subjects String[]
+  grades   String[]
+
+  bio String?
+
+  mode String?
+
+  monthlyFee Float?
+
+  capacity Int?
+
+  rating Float?
+
+  passPercentage Float?
+
+  averageStudentScore Float?
+
+  rankingScore Float?
+
+  rankingType String?
+
+  adminPriority Int @default(0)
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  school School @relation(fields: [schoolId], references: [id])
+
+  teacher TeacherProfile @relation(fields: [teacherId], references: [id])
+
+  @@index([schoolId])
+  @@index([teacherId])
+  @@index([rankingScore])
+  @@index([isActive])
+}
+
+model StudentTutorialRecommendation {
+  id String @id @default(uuid())
+
+  studentId String
+  subjectId String
+
+  averageScore Float
+
+  status RecommendationStatus @default(ACTIVE)
+
+  recommendedTeachers Json
+
+  lastAnalysedAt DateTime
+
+  createdAt DateTime @default(now())
+
+  student Student @relation(fields: [studentId], references: [id])
+
+  subject Subject @relation(fields: [subjectId], references: [id])
+
+  @@unique([studentId, subjectId])
+}
+
+enum RecommendationStatus {
+  ACTIVE
+  RESOLVED
 }

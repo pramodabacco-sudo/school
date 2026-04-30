@@ -20,7 +20,8 @@ import {
   Medal,
   Bus,
   MessageCircle,
-  MapPinned
+  MapPinned,
+  BookMarked
 } from "lucide-react";
 
 const NAV = [
@@ -28,6 +29,7 @@ const NAV = [
   { icon: BookOpen,         label: "Classes",     to: "/admin/classes" },
   { icon: Users,           label: "Students",    to: "/admin/students" },
   { icon: GraduationCap,   label: "Teachers",    to: "/admin/teachers" },
+  {icon: BookMarked,       label: "Tutorial Teachers",to: "/admin/tutorial-teachers"},
   { icon: Users,           label: "Staff",       to: "/admin/staff" },
   { icon: ClipboardCheck,  label: "Attendance",  to: "/admin/attendance" },
   { icon: FileText,        label: "Exams",       to: "/admin/exams" },

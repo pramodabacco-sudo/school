@@ -14,6 +14,7 @@ import OnlineClassesPage from "./pages/onlineClasses/OnlineClassesPage";
 import StudentCertificatesPage from "./pages/Certificates/StudentCertificatesPage";
 import HomeworkPage  from "./pages/Homework/HomeworkPage.jsx";
 import StudentHolidayPage from "./pages/holidays/HolidayPage";
+import TakeAssignmentPage from "./pages/Homework/TakeAssignmentPage";
 
 
 function StudentRoutes() {        // ← fixed: was named "App"
@@ -32,6 +33,7 @@ function StudentRoutes() {        // ← fixed: was named "App"
         <Route path="online-classes"  element={<OnlineClassesPage />} />
         <Route path="homework" element={<HomeworkPage />} />
         <Route path="holidays" element={<StudentHolidayPage />} />
+        <Route path="assignment/:id" element={<TakeAssignmentPage />}/>
         <Route path="*"               element={<Navigate to="dashboard" replace />} />
       </Routes>
     </PageLayout>

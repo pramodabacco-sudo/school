@@ -29,6 +29,7 @@ import teacherCurriculumRoutes from "./staffRoutes/teacherCurriculumRoutes.js";
 import adminCurriculumRoutes from "./staffRoutes/adminCurriculumRoutes.js";
 import galleryRoutes from "./staffRoutes/gallery.routes.js";
 import adminHolidayRoute from "./staffRoutes/adminHolidayRoute.js";
+import tutorialRoutes from "./staffRoutes/tutorialRoutes.js";
 import adminActivityRoute from "./staffRoutes/adminActivityRoute.js";
 import teacherActivityRoute from "./staffRoutes/teacherActivityRoute.js";
 import awardRoutes from "./staffRoutes/Awardroutes.js";
@@ -117,6 +118,7 @@ staff.use("/api/gallery", galleryRoutes);
 // Admin full CRUD holidays (admin login uses this)
 staff.use("/api/admin/holidays", adminHolidayRoute);
 
+
 // ── Teacher / staff read-only holidays  (GET / and GET /check only) ──────────
 staff.use("/api/holidays", makeHolidayRouter(authMiddleware));
 // ─────────────────────────────────────────────────────────────────────────────
@@ -134,6 +136,7 @@ staff.use("/api/teacher/assignments", teacherAssignmentRoute);
 staff.use("/api/admin/transport", adminTransportRoute);
 staff.use("/api/superadmin/profile", superAdminProfileRoutes);
 staff.use("/api/notifications", staffNotificationRoutes);
+staff.use("/api/admin/tutorials", tutorialRoutes);
 staff.use("/api/chat", chatRoutes);
 staff.use("/api", logoRoutes(requireAuth));
 

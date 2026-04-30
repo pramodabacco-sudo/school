@@ -11,7 +11,9 @@ import activitiesRoute from "./student/routes/activities.routes.js";
 import certificateRoutes from "./student/routes/certificateRoutes.js";
 import onlineClassesRouter from "./student/routes/onlineClasses.routes.js";
 import studentCertificateRoutes from "./student/routes/studentCertificateRoutes.js";
-import homeworkRoutes from "./student/routes/homework.routes.js";
+import studentAssignmentRoute from "./student/routes/studentAssignmentRoute.js";
+import assignmentQuestionRoute from "./staffRoutes/assignmentQuestionRoute.js";
+
 import notificationsRouter from "./student/routes/notifications.routes.js";
 import logoRoutes from "./utils/logoRoutes.js";
 import { requireAuth } from "./middlewares/auth.middleware.js";
@@ -68,7 +70,10 @@ student.use("/certificates", certificateRoutes);
 student.use("/online-classes", onlineClassesRouter);
 student.use("/api/student/certificates", studentCertificateRoutes);
 student.use("/notifications", notificationsRouter);
-student.use("/api/student/homework", homeworkRoutes);
+student.use("/api/student/assignments", studentAssignmentRoute);
+student.use("/api/assignments", assignmentQuestionRoute);
+
+
 
 // ── Student read-only holidays  (GET / and GET /check) ───────────────────────
 student.use("/holidays", makeHolidayRouter(requireAuth));
