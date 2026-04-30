@@ -157,7 +157,7 @@ const allFeatureKeys = [
   "Certificates Generation",
   "Role-based Permissions",
   "Complete Financial Reporting",
-  "Whatsapp & SMS Notifications",
+  "Whatsapp Notifications",
   "Automated Fee Reminders",
   "Backup & Security",
   "API Integrations",

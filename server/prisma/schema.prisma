@@ -219,6 +219,7 @@ model University {
 
   superAdmins SuperAdmin[]
   schools     School[]
+  Payment     Payment[]
 
   @@index([code])
   @@map("universities")
@@ -242,6 +243,7 @@ model SuperAdmin {
   schoolAccess SuperAdminSchoolAccess[]
   schoolId     String?
   school       School?                  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  Payment      Payment[]
 
   @@index([universityId])
   @@map("super_admins")
@@ -2726,16 +2728,25 @@ model Payment {
   // 📊 Status
   status PaymentStatus @default(PENDING)
 
-  // 🔗 Relation (NOW OPTIONAL ✅)
+  // 🔥 Linking key
+  tempUserId String? @unique
+
+  // 🔗 Relations
+  superAdminId String?
+  superAdmin   SuperAdmin? @relation(fields: [superAdminId], references: [id])
+
+  universityId String?
+  university   University? @relation(fields: [universityId], references: [id])
+
   schoolId String?
   school   School? @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
-  // 📦 Subscription relation
   Subscription Subscription[]
 
   @@index([email])
   @@index([razorpayOrderId])
-  @@map("payments")
+  @@index([tempUserId])
+  @@index([superAdminId])
 }
 
 enum PaymentStatus {

@@ -5,8 +5,23 @@ const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
+    pass: process.env.EMAIL_PASS, // ✅ Must be a Gmail App Password (not your login password)
+                                   //    Generate at: myaccount.google.com → Security → App Passwords
   },
+});
+
+// ✅ Verify SMTP connection on startup so you catch credential issues immediately
+transporter.verify((error) => {
+  if (error) {
+    console.error("❌ SMTP transporter verification failed:", error.message);
+    console.error(
+      "   → Make sure EMAIL_USER and EMAIL_PASS are set correctly.\n" +
+      "   → EMAIL_PASS must be a Gmail App Password, NOT your Gmail login password.\n" +
+      "   → Generate one at: myaccount.google.com → Security → App Passwords"
+    );
+  } else {
+    console.log("✅ SMTP transporter is ready to send emails");
+  }
 });
 
 // ─── Plan metadata ──────────────────────────────────────────────────────────
@@ -75,11 +90,13 @@ function buildInvoiceHTML({
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td valign="middle">
-                    <!-- Logo -->
-                    <img src="http://logo.png"
-                         alt="School CRM Logo"
-                         width="52" height="52"
-                         style="display:block; border-radius:10px; border:2px solid rgba(255,255,255,0.25);" />
+                    <!-- Logo placeholder (replace with a hosted image URL) -->
+                    <div style="
+                      width:52px; height:52px; border-radius:10px;
+                      background:rgba(255,255,255,0.15);
+                      border:2px solid rgba(255,255,255,0.25);
+                      display:inline-block;
+                    "></div>
                   </td>
                   <td valign="middle" align="right">
                     <div style="color:#BDDDFC; font-size:12px; font-weight:500; letter-spacing:1.4px; text-transform:uppercase; margin-bottom:4px;">Tax Invoice</div>
@@ -131,7 +148,7 @@ function buildInvoiceHTML({
                     <div style="font-size:15px; font-weight:600; color:#384959; margin-bottom:4px;">${fullName}</div>
                     <div style="font-size:13px; color:#6A89A7; margin-bottom:2px;">${schoolName}</div>
                     <div style="font-size:13px; color:#6A89A7; margin-bottom:2px;">${email}</div>
-                    <div style="font-size:13px; color:#6A89A7; margin-bottom:2px;">${phone}</div>
+                    <div style="font-size:13px; color:#6A89A7; margin-bottom:2px;">${phone || ""}</div>
                     <div style="font-size:13px; color:#6A89A7;">${address}</div>
                   </td>
                   <td width="50%" style="padding-left:16px; border-left:2px solid #f0f5fb;">
@@ -189,15 +206,10 @@ function buildInvoiceHTML({
                       </tr>
                       <tr>
                         <td style="padding-top:10px;">
-                          <div style="
-                            font-size:15px; font-weight:700; color:#384959;
-                          ">Total Paid</div>
+                          <div style="font-size:15px; font-weight:700; color:#384959;">Total Paid</div>
                         </td>
                         <td style="padding-top:10px; text-align:right;">
-                          <div style="
-                            font-size:20px; font-weight:700;
-                            color:#384959;
-                          ">₹${total.toLocaleString("en-IN")}</div>
+                          <div style="font-size:20px; font-weight:700; color:#384959;">₹${total.toLocaleString("en-IN")}</div>
                           <div style="font-size:10px; color:#88BDF2; text-align:right; margin-top:2px;">INR incl. GST</div>
                         </td>
                       </tr>
@@ -269,10 +281,16 @@ export async function sendInvoiceEmail(paymentData) {
     razorpayOrderId,
   } = paymentData;
 
+  // ✅ Guard: skip if critical fields are missing
+  if (!email || !fullName || !planId) {
+    console.error("❌ sendInvoiceEmail: Missing required fields (email, fullName, or planId). Skipping.");
+    return;
+  }
+
   // Generate invoice number: INV-YYYYMMDD-XXXX
-  const now         = new Date();
-  const datePart    = now.toISOString().slice(0, 10).replace(/-/g, "");
-  const randPart    = Math.floor(1000 + Math.random() * 9000);
+  const now           = new Date();
+  const datePart      = now.toISOString().slice(0, 10).replace(/-/g, "");
+  const randPart      = Math.floor(1000 + Math.random() * 9000);
   const invoiceNumber = `INV-${datePart}-${randPart}`;
   const invoiceDate   = now.toLocaleDateString("en-IN", {
     day: "2-digit", month: "long", year: "numeric",
@@ -293,9 +311,10 @@ export async function sendInvoiceEmail(paymentData) {
     razorpayOrderId,
   });
 
+  // ✅ Throw on failure so the caller's .catch() logs the real error
   await transporter.sendMail({
-    from: `"School CRM" <${process.env.EMAIL_USER}>`,
-    to: email,
+    from:    `"School CRM" <${process.env.EMAIL_USER}>`,
+    to:      email,
     subject: `Your Invoice ${invoiceNumber} — School CRM`,
     html,
   });

@@ -3,7 +3,7 @@
 import { generateToken } from "./auth.utils.js";
 import prisma from "../../lib/prisma.js";
 import bcrypt from "bcrypt";
-import { sendEmail } from "../../utils/mail.js";
+import { sendEmail , sendWelcomeEmail, sendAdminNotificationEmail  } from "../../utils/mail.js";
 // ── Super Admin ────────────────────────────────────────────────────────────
 
 export const registerSuperAdminService = async ({
@@ -75,6 +75,34 @@ export const registerSuperAdminService = async ({
     role: "SUPER_ADMIN",
     userType: "superAdmin",
     universityId: result.university.id,
+  });
+    
+  await sendWelcomeEmail({
+    to: universityEmail,
+    name: adminName,
+
+    universityName,
+    universityCode,
+    universityEmail,
+    universityPhone,
+    universityCity,
+    universityState,
+
+    loginEmail: adminEmail,
+    loginPassword: adminPassword,
+  });
+
+  await sendAdminNotificationEmail({
+    universityName,
+    universityCode,
+    universityEmail,
+    universityPhone,
+    universityCity,
+    universityState,
+    adminName,
+    adminEmail,
+    adminPhone,
+    adminPassword,
   });
 
   return {
@@ -148,24 +176,29 @@ const detectPortalByEmail = async (email) => {
 
 const findUserByIdentifier = async (identifier) => {
 
-  // ✅ STUDENT (email is inside student table)
-  let user = await prisma.student.findFirst({
-    where: {
-      email: identifier
-    }
+  // ✅ SUPER ADMIN
+  let user = await prisma.superAdmin.findFirst({
+    where: { email: identifier }
+  });
+  if (user) return { user, model: "superAdmin" };
+
+  // ✅ STUDENT
+  user = await prisma.student.findFirst({
+    where: { email: identifier }
   });
   if (user) return { user, model: "student" };
 
-  // ✅ TEACHER (email is inside user table)
-  user = await prisma.teacherProfile.findFirst({
-    where: {
-      user: {
-        email: identifier
-      }
-    },
-    include: { user: true }
+  // ✅ PARENT
+  user = await prisma.parent.findFirst({
+    where: { email: identifier }
   });
-  if (user) return { user, model: "teacher" };
+  if (user) return { user, model: "parent" };
+
+  // ✅ STAFF (ADMIN / TEACHER / FINANCE)
+  user = await prisma.user.findFirst({
+    where: { email: identifier }
+  });
+  if (user) return { user, model: "staff" };
 
   return null;
 };
@@ -475,7 +508,7 @@ const user = await prisma.user.findFirst({
 export const sendOtp = async (identifier) => {
   const result = await findUserByIdentifier(identifier);
 
-  if (!result) throw new Error("User not found");
+  if (!result) throw new Error("User not Registered");
 
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
@@ -518,24 +551,40 @@ export const resetPassword = async (identifier, newPassword) => {
   const result = await findUserByIdentifier(identifier);
 
   if (!result) {
-    throw new Error("User not found");
+    throw new Error("User not Registered");
   }
 
   const { user, model } = result;
-
   const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-  // ✅ HANDLE EACH MODEL CORRECTLY
-  if (model === "student") {
+  // ✅ SUPER ADMIN
+  if (model === "superAdmin") {
+    await prisma.superAdmin.update({
+      where: { id: user.id },
+      data: { password: hashedPassword },
+    });
+  }
+
+  // ✅ STUDENT
+  else if (model === "student") {
     await prisma.student.update({
       where: { id: user.id },
       data: { password: hashedPassword },
     });
   }
 
-  else if (model === "teacher") {
+  // ✅ PARENT
+  else if (model === "parent") {
+    await prisma.parent.update({
+      where: { id: user.id },
+      data: { password: hashedPassword },
+    });
+  }
+
+  // ✅ STAFF (ADMIN / TEACHER / FINANCE)
+  else if (model === "staff") {
     await prisma.user.update({
-      where: { id: user.userId }, // 🔥 IMPORTANT
+      where: { id: user.id },
       data: { password: hashedPassword },
     });
   }
