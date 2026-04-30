@@ -203,21 +203,21 @@ enum SchoolBoard {
 }
 
 model University {
-  id        String   @id @default(uuid())
-  name      String
-  code      String   @unique
-  address   String?
-  city      String?
-  state     String?
-  phone     String?
-  email     String?
-  website   String?
-  logoUrl   String?
-  isActive  Boolean  @default(true)
-  isDeactivated Boolean @default(false)
+  id            String    @id @default(uuid())
+  name          String
+  code          String    @unique
+  address       String?
+  city          String?
+  state         String?
+  phone         String?
+  email         String?
+  website       String?
+  logoUrl       String?
+  isActive      Boolean   @default(true)
+  isDeactivated Boolean   @default(false)
   deactivatedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   superAdmins SuperAdmin[]
   schools     School[]

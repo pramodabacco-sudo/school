@@ -4,7 +4,10 @@ import { generateToken } from "./auth.utils.js";
 import prisma from "../../lib/prisma.js";
 import bcrypt from "bcrypt";
 import { sendEmail , sendWelcomeEmail, sendAdminNotificationEmail  } from "../../utils/mail.js";
+
 // ── Super Admin ────────────────────────────────────────────────────────────
+const DEACTIVATED_MSG =
+  "This school account no longer exists. To restore access within 60 days, contact support@eduabaccotech.com";
 
 export const registerSuperAdminService = async ({
   universityName,
