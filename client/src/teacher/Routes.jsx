@@ -16,7 +16,7 @@ import AssignmentsPage from "./pages/assignments/AssignmentsPage";
 import TeacherChatPage from "./pages/chat/TeacherChatPage";
 import TeacherHolidayPage from "./pages/holidays/HolidayPage";
 import TeacherProfilePage from "./pages/profile/profile.jsx";
-import SubmissionsViewPage from "./pages/Assignments/SubmissionsViewPage";
+import SubmissionsViewPage from "./pages/Assignments/SubmissionsViewPage.jsx";
 function TeacherRoutes() {
   return (
     <PageLayout>
