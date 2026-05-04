@@ -574,6 +574,7 @@ function AssignmentCard({
           <div style={{ display: "flex", gap: 8 }}>
             {hasText  && <MetaRow icon={<PenLine size={12} color={C.slate} />}   label="Text" />}
             {hasFiles && <MetaRow icon={<Paperclip size={12} color={C.slate} />} label={`${a.attachmentKeys.length} file${a.attachmentKeys.length > 1 ? "s" : ""}`} />}
+            {a.timeLimitMinutes && <MetaRow icon={<Clock size={12} color="#d97706" />} label={`${a.timeLimitMinutes} min limit`} />}
           </div>
         </div>
 
@@ -766,6 +767,9 @@ function AssignmentCard({
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
           <InfoBox label="Due Date" value={fmtDate(a.dueDate)} />
           <InfoBox label="Sections" value={a.sections?.map((s) => s.classSection?.name).join(", ") || "—"} />
+          {a.timeLimitMinutes && (
+            <InfoBox label="⏱ Time Limit" value={`${a.timeLimitMinutes} minutes`} />
+          )}
         </div>
 
         {a.description && (
@@ -814,6 +818,7 @@ function AssignmentCard({
   const EMPTY_FORM = {
     title: "", description: "", type: "REGULAR", status: "DRAFT",
     dueDate: "", subjectId: "", academicYearId: "", classSectionIds: [],
+    timeLimitMinutes: "",
   };
 
   function AssignmentFormModal({ editTarget, onClose, onSaved }) {
@@ -891,6 +896,11 @@ function AssignmentCard({
         fd.append("subjectId",      form.subjectId);
         fd.append("academicYearId", form.academicYearId);
         fd.append("classSectionIds", JSON.stringify(form.classSectionIds));
+        if (form.timeLimitMinutes) {
+          fd.append("timeLimitMinutes", String(parseInt(form.timeLimitMinutes, 10)));
+        } else {
+          fd.append("timeLimitMinutes", "");
+        }
 
         if (isEdit) {
           fd.append("keepKeys", JSON.stringify(existingFiles.map((f) => f.key)));
@@ -960,6 +970,69 @@ function AssignmentCard({
               <option value="CLOSED">Closed</option>
             </Select>
           </div>
+        </div>
+
+        {/* Time limit row */}
+        <div style={{ marginBottom: 14 }}>
+          <Label>Time Limit <span style={{ fontWeight: 400, color: C.textLight }}>(optional — for timed quiz/test)</span></Label>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {[
+              { label: "No limit", value: "" },
+              { label: "15 min", value: "15" },
+              { label: "30 min", value: "30" },
+              { label: "45 min", value: "45" },
+              { label: "60 min", value: "60" },
+              { label: "90 min", value: "90" },
+              { label: "120 min", value: "120" },
+            ].map((opt) => {
+              const active = String(form.timeLimitMinutes) === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => set("timeLimitMinutes", opt.value)}
+                  style={{
+                    padding: "6px 14px", borderRadius: 99, fontSize: 12, fontWeight: 600,
+                    border: `1.5px solid ${active ? C.deep : C.border}`,
+                    background: active ? C.deep : C.bg,
+                    color: active ? "#fff" : C.textLight,
+                    cursor: "pointer", fontFamily: "'Inter', sans-serif",
+                    transition: "all 0.15s",
+                  }}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+            {/* Custom input */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <input
+                type="number"
+                min={5}
+                max={300}
+                step={5}
+                placeholder="Custom"
+                value={
+                  form.timeLimitMinutes &&
+                  !["", "15", "30", "45", "60", "90", "120"].includes(String(form.timeLimitMinutes))
+                    ? form.timeLimitMinutes
+                    : ""
+                }
+                onChange={(e) => set("timeLimitMinutes", e.target.value)}
+                style={{
+                  width: 80, padding: "6px 10px", borderRadius: 10,
+                  border: `1.5px solid ${C.border}`, fontFamily: "'Inter', sans-serif",
+                  fontSize: 12, color: C.text, background: C.bg, outline: "none",
+                }}
+              />
+              <span style={{ fontSize: 11, color: C.textLight }}>min</span>
+            </div>
+          </div>
+          {form.timeLimitMinutes && (
+            <p style={{ margin: "6px 0 0", fontSize: 11, color: "#d97706", fontWeight: 600 }}>
+              ⏱ Students will have {form.timeLimitMinutes} minutes from when they click "Start Assignment". Answers auto-save every keystroke and auto-submit when time is up.
+            </p>
+          )}
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -1059,14 +1132,15 @@ function AssignmentCard({
 
   function mapEdit(a) {
     return {
-      title:           a.title || "",
-      description:     a.description || "",
-      type:            a.type || "REGULAR",
-      status:          a.status || "DRAFT",
-      dueDate:         a.dueDate ? a.dueDate.slice(0, 10) : "",
-      subjectId:       a.subjectId || "",
-      academicYearId:  a.academicYearId || "",
-      classSectionIds: a.sections?.map((s) => s.classSectionId) || [],
+      title:            a.title || "",
+      description:      a.description || "",
+      type:             a.type || "REGULAR",
+      status:           a.status || "DRAFT",
+      dueDate:          a.dueDate ? a.dueDate.slice(0, 10) : "",
+      subjectId:        a.subjectId || "",
+      academicYearId:   a.academicYearId || "",
+      classSectionIds:  a.sections?.map((s) => s.classSectionId) || [],
+      timeLimitMinutes: a.timeLimitMinutes ?? "",
     };
   }
 

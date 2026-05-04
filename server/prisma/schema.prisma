@@ -576,6 +576,7 @@ model Student {
   devices                       Device[]
   assignmentSubmissions         AssignmentSubmission[]
   StudentTutorialRecommendation StudentTutorialRecommendation[]
+  assignmentDrafts              AssignmentDraft[]
 
   @@unique([email, schoolId])
   @@index([schoolId])
@@ -2265,6 +2266,9 @@ model Assignment {
   questions   AssignmentQuestion[]
   submissions AssignmentSubmission[]
 
+  timeLimitMinutes Int?
+  startsAt         DateTime?
+
   // Files (R2 keys)
   attachmentKeys  String[] @default([])
   attachmentNames String[] @default([])
@@ -2287,6 +2291,7 @@ model Assignment {
   updatedAt DateTime @updatedAt
 
   sections AssignmentSection[]
+  drafts   AssignmentDraft[]
 
   @@index([schoolId])
   @@index([teacherId])
@@ -2991,4 +2996,42 @@ model StudentTutorialRecommendation {
 enum RecommendationStatus {
   ACTIVE
   RESOLVED
+}
+
+model AbaccoAdmin {
+  id       String @id @default(uuid())
+  name     String
+  email    String @unique
+  password String
+
+  isActive    Boolean   @default(true)
+  lastLoginAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("abacco_admins")
+}
+
+model AssignmentDraft {
+  id           String     @id @default(uuid())
+  assignmentId String
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  // JSON blob: { [questionId]: { selectedIndex?, answerText?, fileKey? } }
+  answers Json @default("{}")
+
+  // When the student first opened / started the exam
+  startedAt DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([assignmentId, studentId])
+  @@index([assignmentId])
+  @@index([studentId])
+  @@map("assignment_drafts")
 }

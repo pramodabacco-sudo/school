@@ -13,6 +13,7 @@ import onlineClassesRouter from "./student/routes/onlineClasses.routes.js";
 import studentCertificateRoutes from "./student/routes/studentCertificateRoutes.js";
 import studentAssignmentRoute from "./student/routes/studentAssignmentRoute.js";
 import assignmentQuestionRoute from "./staffRoutes/assignmentQuestionRoute.js";
+import assignmentDraftRoute from "./student/routes/assignmentDraftRoute.js";
 
 import notificationsRouter from "./student/routes/notifications.routes.js";
 import logoRoutes from "./utils/logoRoutes.js";
@@ -72,6 +73,7 @@ student.use("/api/student/certificates", studentCertificateRoutes);
 student.use("/notifications", notificationsRouter);
 student.use("/api/student/assignments", studentAssignmentRoute);
 student.use("/api/assignments", assignmentQuestionRoute);
+student.use("/api/assignments", assignmentDraftRoute);
 
 
 
