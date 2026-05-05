@@ -29,51 +29,70 @@ const userId = (req) => req.user.id;
 function buildParticipants({
   perSectionCoordinators = [],
   coordinatorUserId,
-  participantUserIds = [],
+  participantUserIds = [], // now supports objects OR strings
   externalParticipants = [],
 }) {
   const rows = [];
 
   // ── 1. Coordinators ──────────────────────────────────────────
-  const coordMap = new Map(); // userId → Set<classSectionId>
+  const coordMap = new Map(); // id → { type, sectionIds }
 
   if (perSectionCoordinators.length > 0) {
-    for (const { userId: uid, classSectionId } of perSectionCoordinators) {
-      if (!uid) continue;
-      if (!coordMap.has(uid)) coordMap.set(uid, new Set());
-      if (classSectionId) coordMap.get(uid).add(classSectionId);
+    for (const c of perSectionCoordinators) {
+      const id = c.userId || c.staffId;
+      const type = c.type || (c.userId ? "USER" : "STAFF");
+
+      if (!id) continue;
+
+      if (!coordMap.has(id)) {
+        coordMap.set(id, { type, sections: new Set() });
+      }
+
+      if (c.classSectionId) {
+        coordMap.get(id).sections.add(c.classSectionId);
+      }
     }
   } else if (coordinatorUserId) {
-    // Legacy: single coordinator with no section breakdown
-    coordMap.set(coordinatorUserId, new Set());
+    coordMap.set(coordinatorUserId, { type: "USER", sections: new Set() });
   }
 
-  for (const [uid, sectionIds] of coordMap) {
-     if (!uid) continue;
-    const sectionArr = [...sectionIds];
+  for (const [id, data] of coordMap) {
     rows.push({
-      type: "USER",
-      userId: uid,
+      type: data.type,
+      userId: data.type === "USER" ? id : null,
+      staffId: data.type === "STAFF" ? id : null,
       isCoordinator: true,
-      // Encode section IDs in name field — frontend reads this to
-      // match coordinator → class card in MeetingViewModal
       name:
-        sectionArr.length > 0
-          ? `__coord_sections:${sectionArr.join(",")}`
+        data.sections.size > 0
+          ? `__coord_sections:${[...data.sections].join(",")}`
           : null,
     });
   }
 
   // ── 2. Regular attendees ─────────────────────────────────────
-  const coordUserIds = new Set(coordMap.keys());
+  const coordIds = new Set(coordMap.keys());
 
-  for (const uid of participantUserIds) {
-    if (!uid) continue; // ✅ skip invalid
-    if (coordUserIds.has(uid)) continue; // ✅ skip if already coordinator
+  for (const p of participantUserIds) {
+    if (!p) continue;
+
+    // support both old (string) and new (object) formats
+    let id, type;
+
+    if (typeof p === "string") {
+      // fallback (assume USER if string)
+      id = p;
+      type = "USER";
+    } else {
+      id = p.id;
+      type = p.type;
+    }
+
+    if (!id || coordIds.has(id)) continue;
 
     rows.push({
-      type: "USER",
-      userId: uid,
+      type,
+      userId: type === "USER" ? id : null,
+      staffId: type === "STAFF" ? id : null,
       isCoordinator: false,
     });
   }
@@ -81,7 +100,12 @@ function buildParticipants({
   // ── 3. External participants ─────────────────────────────────
   for (const ep of externalParticipants) {
     if (!ep.email) continue;
-    rows.push({ type: "EXTERNAL", name: ep.name ?? null, email: ep.email });
+
+    rows.push({
+      type: "EXTERNAL",
+      name: ep.name ?? null,
+      email: ep.email,
+    });
   }
 
   return rows;
@@ -108,16 +132,15 @@ export const getMeetingStaff = async (req, res) => {
       orderBy: [{ firstName: "asc" }],
     });
 
-    const result = staff
-      .map((s) => ({
-        staffId: s.id,
-        userId: s.userId ?? s.id,
-        name: `${s.firstName} ${s.lastName ?? ""}`.trim(),
-        role: s.role ?? "",
-        groupType: s.groupType ?? "",
-        email: s.email ?? s.user?.email ?? "",
-        phone: s.phone ?? "",
-      }));
+    const result = staff.map((s) => ({
+      staffId: s.id,
+      userId: s.userId || null, // keep real userId OR null
+      name: `${s.firstName} ${s.lastName ?? ""}`.trim(),
+      role: s.role ?? "",
+      groupType: s.groupType ?? "Group B",
+      email: s.email ?? s.user?.email ?? "",
+      phone: s.phone ?? "",
+    }));
 
     return res.json({ staff: result });
   } catch (err) {
@@ -332,6 +355,7 @@ export const getMeetingById = async (req, res) => {
           include: {
             user: { select: { id: true, name: true, email: true } },
             parent: { select: { id: true, name: true, email: true, phone: true } },
+            staff: { select: { id: true, firstName: true, lastName: true, phone: true } }, 
           },
         },
         students: {
@@ -391,14 +415,36 @@ export const createMeeting = async (req, res) => {
         message: "title, meetingDate, startTime, endTime are required",
       });
     }
-
-    const participantsToCreate = buildParticipants({
+    let participantsToCreate = buildParticipants({
       perSectionCoordinators,
       coordinatorUserId,
       participantUserIds,
       externalParticipants,
-    }).filter(p => !p.userId || typeof p.userId === "string");
+    });
 
+    // ✅ Extract only USER type IDs
+    const userIds = participantsToCreate
+      .filter(p => p.type === "USER" && p.userId)
+      .map(p => p.userId);
+
+    // ✅ Fetch valid users from DB
+    const validUsers = await prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true },
+    });
+
+    const validUserSet = new Set(validUsers.map(u => u.id));
+
+    // ✅ Filter invalid userIds (THIS FIXES YOUR ERROR)
+    participantsToCreate = participantsToCreate.filter(p => {
+      if (p.type === "USER") {
+        return validUserSet.has(p.userId);
+      }
+      if (p.type === "STAFF") {
+        return !!p.staffId; // allow staff
+      }
+      return true;
+    });
     // ── Auto-invite parents (PARENTS meeting type or flag) ────────────────
     const shouldInviteParents = autoInviteParents || type === "PARENTS";
     if (shouldInviteParents && classSectionIds.length > 0) {
@@ -535,7 +581,7 @@ export const updateMeeting = async (req, res) => {
       await prisma.meetingStudent.deleteMany({ where: { meetingId: id } });
     }
 
-    const participantsToCreate = rebuildParticipants
+    let participantsToCreate = rebuildParticipants
       ? buildParticipants({
           perSectionCoordinators,
           coordinatorUserId,
@@ -543,6 +589,25 @@ export const updateMeeting = async (req, res) => {
           externalParticipants,
         })
       : [];
+
+    // ── Validate userIds against DB (prevents FK violation on userId fkey) ─
+    if (participantsToCreate.length > 0) {
+      const userIdsToValidate = participantsToCreate
+        .filter((p) => p.type === "USER" && p.userId)
+        .map((p) => p.userId);
+
+      if (userIdsToValidate.length > 0) {
+        const validUsers = await prisma.user.findMany({
+          where: { id: { in: userIdsToValidate } },
+          select: { id: true },
+        });
+        const validUserSet = new Set(validUsers.map((u) => u.id));
+        participantsToCreate = participantsToCreate.filter((p) => {
+          if (p.type !== "USER") return true;
+          return validUserSet.has(p.userId);
+        });
+      }
+    }
 
     // ── Auto-invite parents on update ─────────────────────────────────────
     const resolvedType = type ?? existing.type;
@@ -789,12 +854,14 @@ export const sendMeetingReminder = async (req, res) => {
               },
             },
             parent: true,
+            staff: true,
           },
         },
         students: {
           include: {
             student: {
               include: {
+                personalInfo: true,
                 parentLinks: {
                   include: { parent: true },
                 },
@@ -878,6 +945,13 @@ export const sendMeetingReminder = async (req, res) => {
         await sendScheduledMessage(phone, p.user?.name);
       }
 
+        if (p.type === "STAFF") {
+          const phone = p.staff?.phone;
+          const name = `${p.staff?.firstName ?? ""} ${p.staff?.lastName ?? ""}`.trim();
+          if (!phone) { console.log("❌ No phone for staff:", name); continue; }
+          await sendScheduledMessage(phone, name);
+        }
+
       // ✅ Send to direct PARENT participants
       if (p.type === "PARENT") {
         if (!p.parent?.phone) {
@@ -888,22 +962,30 @@ export const sendMeetingReminder = async (req, res) => {
       }
     }
 
-    // ✅ Send to STUDENTS → via their parents
-    for (const s of meeting.students) {
-      const student = s.student;
-      if (!student?.parentLinks?.length) {
-        console.log("❌ No parents for student:", student?.name);
-        continue;
-      }
-      for (const link of student.parentLinks) {
-        const parent = link.parent;
-        if (!parent?.phone) {
-          console.log("❌ Parent has no phone:", parent?.name);
-          continue;
-        }
-        await sendScheduledMessage(parent.phone, parent.name || student.name);
-      }
+    // ✅ Send to STUDENTS 
+  for (const s of meeting.students) {
+  const student = s.student;
+
+  // ✅ Get phone from StudentPersonalInfo table
+  const studentPhone = student?.personalInfo?.phone;
+
+    if (studentPhone) {
+      await sendScheduledMessage(studentPhone, student.name);
+    } else {
+      console.log("❌ No phone for student:", student?.name);
     }
+
+    // ✅ Still send to parents (existing logic)
+    if (!student?.parentLinks?.length) continue;
+
+    for (const link of student.parentLinks) {
+      const parent = link.parent;
+
+      if (!parent?.phone) continue;
+
+      await sendScheduledMessage(parent.phone, parent.name || student.name);
+    }
+  }
 
     // ✅ Only set scheduledSentAt here.
     //    reminderSentAt is set exclusively by the cron job AFTER

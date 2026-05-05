@@ -24,8 +24,8 @@ const MEETING_TYPES = [
   { value: "NON_TEACHING_STAFF", label: "Non-Teaching Staff",    icon: Briefcase,     color: "#7C3AED", bg: "#F5F3FF", hint: "Administrative & support staff"  },
   { value: "PARENTS",            label: "Parents",               icon: Baby,          color: "#059669", bg: "#ECFDF5", hint: "Parents grouped by child's class section" },
   { value: "STUDENTS",           label: "Students",              icon: Users,         color: "#DC2626", bg: "#FEF2F2", hint: "Whole class sections — no individual selection" },
-  { value: "GENERAL",            label: "General",               icon: UserCheck,     color: "#D97706", bg: "#FFFBEB", hint: "Open meeting for all staff" },
-  { value: "BOARD",              label: "Board",                 icon: Building2,     color: "#0F172A", bg: "#F8FAFC", hint: "Board / management level meeting" },
+  // { value: "GENERAL",            label: "General",               icon: UserCheck,     color: "#D97706", bg: "#FFFBEB", hint: "Open meeting for all staff" },
+  // { value: "BOARD",              label: "Board",                 icon: Building2,     color: "#0F172A", bg: "#F8FAFC", hint: "Board / management level meeting" },
 ];
 
 const MEETING_STATUSES = ["SCHEDULED", "COMPLETED", "CANCELLED", "POSTPONED"];
@@ -363,7 +363,10 @@ export default function MeetingFormModal({ meeting = null, onClose, onSaved }) {
         coordinatorUserIds.forEach((id) => allParticipantIds.delete(id));
         payload = { ...payload, classSectionIds: form.classSectionIds, classSectionId: form.classSectionIds[0] ?? "", coordinatorUserId: coordinatorUserIds[0] ?? "", participantUserIds: [...allParticipantIds], perSectionCoordinators };
       } else if (isNonTeachingType) {
-        payload = { ...payload, classSectionIds: [], classSectionId: "", coordinatorUserId: ntCoordinatorId, participantUserIds: form.nonTeachingStaffIds.filter((id) => id !== ntCoordinatorId), perSectionCoordinators: ntCoordinatorId ? [{ userId: ntCoordinatorId }] : [] };
+        payload = { ...payload, classSectionIds: [], classSectionId: "", coordinatorUserId: null, // don't use this
+        perSectionCoordinators: ntCoordinatorId
+          ? [{ staffId: ntCoordinatorId, type: "STAFF" }]
+          : [], participantUserIds: form.nonTeachingStaffIds.map(id => ({id,type: "STAFF"})).filter((id) => id !== ntCoordinatorId), perSectionCoordinators: ntCoordinatorId ? [{ userId: ntCoordinatorId }] : [] };
       } else if (isParentsType) {
         payload = { ...payload, classSectionIds: form.parentClassSectionIds, classSectionId: form.parentClassSectionIds[0] ?? "", coordinatorUserId: parentCoordinatorId, participantUserIds: selectedParentIds.filter((id) => id !== parentCoordinatorId), autoInviteParents: true, perSectionCoordinators: [] };
       } else if (isStudentsType) {

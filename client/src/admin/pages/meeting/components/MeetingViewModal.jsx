@@ -160,6 +160,7 @@ export default function MeetingViewModal({ meeting: initialMeeting, onClose, onS
   };
 
   const userP     = meeting.participants?.filter((p) => p.type === "USER")     ?? [];
+  const staffP = meeting.participants?.filter((p) => p.type === "STAFF") ?? [];
   const parentP   = meeting.participants?.filter((p) => p.type === "PARENT")   ?? [];
   const externalP = meeting.participants?.filter((p) => p.type === "EXTERNAL") ?? [];
   const studentP  = meeting.students ?? [];
@@ -383,6 +384,27 @@ export default function MeetingViewModal({ meeting: initialMeeting, onClose, onS
                 {studentP.map((ms) => (
                   <AttendanceRow key={ms.studentId} label={ms.student?.name ?? ms.studentId}
                     attended={ms.attended} loading={!!togglingAtt[`s-${ms.studentId}`]} onToggle={() => toggleStudent(ms)} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {staffP.length > 0 && (
+            <div>
+              <SectionHead icon={User}>Non-Teaching Staff</SectionHead>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {staffP.map((p) => (
+                  <AttendanceRow
+                    key={p.id}
+                    label={
+                      p.staff
+                        ? `${p.staff.firstName} ${p.staff.lastName ?? ""}`.trim()
+                        : p.name ?? "Staff"
+                    }
+                    attended={p.attended}
+                    loading={!!togglingAtt[`p-${p.id}`]}
+                    onToggle={() => toggleParticipant(p)}
+                  />
                 ))}
               </div>
             </div>

@@ -153,6 +153,7 @@ enum MeetingParticipantType {
   USER
   PARENT
   EXTERNAL
+  STAFF
 }
 
 enum AttendanceStatus {
@@ -1244,11 +1245,12 @@ model MeetingParticipant {
 
   type MeetingParticipantType
 
-  userId String?
-  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
-
+  userId   String?
+  user     User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  staffId  String?
+  staff    StaffProfile? @relation(fields: [staffId], references: [id])
   parentId String?
-  parent   Parent? @relation(fields: [parentId], references: [id], onDelete: SetNull)
+  parent   Parent?       @relation(fields: [parentId], references: [id], onDelete: SetNull)
 
   name          String?
   email         String?
@@ -1465,10 +1467,11 @@ model StaffProfile {
   school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   // 🔗 Optional login (same like teacher)
-  userId         String?             @unique
-  user           User?               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  groupBSalaries GroupBStaffSalary[]
-  groupCSalaries GroupCStaffSalary[]
+  userId             String?              @unique
+  user               User?                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  groupBSalaries     GroupBStaffSalary[]
+  groupCSalaries     GroupCStaffSalary[]
+  MeetingParticipant MeetingParticipant[]
 
   @@map("staff_profiles")
 }
