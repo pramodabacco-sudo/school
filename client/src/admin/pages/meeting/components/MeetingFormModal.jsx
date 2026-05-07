@@ -363,11 +363,21 @@ export default function MeetingFormModal({ meeting = null, onClose, onSaved }) {
         coordinatorUserIds.forEach((id) => allParticipantIds.delete(id));
         payload = { ...payload, classSectionIds: form.classSectionIds, classSectionId: form.classSectionIds[0] ?? "", coordinatorUserId: coordinatorUserIds[0] ?? "", participantUserIds: [...allParticipantIds], perSectionCoordinators };
       } else if (isNonTeachingType) {
-        payload = { ...payload, classSectionIds: [], classSectionId: "", coordinatorUserId: null, // don't use this
-        perSectionCoordinators: ntCoordinatorId
-          ? [{ staffId: ntCoordinatorId, type: "STAFF" }]
-          : [], participantUserIds: form.nonTeachingStaffIds.map(id => ({id,type: "STAFF"})).filter((id) => id !== ntCoordinatorId), perSectionCoordinators: ntCoordinatorId ? [{ userId: ntCoordinatorId }] : [] };
-      } else if (isParentsType) {
+          payload = {
+            ...payload,
+            classSectionIds: [],
+            classSectionId: "",
+            coordinatorUserId: null,
+
+            perSectionCoordinators: ntCoordinatorId
+              ? [{ staffId: ntCoordinatorId, type: "STAFF" }]
+              : [],
+
+            participantUserIds: form.nonTeachingStaffIds
+              .filter((id) => id !== ntCoordinatorId)
+              .map((id) => ({ staffId: id, type: "STAFF" })),
+          };
+        } else if (isParentsType) {
         payload = { ...payload, classSectionIds: form.parentClassSectionIds, classSectionId: form.parentClassSectionIds[0] ?? "", coordinatorUserId: parentCoordinatorId, participantUserIds: selectedParentIds.filter((id) => id !== parentCoordinatorId), autoInviteParents: true, perSectionCoordinators: [] };
       } else if (isStudentsType) {
         payload = { ...payload, classSectionIds: form.classSectionIds, classSectionId: form.classSectionIds[0] ?? "", coordinatorUserId: "", participantUserIds: [], perSectionCoordinators: [] };

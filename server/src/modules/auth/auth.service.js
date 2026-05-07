@@ -22,6 +22,7 @@ export const registerSuperAdminService = async ({
   adminEmail,
   adminPassword,
   adminPhone,
+  tempUserId,
 }) => {
   const existingUniversity = await prisma.university.findUnique({
     where: { code: universityCode.toUpperCase() },
@@ -67,6 +68,20 @@ export const registerSuperAdminService = async ({
         },
       },
     });
+
+    // 🔥 FIXED: use local variables (NOT result)
+    if (tempUserId) {
+      await tx.payment.updateMany({
+        where: {
+          tempUserId,
+          superAdminId: null,
+        },
+        data: {
+          superAdminId: superAdmin.id,
+          universityId: university.id,
+        },
+      });
+    }
 
     return { university, superAdmin };
   });
@@ -393,12 +408,16 @@ export const loginStudentService = async ({ email, password }) => {
     };
   }
 
+  const activeEnrollment = student.enrollments[0];
+
   const token = generateToken({
     id: student.id,
     role: "STUDENT",
     userType: "student",
     schoolId: student.schoolId,
     universityId: student.school.universityId,
+
+    classSectionId: activeEnrollment?.classSection?.id || null, // ✅ ADD THIS
   });
 
   return {
@@ -411,7 +430,10 @@ export const loginStudentService = async ({ email, password }) => {
       userType: "student",
       school: student.school,
       personalInfo: student.personalInfo || null,
+
       currentEnrollment: student.enrollments[0] || null,
+
+      classSectionId: activeEnrollment?.classSection?.id || null, // ✅ ADD THIS
     },
   };
 };

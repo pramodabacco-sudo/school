@@ -3,7 +3,7 @@ import "dotenv/config";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import cors from "cors";
-
+import express from "express";
 import "./src/utils/redis.js";
 
 import app from "./src/app.js";
@@ -18,7 +18,8 @@ import whatsappRoutes from "./src/whatsapp/whatsapp.routes.js";
 import "./src/whatsapp/birthdayCron.js";
 import "./src/whatsapp/meetingReminderCron.js";
 import contactRoutes from "./src/contactUs/contact.route.js";
-
+import subscriptionRoutes from "./src/payment/Upgrade.routes.js";
+import examTimetableRoutes from "./src/whatsapp/Exams/examTimetable.routes.js";
 
 import dotenv from "dotenv";
 dotenv.config();
@@ -104,6 +105,8 @@ app.get("/api/image-proxy", async (req, res) => {
     res.status(500).send("Proxy failed");
   }
 });
+app.use("/uploads", express.static("uploads"));
+
 // Routes
 app.use(staff);
 app.use(student);
@@ -112,7 +115,9 @@ app.use("/api/parent", parent);
 app.use("/api/device", gpsRoutes);
 app.use("/api/tracking", trackingRoutes);
 app.use("/api/payment", paymentRoutes);
+app.use("/api/subscription", subscriptionRoutes);
 app.use("/api/whatsapp", whatsappRoutes);
+app.use("/api/exam-timetable-whatsapp", examTimetableRoutes);
 app.use("/api/contact", contactRoutes);
 const server = createServer(app);
 

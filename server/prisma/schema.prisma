@@ -1060,12 +1060,12 @@ model AssessmentTerm {
 }
 
 model AssessmentGroup {
-  id          String  @id @default(uuid())
-  name        String
-  weightage   Float?
-  isPublished Boolean @default(false)
-  isLocked    Boolean @default(false)
-
+  id             String       @id @default(uuid())
+  name           String
+  weightage      Float?
+  isPublished    Boolean      @default(false)
+  isLocked       Boolean      @default(false)
+  timetableSent  Boolean      @default(false)
   academicYearId String
   academicYear   AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
 

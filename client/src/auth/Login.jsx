@@ -6,7 +6,7 @@ import { saveAuth } from "./storage";
 import {
   GraduationCap, Users, ShieldCheck, Building2,
   Mail, Lock, Eye, EyeOff, ChevronRight, BookOpen,
-  BarChart3, UserCog, ArrowRight
+  BarChart3, UserCog, ArrowRight, Sparkles
 } from "lucide-react";
 
 const REDIRECT = {
@@ -19,9 +19,9 @@ const REDIRECT = {
 };
 
 const STAFF_ROLES = [
-  { label: "Admin", value: "admin", icon: UserCog, desc: "Manage university operations" },
-  { label: "Teacher", value: "teacher", icon: BookOpen, desc: "Access classes & grades" },
-  { label: "Financer", value: "financer", icon: BarChart3, desc: "Manage fees & accounts" },
+  { label: "Admin", value: "admin", icon: UserCog,  },
+  { label: "Teacher", value: "teacher", icon: BookOpen, },
+  { label: "Financer", value: "financer", icon: BarChart3, },
 ];
 
 const TOP_TABS = [
@@ -31,15 +31,11 @@ const TOP_TABS = [
   { label: "Super Admin", value: "superAdmin", icon: ShieldCheck },
 ];
 
-/* Small helper shown only on mobile alongside logo */
-function MobileBannerText() {
-  return (
-    <div className="hidden max-[680px]:flex flex-col">
-      <span className="text-white font-extrabold text-base leading-tight">UniPortal</span>
-      <span className="text-[#BDDDFC] text-xs font-medium">Campus management platform</span>
-    </div>
-  );
-}
+const FEATURES = [
+  { icon: Users, text: "Staff & Faculty Management", sub: "Streamline HR and academic workflows" },
+  { icon: GraduationCap, text: "Student Academic Portal", sub: "Grades, attendance & schedules" },
+  { icon: BarChart3, text: "Finance & Fee Tracking", sub: "Real-time financial oversight" },
+];
 
 export default function Login({ onSwitchToRegister }) {
   const navigate = useNavigate();
@@ -51,6 +47,11 @@ export default function Login({ onSwitchToRegister }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setTimeout(() => setMounted(true), 50);
+  }, []);
 
   const handleLogin = async () => {
     setError("");
@@ -78,249 +79,624 @@ export default function Login({ onSwitchToRegister }) {
   const activeTab = TOP_TABS.find(t => t.value === type);
 
   return (
-    // Root
-    <div className="min-h-screen flex bg-[#f0f6ff] font-[Segoe_UI,system-ui,sans-serif] max-[680px]:flex-col">
-        <div className="absolute -top-20 -right-20 w-80 h-80 rounded-full bg-[rgba(136,189,242,0.12)] pointer-events-none max-[680px]:hidden" />
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=DM+Sans:wght@300;400;500;600&display=swap');
 
-      {/* ── LEFT PANEL ── */}
-      <div className="
-        flex-[0_0_45%] relative overflow-hidden
-        flex flex-col justify-center items-start
-        px-14 py-[60px]
-        max-[900px]:flex-[0_0_38%] max-[900px]:px-9 max-[900px]:py-10
-        max-[680px]:flex-none max-[680px]:px-5 max-[680px]:py-5
-        max-[680px]:flex-row max-[680px]:items-center max-[680px]:justify-start max-[680px]:gap-4
-        ml-10
-      ">
-        {/* Blobs */}
-        <div className="absolute -bottom-16 -left-16 w-60 h-60 rounded-full bg-[rgba(136,189,242,0.12)] pointer-events-none max-[680px]:hidden" />
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
-        {/* Logo */}
-        <div className="flex items-center gap-3 mb-12 max-[680px]:mb-0 ml-20">
-          <div className="w-11 h-11 rounded-xl bg-[#88BDF2] flex items-center justify-center">
-            <GraduationCap size={24} color="#384959" />
-          </div>
-          <span className="text-[#384959] font-bold text-lg tracking-wide">UniPortal</span>
-        </div>
+        .login-root {
+          min-height: 100vh;
+          display: flex;
+          font-family: 'DM Sans', sans-serif;
+          background: #f0f6ff;
+          overflow: hidden;
+          padding-top: 60px;
+        }
 
-        {/* Shown only on mobile */}
-        <MobileBannerText />
+        /* ── LEFT PANEL ── */
+        .left-panel {
+          flex: 0 0 46%;
+          background: linear-gradient(155deg, #384959 0%, #2c3a47 55%, #1e2a35 100%);
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          padding: 60px 52px;
+          position: relative;
+          overflow: hidden;
+          opacity: 0;
+          transform: translateX(-24px);
+          transition: opacity 0.7s ease, transform 0.7s ease;
+        }
+        .left-panel.show { opacity: 1; transform: translateX(0); }
 
-        <h1 className="ml-20 text-[#6A89A7] text-[38px] font-extrabold mb-[18px]">
-          Welcome to our Education Hub
-        </h1>
-        <p className=" ml-20 text-[#6A89A7] text-[15px] leading-relaxed max-w-[340px] mb-12 max-[900px]:text-[13px] max-[680px]:hidden">
-          One platform for staff, students, parents and administrators to manage university life seamlessly.
-        </p>
+        .left-panel::before {
+          content: '';
+          position: absolute;
+          top: -120px; right: -120px;
+          width: 380px; height: 380px;
+          border-radius: 50%;
+          background: radial-gradient(circle, rgba(136,189,242,0.14) 0%, transparent 70%);
+          pointer-events: none;
+        }
+        .left-panel::after {
+          content: '';
+          position: absolute;
+          bottom: -80px; left: -80px;
+          width: 280px; height: 280px;
+          border-radius: 50%;
+          background: radial-gradient(circle, rgba(136,189,242,0.10) 0%, transparent 70%);
+          pointer-events: none;
+        }
 
-        <div className=" ml-20 flex flex-col gap-4 w-full max-w-[320px] max-[680px]:hidden">
-          {[
-            { icon: Users, text: "Staff & Faculty Management" },
-            { icon: GraduationCap, text: "Student Academic Portal" },
-            { icon: BarChart3, text: "Finance & Fee Tracking" },
-          ].map(({ icon: Icon, text }) => (
-            <div key={text} className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-[10px] bg-[rgba(136,189,242,0.18)] flex items-center justify-center flex-shrink-0">
-                <Icon size={17} color="#88BDF2" />
-              </div>
-              <span className="text-[#6A89A7] text-sm font-medium">{text}</span>
+        .grid-bg {
+          position: absolute;
+          inset: 0;
+          background-image:
+            linear-gradient(rgba(136,189,242,0.05) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(136,189,242,0.05) 1px, transparent 1px);
+          background-size: 40px 40px;
+          pointer-events: none;
+        }
+
+        .logo-wrap {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin-bottom: 52px;
+          position: relative;
+          z-index: 1;
+        }
+        .logo-icon {
+          width: 46px; height: 46px;
+          background: linear-gradient(135deg, #88BDF2, #BDDDFC);
+          border-radius: 14px;
+          display: flex; align-items: center; justify-content: center;
+          box-shadow: 0 4px 18px rgba(136,189,242,0.35);
+        }
+        .logo-text {
+          font-family: 'Outfit', sans-serif;
+          font-weight: 800;
+          font-size: 22px;
+          color: #fff;
+          letter-spacing: -0.3px;
+        }
+        .logo-sub {
+          font-size: 11px;
+          color: #88BDF2;
+          font-weight: 500;
+          letter-spacing: 0.5px;
+          margin-top: 1px;
+        }
+
+        .left-headline {
+          font-family: 'Outfit', sans-serif;
+          font-weight: 800;
+          font-size: 38px;
+          line-height: 1.15;
+          color: #fff;
+          margin-bottom: 14px;
+          position: relative; z-index: 1;
+          letter-spacing: -0.5px;
+        }
+        .left-headline span { color: #88BDF2; }
+
+        .left-sub {
+          color: #BDDDFC;
+          font-size: 14.5px;
+          line-height: 1.7;
+          max-width: 330px;
+          margin-bottom: 48px;
+          position: relative; z-index: 1;
+          font-weight: 400;
+        }
+
+        .feature-list {
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+          position: relative; z-index: 1;
+        }
+        .feature-item {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          padding: 14px 16px;
+          background: rgba(255,255,255,0.06);
+          border: 1px solid rgba(136,189,242,0.15);
+          border-radius: 14px;
+          backdrop-filter: blur(4px);
+          transition: background 0.2s, border-color 0.2s;
+        }
+        .feature-item:hover {
+          background: rgba(255,255,255,0.10);
+          border-color: rgba(136,189,242,0.28);
+        }
+        .feature-icon-wrap {
+          width: 38px; height: 38px;
+          background: rgba(136,189,242,0.18);
+          border-radius: 10px;
+          display: flex; align-items: center; justify-content: center;
+          flex-shrink: 0;
+        }
+        .feature-text { font-size: 13.5px; font-weight: 600; color: #fff; }
+        .feature-sub { font-size: 11.5px; color: #88BDF2; margin-top: 2px; font-weight: 400; }
+
+        .left-badge {
+          margin-top: 40px;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: rgba(136,189,242,0.12);
+          border: 1px solid rgba(136,189,242,0.22);
+          border-radius: 100px;
+          padding: 6px 14px;
+          color: #88BDF2;
+          font-size: 11.5px;
+          font-weight: 600;
+          letter-spacing: 0.3px;
+          width: fit-content;
+          position: relative; z-index: 1;
+        }
+
+        /* ── RIGHT PANEL ── */
+        .right-panel {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 40px 48px;
+          opacity: 0;
+          transform: translateX(24px);
+          transition: opacity 0.7s ease 0.15s, transform 0.7s ease 0.15s;
+        }
+        .right-panel.show { opacity: 1; transform: translateX(0); }
+
+        .form-card {
+          width: 100%;
+          max-width: 460px;
+          background: #fff;
+          border-radius: 24px;
+          padding: 40px 38px;
+          box-shadow: 0 8px 48px rgba(56,73,89,0.10), 0 2px 12px rgba(56,73,89,0.06);
+          border: 1px solid rgba(136,189,242,0.18);
+        }
+
+        .form-header { margin-bottom: 28px; }
+        .form-title {
+          font-family: 'Outfit', sans-serif;
+          font-size: 26px;
+          font-weight: 800;
+          color: #384959;
+          letter-spacing: -0.4px;
+          margin-bottom: 4px;
+        }
+        .form-subtitle { font-size: 13.5px; color: #6A89A7; font-weight: 400; }
+
+        /* Tabs */
+        .tabs-wrap {
+          background: #f0f6ff;
+          border-radius: 14px;
+          padding: 5px;
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 4px;
+          margin-bottom: 20px;
+        }
+        .tab-btn {
+          padding: 9px 4px;
+          border-radius: 10px;
+          border: none;
+          cursor: pointer;
+          font-family: 'DM Sans', sans-serif;
+          font-size: 11px;
+          font-weight: 600;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 4px;
+          transition: all 0.2s;
+          background: transparent;
+          color: #6A89A7;
+        }
+        .tab-btn.active {
+          background: #384959;
+          color: #fff;
+          box-shadow: 0 2px 10px rgba(56,73,89,0.22);
+        }
+        .tab-btn:hover:not(.active) { background: rgba(56,73,89,0.06); }
+
+        /* Staff sub-roles */
+        .staff-roles {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 8px;
+          margin-bottom: 18px;
+        }
+        .role-btn {
+          padding: 11px 8px;
+          border-radius: 12px;
+          border: 1.5px solid #dde8f5;
+          background: #fff;
+          cursor: pointer;
+          text-align: center;
+          transition: all 0.2s;
+        }
+        .role-btn.active {
+          border-color: #6A89A7;
+          background: #f0f6ff;
+          box-shadow: 0 0 0 3px rgba(106,137,167,0.10);
+        }
+        .role-btn-icon { margin-bottom: 5px; display: flex; justify-content: center; }
+        .role-btn-label { font-size: 11.5px; font-weight: 700; color: #384959; }
+        .role-btn-desc { font-size: 10px; color: #88BDF2; margin-top: 2px; line-height: 1.3; }
+
+        /* Active role pill */
+        .role-pill {
+          display: flex;
+          align-items: center;
+          gap: 7px;
+          padding: 9px 14px;
+          background: linear-gradient(90deg, #eaf3fc, #f0f6ff);
+          border: 1px solid #BDDDFC;
+          border-radius: 10px;
+          margin-bottom: 20px;
+        }
+        .role-pill-text { font-size: 12.5px; color: #384959; font-weight: 600; }
+
+        /* Error */
+        .error-box {
+          background: #fff5f5;
+          border: 1px solid #fcc;
+          border-left: 3px solid #e74c3c;
+          border-radius: 10px;
+          padding: 10px 14px;
+          margin-bottom: 16px;
+          color: #c0392b;
+          font-size: 13px;
+          font-weight: 500;
+        }
+
+        /* Fields */
+        .field-group { margin-bottom: 16px; }
+        .field-label {
+          display: block;
+          font-size: 12.5px;
+          font-weight: 700;
+          color: #384959;
+          margin-bottom: 7px;
+          letter-spacing: 0.1px;
+        }
+        .field-wrap { position: relative; }
+        .field-icon {
+          position: absolute;
+          left: 14px;
+          top: 50%;
+          transform: translateY(-50%);
+          pointer-events: none;
+        }
+        .field-input {
+          width: 100%;
+          padding: 12px 14px 12px 42px;
+          border: 1.5px solid #dde8f5;
+          border-radius: 12px;
+          font-family: 'DM Sans', sans-serif;
+          font-size: 13.5px;
+          font-weight: 500;
+          color: #384959;
+          background: #fafcff;
+          outline: none;
+          transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+        }
+        .field-input:focus {
+          border-color: #6A89A7;
+          background: #fff;
+          box-shadow: 0 0 0 3px rgba(106,137,167,0.10);
+        }
+        .field-input::placeholder { color: #aabdd0; }
+        .pw-toggle {
+          position: absolute; right: 12px; top: 50%;
+          transform: translateY(-50%);
+          background: none; border: none;
+          cursor: pointer; padding: 4px;
+          display: flex; align-items: center;
+          border-radius: 6px;
+          transition: background 0.15s;
+        }
+        .pw-toggle:hover { background: #eaf3fc; }
+
+        .forgot-link {
+          display: block;
+          text-align: right;
+          margin: -6px 0 20px;
+          font-size: 12.5px;
+          font-weight: 600;
+          color: #6A89A7;
+          cursor: pointer;
+          text-decoration: none;
+          transition: color 0.15s;
+        }
+        .forgot-link:hover { color: #384959; }
+
+        /* Buttons */
+        .btn-primary {
+          width: 100%;
+          padding: 14px;
+          border-radius: 12px;
+          border: none;
+          background: linear-gradient(135deg, #384959, #2c3a47);
+          color: #fff;
+          font-family: 'Outfit', sans-serif;
+          font-size: 15px;
+          font-weight: 700;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          box-shadow: 0 4px 16px rgba(56,73,89,0.24);
+          transition: all 0.2s;
+          letter-spacing: 0.1px;
+          margin-bottom: 12px;
+        }
+        .btn-primary:hover:not(:disabled) {
+          background: linear-gradient(135deg, #2c3a47, #1e2a35);
+          box-shadow: 0 6px 22px rgba(56,73,89,0.32);
+          transform: translateY(-1px);
+        }
+        .btn-primary:active:not(:disabled) { transform: translateY(0); }
+        .btn-primary:disabled { opacity: 0.7; cursor: not-allowed; }
+
+        .divider {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin: 4px 0 12px;
+        }
+        .divider-line { flex: 1; height: 1px; background: #dde8f5; }
+        .divider-text { font-size: 10.5px; color: #88BDF2; font-weight: 700; letter-spacing: 1px; }
+
+        .btn-secondary {
+          width: 100%;
+          padding: 12px;
+          border-radius: 12px;
+          border: 1.5px solid #88BDF2;
+          background: #fff;
+          color: #384959;
+          font-family: 'DM Sans', sans-serif;
+          font-size: 13.5px;
+          font-weight: 700;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 7px;
+          transition: all 0.2s;
+        }
+        .btn-secondary:hover {
+          background: #eaf3fc;
+          border-color: #6A89A7;
+        }
+
+        /* Loading spinner */
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spinner {
+          width: 16px; height: 16px;
+          border: 2px solid rgba(255,255,255,0.35);
+          border-top-color: #fff;
+          border-radius: 50%;
+          animation: spin 0.7s linear infinite;
+        }
+
+        /* ── RESPONSIVE ── */
+        @media (max-width: 960px) {
+          .left-panel { flex: 0 0 40%; padding: 48px 36px; }
+          .left-headline { font-size: 30px; }
+          .right-panel { padding: 32px 28px; }
+          .form-card { padding: 32px 28px; }
+        }
+
+        @media (max-width: 720px) {
+          .login-root { flex-direction: column; }
+          .left-panel {
+            flex: none;
+            padding: 40px 40px;
+            flex-direction: row;
+            align-items: center;
+            gap: 14px;
+            background: linear-gradient(120deg, #384959, #2c3a47);
+          }
+          .left-panel::before, .left-panel::after { display: none; }
+          .grid-bg { display: none; }
+          .logo-wrap { margin-bottom: 0; }
+          .left-headline, .left-sub, .feature-list, .left-badge { display: none; }
+          .mobile-brand { display: flex !important; flex-direction: column; }
+          .right-panel { padding: 24px 16px; align-items: flex-start; }
+          .form-card { padding: 28px 20px; border-radius: 18px; }
+          .tabs-wrap { grid-template-columns: repeat(2, 1fr); }
+          .form-title { font-size: 22px; }
+        }
+
+        @media (max-width: 400px) {
+          .form-card { padding: 22px 16px; }
+          .staff-roles { grid-template-columns: repeat(3, 1fr); gap: 5px; }
+          .role-btn { padding: 9px 4px; }
+          .role-btn-desc { display: none; }
+          .btn-primary { font-size: 14px; padding: 13px; }
+        }
+
+        .mobile-brand { display: none; }
+      `}</style>
+
+      <div className="login-root">
+        {/* ── LEFT PANEL ── */}
+        <div className={`left-panel ${mounted ? "show" : ""}`}>
+          <div className="grid-bg" />
+
+          <div className="logo-wrap">
+            <div className="logo-icon">
+              <GraduationCap size={22} color="#384959" />
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── RIGHT PANEL ── */}
-      <div className="flex-1 flex items-center justify-center mt-10 px-8 py-10 max-[680px]:items-start max-[680px]:px-4 max-[680px]:py-6 max-[360px]:px-3 max-[360px]:py-4">
-        <div className="w-full max-w-[440px] max-[680px]:max-w-full">
-
-          <h2 className="text-[#384959] text-[26px] font-extrabold mb-1.5 pt-[50px] max-[680px]:text-[22px] max-[360px]:text-xl">
-            Sign In
-          </h2>
-          <p className="text-[#6A89A7] text-sm mb-7">Select your role and enter your credentials</p>
-
-          {/* Top Role Tabs */}
-          <div
-            className={`flex gap-1.5 bg-[#eaf3fc] rounded-xl p-1.5 flex-wrap ${type === "staff" ? "mb-4" : "mb-6"}`}
-          >
-            {TOP_TABS.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = type === tab.value;
-              return (
-                <button
-                  key={tab.value}
-                  className={`
-                    flex-1 py-2 px-1 rounded-lg border-none cursor-pointer font-semibold text-xs
-                    flex flex-col items-center gap-1 transition-all duration-200
-                    max-[680px]:flex-[1_1_calc(50%-6px)] min-w-0 max-[360px]:text-[11px] max-[360px]:py-1.5 max-[360px]:px-0.5
-                    ${isActive
-                      ? "bg-[#384959] text-white shadow-[0_2px_8px_rgba(56,73,89,0.18)]"
-                      : "bg-transparent text-[#6A89A7]"}
-                  `}
-                  onClick={() => { setType(tab.value); setError(""); }}
-                >
-                  <Icon size={15} />
-                  {tab.label}
-                </button>
-              );
-            })}
+            <div>
+              <div className="logo-text">UniPortal</div>
+              <div className="logo-sub">Campus Management Platform</div>
+            </div>
           </div>
 
-          {/* Staff Sub-roles */}
-          {type === "staff" && (
-            <div className="flex gap-2 mb-6 max-[680px]:flex-col">
-              {STAFF_ROLES.map(({ label, value, icon: Icon, desc }) => {
-                const isActive = staffRole === value;
+          {/* Mobile-only inline brand (no headline/features) */}
+          <div className="mobile-brand">
+            <span style={{ color: "#fff", fontFamily: "Outfit,sans-serif", fontWeight: 800, fontSize: 17 }}>UniPortal</span>
+            <span style={{ color: "#88BDF2", fontSize: 11, fontWeight: 500 }}>Campus Management</span>
+          </div>
+
+          <h1 className="left-headline">
+            Your campus,<br /><span>one platform.</span>
+          </h1>
+          <p className="left-sub">
+            A unified workspace for staff, students, parents, and administrators to manage every aspect of university life.
+          </p>
+
+          <div className="feature-list">
+            {FEATURES.map(({ icon: Icon, text, sub }) => (
+              <div className="feature-item" key={text}>
+                <div className="feature-icon-wrap">
+                  <Icon size={16} color="#88BDF2" />
+                </div>
+                <div>
+                  <div className="feature-text">{text}</div>
+                  <div className="feature-sub">{sub}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="left-badge">
+            <Sparkles size={12} />
+            Trusted by 500+ universities
+          </div>
+        </div>
+
+        {/* ── RIGHT PANEL ── */}
+        <div className={`right-panel ${mounted ? "show" : ""}`}>
+          <div className="form-card">
+            <div className="form-header">
+              <div className="form-title">Welcome back</div>
+              <div className="form-subtitle">Sign in to access your portal</div>
+            </div>
+
+            {/* Role Tabs */}
+            <div className="tabs-wrap">
+              {TOP_TABS.map((tab) => {
+                const Icon = tab.icon;
                 return (
                   <button
-                    key={value}
-                    className={`
-                      flex-1 p-2.5 rounded-[10px] cursor-pointer text-left transition-all duration-200
-                      max-[680px]:flex max-[680px]:items-center max-[680px]:gap-3 max-[680px]:p-3
-                      ${isActive
-                        ? "border-2 border-[#6A89A7] bg-[#eaf3fc]"
-                        : "border-2 border-[#dde8f5] bg-white"}
-                    `}
-                    onClick={() => { setStaffRole(value); setError(""); }}
+                    key={tab.value}
+                    className={`tab-btn ${type === tab.value ? "active" : ""}`}
+                    onClick={() => { setType(tab.value); setError(""); }}
                   >
-                    <div className="flex items-center gap-1.5 mb-0.5 max-[680px]:mb-0">
-                      <Icon size={14} color={isActive ? "#384959" : "#6A89A7"} />
-                      <span
-                        className="text-xs font-bold"
-                        style={{ color: isActive ? "#384959" : "#6A89A7" }}
-                      >
-                        {label}
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-[#88BDF2] m-0 leading-snug max-[680px]:hidden">{desc}</p>
+                    <Icon size={14} />
+                    {tab.label}
                   </button>
                 );
               })}
             </div>
-          )}
 
-          {/* Active role badge */}
-          <div className="flex items-center gap-2 mb-5 px-3.5 py-2 bg-[#BDDDFC] rounded-lg">
-            {activeTab && <activeTab.icon size={14} color="#384959" />}
-            <span className="text-xs text-[#384959] font-semibold">
-              Logging in as:{" "}
-              {type === "staff"
-                ? `${STAFF_ROLES.find(r => r.value === staffRole)?.label} (Staff)`
-                : activeTab?.label}
-            </span>
-          </div>
+            {/* Staff Sub-roles */}
+            {type === "staff" && (
+              <div className="staff-roles">
+                {STAFF_ROLES.map(({ label, value, icon: Icon, desc }) => (
+                  <button
+                    key={value}
+                    className={`role-btn ${staffRole === value ? "active" : ""}`}
+                    onClick={() => { setStaffRole(value); setError(""); }}
+                  >
+                    <div className="role-btn-icon">
+                      <Icon size={15} color={staffRole === value ? "#384959" : "#88BDF2"} />
+                    </div>
+                    <div className="role-btn-label">{label}</div>
+                    <div className="role-btn-desc">{desc}</div>
+                  </button>
+                ))}
+              </div>
+            )}
 
-          {/* Error */}
-          {error && (
-            <div className="bg-[#fff0f0] border border-[#fcc] rounded-lg px-3.5 py-2.5 mb-[18px] text-[#c0392b] text-[13px] font-medium">
-              {error}
+            {/* Active role pill */}
+            <div className="role-pill">
+              {activeTab && <activeTab.icon size={13} color="#384959" />}
+              <span className="role-pill-text">
+                Signing in as:{" "}
+                {type === "staff"
+                  ? `${STAFF_ROLES.find(r => r.value === staffRole)?.label} (Staff)`
+                  : activeTab?.label}
+              </span>
             </div>
-          )}
 
-          {/* Email */}
-          <div className="mb-4">
-            <label className="block text-[13px] font-semibold text-[#384959] mb-1.5">
-              Email Address
-            </label>
-            <div className="relative">
-              <Mail size={16} color="#88BDF2" className="absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="email"
-                placeholder="name@university.edu"
-                value={email}
-                className="
-                  w-full py-[11px] pr-3.5 pl-10 border-[1.5px] border-[#dde8f5] rounded-[10px]
-                  text-sm font-medium text-[#384959] outline-none bg-white transition-colors duration-200
-                  focus:border-[#6A89A7]
-                "
-                onChange={e => setEmail(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && handleLogin()}
-              />
+            {/* Error */}
+            {error && <div className="error-box">{error}</div>}
+
+            {/* Email */}
+            <div className="field-group">
+              <label className="field-label">Email Address</label>
+              <div className="field-wrap">
+                <span className="field-icon"><Mail size={15} color="#88BDF2" /></span>
+                <input
+                  className="field-input"
+                  type="email"
+                  placeholder="name@university.edu"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && handleLogin()}
+                />
+              </div>
             </div>
-          </div>
 
-          {/* Password */}
-          <div className="mb-[26px]">
-            <label className="block text-[13px] font-semibold text-[#384959] mb-1.5">
-              Password
-            </label>
-            <div className="relative">
-              <Lock size={16} color="#88BDF2" className="absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type={showPassword ? "text" : "password"}
-                placeholder="••••••••"
-                value={password}
-                className="
-                  w-full py-[11px] pl-10 pr-11 border-[1.5px] border-[#dde8f5] rounded-[10px]
-                  text-sm font-medium text-[#384959] outline-none bg-white transition-colors duration-200
-                  focus:border-[#6A89A7]
-                "
-                onChange={e => setPassword(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && handleLogin()}
-              />
-              <button
-                type="button"
-                className="absolute right-3 top-1/2 -translate-y-1/2 bg-transparent border-none cursor-pointer p-0.5"
-                onClick={() => setShowPassword(s => !s)}
-              >
-                {showPassword
-                  ? <EyeOff size={17} color="#6A89A7" />
-                  : <Eye size={17} color="#6A89A7" />}
-              </button>
+            {/* Password */}
+            <div className="field-group">
+              <label className="field-label">Password</label>
+              <div className="field-wrap">
+                <span className="field-icon"><Lock size={15} color="#88BDF2" /></span>
+                <input
+                  className="field-input"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && handleLogin()}
+                  style={{ paddingRight: 44 }}
+                />
+                <button className="pw-toggle" type="button" onClick={() => setShowPassword(s => !s)}>
+                  {showPassword ? <EyeOff size={16} color="#6A89A7" /> : <Eye size={16} color="#6A89A7" />}
+                </button>
+              </div>
             </div>
-          </div>
 
-          {/* Forgot Password */}
-          <div className="text-right -mt-3 mb-[18px]">
-            <span
-              className="text-[13px] text-[#6A89A7] cursor-pointer font-semibold"
-              onClick={() => navigate("/forgot-password")}
-            >
+            <span className="forgot-link" onClick={() => navigate("/forgot-password")}>
               Forgot Password?
             </span>
+
+            {/* Sign In Button */}
+            <button className="btn-primary" onClick={handleLogin} disabled={loading}>
+              {loading
+                ? <><div className="spinner" /><span>Authenticating...</span></>
+                : <><span>Sign In</span><ArrowRight size={16} /></>}
+            </button>
+
+            {/* Divider */}
+            <div className="divider">
+              <div className="divider-line" />
+              <span className="divider-text">OR</span>
+              <div className="divider-line" />
+            </div>
+
+            {/* Register */}
+            <button className="btn-secondary" onClick={() => navigate("/register")}>
+              <Building2 size={15} color="#6A89A7" />
+              <span>Register New University</span>
+              <ChevronRight size={14} color="#6A89A7" />
+            </button>
           </div>
-
-          {/* Login Button */}
-          <button
-            className={`
-              w-full py-[13px] rounded-[10px] border-none text-white font-bold text-[15px]
-              flex items-center justify-center gap-2 shadow-[0_4px_14px_rgba(56,73,89,0.22)]
-              transition-all duration-200 mb-3.5
-              ${loading
-                ? "cursor-not-allowed bg-[#6A89A7] opacity-75"
-                : "cursor-pointer bg-[#384959] hover:bg-[#2c3a47]"}
-            `}
-            onClick={handleLogin}
-            disabled={loading}
-          >
-            {loading
-              ? "Authenticating..."
-              : <><span>Sign In</span><ArrowRight size={17} /></>}
-          </button>
-
-          {/* Divider */}
-          <div className="flex items-center gap-3 my-1 mb-3.5">
-            <div className="flex-1 h-px bg-[#dde8f5]" />
-            <span className="text-[11px] text-[#88BDF2] font-bold tracking-widest uppercase">or</span>
-            <div className="flex-1 h-px bg-[#dde8f5]" />
-          </div>
-
-          {/* Register */}
-          <button
-            className="
-              w-full py-3 rounded-[10px] border-2 border-[#88BDF2] bg-white
-              text-[#384959] font-bold text-sm cursor-pointer
-              flex items-center justify-center gap-2 transition-all duration-200
-              hover:bg-[#eaf3fc]
-            "
-            onClick={() => navigate("/register")}
-          >
-            <Building2 size={16} color="#6A89A7" />
-            <span>Register New University</span>
-            <ChevronRight size={15} color="#6A89A7" />
-          </button>
-
         </div>
       </div>
-    </div>
+    </>
   );
 }
