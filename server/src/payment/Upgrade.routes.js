@@ -1,5 +1,5 @@
 import express from "express";
-import { createSubscription, getMySubscription } from "./upgrade.controller.js";
+import { createSubscription, getMySubscription } from "./Upgrade.controller.js";
 import { requireAuth } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
