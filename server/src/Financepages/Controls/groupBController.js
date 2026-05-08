@@ -1,7 +1,4 @@
-import { PrismaClient } from "@prisma/client";
-
-
-const prisma = new PrismaClient();
+import { prisma } from "../../config/db.js";
 
 // ─── Helper: leave deduction (monthly salary × 12 / 365 × days) ───────────────
 const calcLeaveDeduction = (monthlySalary, leaveDays) => {

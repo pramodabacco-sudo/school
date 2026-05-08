@@ -18,7 +18,7 @@ export async function cleanupOldBackups() {
     for (const backup of oldBackups) {
       try {
         // delete from R2
-        await deleteFromCloud(backup.fileKey);
+       
 
         // delete from DB
         await prisma.cloudBackup.delete({

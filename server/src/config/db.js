@@ -7,14 +7,57 @@ import { getFullData } from "../utils/getFullData.js";
 
 export const prisma = new PrismaClient();
 
+// ⚠️ Use same instance (avoid multiple DB connections)
+const rawPrisma = prisma;
 
 prisma.$use(async (params, next) => {
+  let beforeData = null;
+  let beforeUpdate = null;
+
+  // ==============================
+  // 🔹 PRE-FETCH (BEFORE DELETE)
+  // ==============================
+  if (params.action === "delete" && params.args?.where && rawPrisma[params.model]) {
+    try {
+      beforeData = await rawPrisma[params.model].findUnique({
+        where: params.args.where,
+      });
+    } catch (e) {
+      console.warn("Pre-delete fetch failed:", e.message);
+    }
+  }
+
+  // ==============================
+  // 🔹 PRE-FETCH (BEFORE UPDATE)
+  // ==============================
+  if (params.action === "update" && params.args?.where && rawPrisma[params.model]) {
+    try {
+      beforeUpdate = await rawPrisma[params.model].findUnique({
+        where: params.args.where,
+      });
+    } catch (e) {
+      console.warn("Pre-update fetch failed:", e.message);
+    }
+  }
+
+  // ==============================
+  // 🔹 EXECUTE ORIGINAL QUERY
+  // ==============================
   const result = await next(params);
 
-  // 🔥 only for write operations
+  // ==============================
+  // ❌ SKIP BULK OPERATIONS
+  // ==============================
+  // if (params.action.endsWith("Many")) {
+  //   return result;
+  // }
+
+  // ==============================
+  // 🔥 ONLY TRACK WRITE OPERATIONS
+  // ==============================
   if (["create", "update", "delete"].includes(params.action)) {
     try {
-      let fullData = result;
+      let fullData = params.action === "delete" ? beforeData : result;
 
       // ==============================
       // 🔥 HANDLE STUDENT FULL DATA
@@ -28,10 +71,14 @@ prisma.$use(async (params, next) => {
           "StudentParent",
         ].includes(params.model)
       ) {
-        const studentId = result?.id || result?.studentId;
+        const studentId =
+          result?.id ||
+          result?.studentId ||
+          beforeData?.id ||
+          beforeData?.studentId;
 
         if (studentId) {
-          fullData = await prisma.student.findUnique({
+          fullData = await rawPrisma.student.findUnique({
             where: { id: studentId },
             include: {
               personalInfo: true,
@@ -53,8 +100,8 @@ prisma.$use(async (params, next) => {
       // ==============================
       // 🔥 OTHER MODELS (GENERIC)
       // ==============================
-      else if (result?.id) {
-        const fetched = await getFullData(params.model, result.id);
+      else if (fullData?.id) {
+        const fetched = await getFullData(params.model, fullData.id);
         if (fetched) fullData = fetched;
       }
 
@@ -78,7 +125,12 @@ prisma.$use(async (params, next) => {
       // 🔥 FIX refId
       // ==============================
       let refId =
-        result?.id || result?.studentId || "bulk";
+        result?.id ||
+        result?.studentId ||
+        beforeData?.id ||
+        beforeData?.studentId ||
+        params.args?.where?.id ||
+        "unknown";
 
       if (
         [
@@ -88,7 +140,7 @@ prisma.$use(async (params, next) => {
           "StudentParent",
         ].includes(params.model)
       ) {
-        refId = result?.studentId;
+        refId = result?.studentId || beforeData?.studentId;
       }
 
       // ==============================
@@ -99,16 +151,29 @@ prisma.$use(async (params, next) => {
       }
 
       // ==============================
+      // 🔥 DETECT SOFT DELETE
+      // ==============================
+      const isSoftDelete =
+        params.action === "update" &&
+        (params.args?.data?.isArchived === true ||
+         params.args?.data?.isDeleted === true);
+
+      // ==============================
       // 🔥 NON-BLOCKING CLOUD BACKUP
       // ==============================
-      saveBackup({
-        model: modelName,
-        refId: String(refId),
-        data: fullData,
-        action: params.action,
-      }).catch((err) => {
-        console.error("Backup async error:", err.message);
-      });
+      if (fullData) {
+        await saveBackup({
+  userId: params?.context?.userId || null,
+  timestamp: new Date(),
+  model: modelName,
+  refId: String(refId),
+  data:
+    params.action === "update"
+      ? { before: beforeUpdate, after: fullData }
+      : fullData,
+  action: isSoftDelete ? "softDelete" : params.action,
+});
+      }
 
     } catch (err) {
       console.error("Backup error:", err.message);

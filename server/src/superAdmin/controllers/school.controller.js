@@ -1,9 +1,9 @@
 // src/controllers/school.controller.js
 
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "../../config/db.js";
 import redisClient from "../../utils/redis.js";
 
-const prisma = new PrismaClient();
+
 
 // ✅ Valid SchoolType enum values — must match schema.prisma exactly
 const VALID_SCHOOL_TYPES = [

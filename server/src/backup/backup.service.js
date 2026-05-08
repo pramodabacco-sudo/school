@@ -1,6 +1,7 @@
 import fs from "fs-extra";
 import path from "path";
 import { exec } from "child_process";
+import { uploadToCloud } from "../utils/cloud.service.js";
 
 const BACKUP_DIR = path.join(process.cwd(), "backups");
 
@@ -18,8 +19,9 @@ export const createBackup = async () => {
 
    const command = `pg_dump --clean --if-exists "${dbUrl}" -f "${filePath}"`;
 
-    exec(command, (error) => {
+    exec(command, async (error) => {
       if (error) return reject(error);
+      await uploadToCloud(filePath, fileName);
       resolve(fileName); // return only filename ✅
     });
   });
@@ -45,21 +47,4 @@ export const restoreBackup = (file) => {
       resolve("Restore completed");
     });
   });
-};
-export const cleanOldBackups = async () => {
-  const files = await fs.readdir("backups");
-
-  const now = Date.now();
-
-  for (const file of files) {
-    const filePath = path.join("backups", file);
-    const stats = await fs.stat(filePath);
-
-    const age = (now - stats.mtimeMs) / (1000 * 60 * 60 * 24);
-
-    if (age > 7) {
-      await fs.remove(filePath);
-      console.log("Deleted old backup:", file);
-    }
-  }
 };

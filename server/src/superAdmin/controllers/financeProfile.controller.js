@@ -1,9 +1,9 @@
 // financeProfile.controller.js
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "../../config/db.js";
 import redisClient from "../../utils/redis.js";
 import bcrypt from "bcryptjs";
 
-const prisma = new PrismaClient();
+
 
 const CACHE_ALL = "finance_profiles:all";
 const CACHE_ONE = (id) => `finance_profile:${id}`;

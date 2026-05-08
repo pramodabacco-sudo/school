@@ -2286,9 +2286,7 @@ model CloudBackup {
   fileKey  String
   fileType String
 
-  createdAt DateTime @default(now())
-
-  // 🔥 NEW FIELD
+  createdAt DateTime  @default(now())
   deletedAt DateTime?
 }
 

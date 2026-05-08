@@ -17,7 +17,7 @@ export const cleanCloud = async () => {
     });
 
     for (const file of files) {
-      await deleteFromCloud(file.fileKey);
+    
 
       await prisma.studentDocumentInfo.delete({
         where: { id: file.id },

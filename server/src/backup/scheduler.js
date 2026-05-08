@@ -1,9 +1,20 @@
 import cron from "node-cron";
-import { cleanCloud } from "./cleanupCloud.js";
+import { createBackup } from "./backup.service.js";
 
 export function startBackupScheduler() {
-  cron.schedule("0 0 * * *", async () => {
-    console.log("Running cloud cleanup...");
-    await cleanCloud();
+
+  // Daily backup at 1 AM
+  cron.schedule("0 1 * * *", async () => {
+    try {
+      console.log("📦 Running database backup...");
+
+      const file = await createBackup();
+
+      console.log("✅ Backup created:", file);
+
+    } catch (err) {
+      console.error("❌ Backup failed:", err.message);
+    }
   });
+
 }
