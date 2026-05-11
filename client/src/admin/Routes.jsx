@@ -33,6 +33,8 @@ import TransportPage from "./pages/transport/TransportPage";
 import ChatPage from "./pages/chat/ChatPage.jsx";
 import TrackingPage from "./pages/tracking/TrackingPage";
 import TutorialTeachersPage from "./pages/tutorials/TutorialTeachersPage";
+import Profile from "./components/Profile";
+
 function AdminRoutes() {
   return (
     <PageLayout>
@@ -41,7 +43,7 @@ function AdminRoutes() {
         <Route index element={<Navigate to="dashboard" replace />} />
 
         <Route path="dashboard"             element={<Dashboard />} />
-
+        <Route path="profile" element={<Profile />} />
         {/* Students */}
         <Route path="students"              element={<StudentsList />} />
         <Route path="students/add"          element={<AddStudents />} />

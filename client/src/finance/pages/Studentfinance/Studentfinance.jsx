@@ -261,6 +261,170 @@ function WhatsAppConfirmModal({ student, onClose, onConfirm }) {
     );
 }
 
+function ReceiptConfirmModal({ student, onClose, onConfirm }) {
+    return (
+        <div className="inv-overlay" onClick={onClose}>
+            <div
+                style={{
+                    background: "#fff",
+                    borderRadius: 16,
+                    width: "100%",
+                    maxWidth: 340,
+                    overflow: "hidden",
+                    boxShadow: "0 16px 40px rgba(0,0,0,.22)",
+                    animation: "invUp .25s ease"
+                }}
+                onClick={(e) => e.stopPropagation()}
+            >
+                {/* Header */}
+                <div
+                    style={{
+                        background: "linear-gradient(135deg,#1C3044,#27435B)",
+                        padding: "16px 20px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10
+                    }}
+                >
+                    <div
+                        style={{
+                            width: 38,
+                            height: 38,
+                            borderRadius: 10,
+                            background: "rgba(255,255,255,.14)",
+                            border: "1.5px solid rgba(255,255,255,.22)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center"
+                        }}
+                    >
+                        <Receipt size={18} color="#fff" />
+                    </div>
+
+                    <div>
+                        <div
+                            style={{
+                                color: "#fff",
+                                fontWeight: 700,
+                                fontSize: 15,
+                                fontFamily: "'DM Sans',sans-serif"
+                            }}
+                        >
+                            Send Fee Receipt
+                        </div>
+
+                        <div
+                            style={{
+                                color: "rgba(255,255,255,.6)",
+                                fontSize: 12,
+                                fontFamily: "'DM Sans',sans-serif"
+                            }}
+                        >
+                            WhatsApp PDF Receipt
+                        </div>
+                    </div>
+                </div>
+
+                {/* Body */}
+                <div style={{ padding: "24px 22px 8px", textAlign: "center" }}>
+                    <div
+                        style={{
+                            width: 52,
+                            height: 52,
+                            borderRadius: "50%",
+                            background: "#edf4ff",
+                            border: "2px solid #c7d7fe",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            margin: "0 auto 14px"
+                        }}
+                    >
+                        <Receipt size={22} color="#27435B" />
+                    </div>
+
+                    <p
+                        style={{
+                            fontSize: 14,
+                            color: "#1C3044",
+                            margin: "0 0 8px",
+                            fontWeight: 700,
+                            fontFamily: "'DM Sans',sans-serif"
+                        }}
+                    >
+                        Send fee receipt PDF?
+                    </p>
+
+                    <p
+                        style={{
+                            fontSize: 13,
+                            color: "#4A6B80",
+                            margin: 0,
+                            lineHeight: 1.6,
+                            fontFamily: "'DM Sans',sans-serif"
+                        }}
+                    >
+                        Receipt PDF will be sent to{" "}
+                        <strong style={{ color: "#27435B" }}>
+                            {student.name}
+                        </strong>'s parent on WhatsApp.
+                    </p>
+                </div>
+
+                {/* Footer */}
+                <div
+                    style={{
+                        padding: "20px 22px 22px",
+                        display: "flex",
+                        gap: 10
+                    }}
+                >
+                    <button
+                        onClick={onClose}
+                        style={{
+                            flex: 1,
+                            padding: "10px",
+                            borderRadius: 10,
+                            border: "1.5px solid #d0d5dd",
+                            background: "#fff",
+                            fontSize: 13,
+                            fontWeight: 600,
+                            color: "#4A6B80",
+                            cursor: "pointer",
+                            fontFamily: "'DM Sans',sans-serif"
+                        }}
+                    >
+                        Cancel
+                    </button>
+
+                    <button
+                        onClick={onConfirm}
+                        style={{
+                            flex: 1,
+                            padding: "10px",
+                            borderRadius: 10,
+                            border: "none",
+                            background: "#27435B",
+                            fontSize: 13,
+                            fontWeight: 600,
+                            color: "#fff",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 7,
+                            fontFamily: "'DM Sans',sans-serif"
+                        }}
+                    >
+                        <Receipt size={14} />
+                        Send PDF
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN PAGE
 // ─────────────────────────────────────────────────────────────────────────────
@@ -274,6 +438,7 @@ export default function StudentFeesPage() {
     const [payStudent, setPayStudent] = useState(null);
     const [waStudent, setWaStudent] = useState(null);
     const [schoolInfo, setSchoolInfo] = useState({ name: "", address: "", city: "", phone: "" });
+    const [receiptStudent, setReceiptStudent] = useState(null);
 
     useEffect(() => {
         if (!window.jspdf) {
@@ -812,11 +977,21 @@ const handleSendReceipt = async (student) => {
                                                         <button className="sf2-act sf2-act-inv" title="Invoice" onClick={() => setInvoiceStudent(student)}>
                                                             <FileText size={13} />
                                                         </button>
-                                                        <button className="sf2-act sf2-act-wa" title="Send WhatsApp to Parent" onClick={() => setWaStudent(student)}>
+                                                        <button className="sf2-act sf2-act-wa" title="Send Fees Reminder to Parent" onClick={() => setWaStudent(student)}>
                                                             <FaWhatsapp size={13} />
                                                         </button>
-                                                        <button className="sf2-act sf2-act-inv" title="Send Receipt PDF" onClick={() => handleSendReceipt(student)} > <Receipt size={13} className="color=green-600" /> </button>
-
+                                                            <button
+                                                                className="sf2-act sf2-act-inv"
+                                                                title="Send Receipt PDF"
+                                                                onClick={() => setReceiptStudent(student)}
+                                                                style={{
+                                                                    background: "#eef2ff",
+                                                                    color: "#4f46e5",
+                                                                    border: "1px solid #c7d2fe"
+                                                                }}
+                                                            >
+                                                                <FaWhatsapp size={13} />
+                                                            </button>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -829,12 +1004,23 @@ const handleSendReceipt = async (student) => {
 
                 </div>
             </div>
+ 
 
             {/* ── MODALS ── */}
             <Addstudent open={openPopup} handleClose={() => setOpenPopup(false)} addStudentData={addStudentData} editData={editData} />
             {invoiceStudent && <InvoiceModal student={invoiceStudent} onClose={() => setInvoiceStudent(null)} schoolName={schoolInfo.name} schoolAddress={`${schoolInfo.address || ""}${schoolInfo.city ? ", " + schoolInfo.city : ""}`} />}
             {payStudent && <PayModal student={payStudent} onClose={() => setPayStudent(null)} onPaymentDone={handlePaymentDone} />}
             {waStudent && <WhatsAppConfirmModal student={waStudent} onClose={() => setWaStudent(null)} onConfirm={handleSendWhatsApp} />}
+            {receiptStudent && (
+                <ReceiptConfirmModal
+                    student={receiptStudent}
+                    onClose={() => setReceiptStudent(null)}
+                    onConfirm={() => {
+                        handleSendReceipt(receiptStudent);
+                        setReceiptStudent(null);
+                    }}
+                />
+            )}
         </>
     );
 }
