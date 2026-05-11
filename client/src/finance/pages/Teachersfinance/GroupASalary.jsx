@@ -7,8 +7,7 @@ import {
 } from "lucide-react";
 import React, { useState, useEffect, useRef } from "react";
 import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
-
+import { FaWhatsapp } from "react-icons/fa";
 const API_URL = import.meta.env.VITE_API_URL;
 
 const getAuthSchool = () => {
@@ -74,7 +73,6 @@ export default function GroupASalary() {
     const [authSchool, setAuthSchool] = useState({ schoolId: "", schoolName: "Your School" });
     const [loading, setLoading] = useState(false);
 
-    const pdfRef = useRef();
     const dropdownRef = useRef();
     const tok = () => {
         try {
@@ -118,6 +116,24 @@ export default function GroupASalary() {
         };
         document.addEventListener("mousedown", handler);
         return () => document.removeEventListener("mousedown", handler);
+    }, []);
+
+    useEffect(() => {
+
+        if (!window.jspdf) {
+
+            const script =
+                document.createElement("script");
+
+            script.src =
+                "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+
+            script.async = true;
+
+            document.body.appendChild(script);
+
+        }
+
     }, []);
 
     const fetchTeachersBySchool = async (id) => {
@@ -313,16 +329,367 @@ export default function GroupASalary() {
 
     const openSlipModal = (salary) => { setSelectedSalary(salary); setSlipModal(true); };
 
-    const downloadPayslip = async () => {
+    const downloadPayslip = () => {
         if (!selectedSalary) return;
-        const element = pdfRef.current;
-        if (!element) return;
-        const canvas = await html2canvas(element, { scale: 2, useCORS: true });
-        const imgData = canvas.toDataURL("image/png");
-        const pdf = new jsPDF("p", "mm", "a4");
-        const pw = pdf.internal.pageSize.getWidth();
-        pdf.addImage(imgData, "PNG", 0, 10, pw, (canvas.height * pw) / canvas.width);
-        pdf.save(`Payslip-${selectedSalary.teacher?.firstName}.pdf`);
+        const doc = new jsPDF("p", "mm", "a4");
+        const W = 210, M = 14, CW = 210 - M * 2;
+        let y = 0;
+
+        // ── Header background ──
+        doc.setFillColor(28, 48, 64);
+        doc.rect(0, 0, W, 44, "F");
+
+        // School name
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(18);
+        doc.setTextColor(255, 255, 255);
+        doc.text(authSchool.schoolName, M, 16);
+
+        // Country
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.setTextColor(160, 185, 200);
+        doc.text("India", M, 23);
+
+        // "SALARY SLIP" label (right)
+        doc.setFontSize(7.5);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(140, 170, 190);
+        doc.text("SALARY SLIP", W - M, 13, { align: "right" });
+
+        // Month / Year (right)
+        doc.setFontSize(15);
+        doc.setTextColor(255, 255, 255);
+        doc.text(`${monthName(selectedSalary.month)} ${selectedSalary.year}`, W - M, 22, { align: "right" });
+
+        // Divider
+        doc.setDrawColor(255, 255, 255, 0.15);
+        doc.setLineWidth(0.3);
+        doc.line(M, 30, W - M, 30);
+
+        // Generated date (left)
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(140, 170, 190);
+        doc.text(`Generated: ${new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}`, M, 38);
+
+        // Confidential badge (right)
+        doc.setDrawColor(140, 170, 190);
+        doc.setLineWidth(0.3);
+        doc.roundedRect(W - M - 28, 33, 28, 7, 1, 1, "S");
+        doc.setTextColor(140, 170, 190);
+        doc.setFontSize(7);
+        doc.text("Confidential", W - M - 14, 37.5, { align: "center" });
+
+        y = 44;
+
+        // ── Employee info strip ──
+        doc.setFillColor(234, 241, 246);
+        doc.rect(0, y, W, 24, "F");
+        doc.setDrawColor(200, 220, 236);
+        doc.setLineWidth(0.3);
+        doc.line(0, y + 24, W, y + 24);
+
+        const infoFields = [
+            { label: "EMPLOYEE NAME", val: `${selectedSalary?.teacher?.firstName || ""} ${selectedSalary?.teacher?.lastName || ""}`.trim() || "—" },
+            { label: "DEPARTMENT",    val: selectedSalary?.teacher?.department || "—" },
+            { label: "PAY PERIOD",    val: `${monthName(selectedSalary.month)} ${selectedSalary.year}` },
+            { label: "EMAIL",         val: selectedSalary?.teacher?.user?.email || "—" },
+        ];
+        const colW = CW / 4;
+        infoFields.forEach((f, i) => {
+            const x = M + i * colW;
+            doc.setFontSize(7);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(82, 122, 145);
+            doc.text(f.label, x, y + 8);
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(28, 48, 64);
+            const maxChars = 20;
+            const display = f.val.length > maxChars ? f.val.slice(0, maxChars - 1) + "…" : f.val;
+            doc.text(display, x, y + 17);
+        });
+        y += 28;
+
+        // ── Earnings & Deductions tables ──
+        const tW = (CW - 6) / 2;
+        const leaveDed = calcLeaveDeduction(selectedSalary?.basicSalary || 0, selectedSalary?.leaveDays || 0);
+        const otherDed = Math.max(0, Number(selectedSalary?.deductions || 0) - leaveDed);
+
+        const sections = [
+            {
+                title: "EARNINGS",
+                color: [43, 69, 87],
+                rows: [
+                    ["Basic Salary", `Rs.${Number(selectedSalary?.basicSalary || 0).toLocaleString("en-IN")}`],
+                    ["Bonus",        `Rs.${Number(selectedSalary?.bonus || 0).toLocaleString("en-IN")}`],
+                    ["HRA",          "Rs.0"],
+                    ["Other",        "Rs.0"],
+                ],
+                footLabel: "Gross Earnings",
+                foot: `Rs.${(Number(selectedSalary?.basicSalary || 0) + Number(selectedSalary?.bonus || 0)).toLocaleString("en-IN")}`,
+            },
+            {
+                title: "DEDUCTIONS",
+                color: [28, 48, 64],
+                rows: [
+                    ["Leave Deduction",  `${selectedSalary?.leaveDays ?? 0}d -> Rs.${leaveDed.toLocaleString("en-IN")}`],
+                    ["Other Deductions", `Rs.${otherDed.toLocaleString("en-IN")}`],
+                    ["PF",               "Rs.0"],
+                    ["Tax (TDS)",        "Rs.0"],
+                ],
+                footLabel: "Total Deductions",
+                foot: `Rs.${Number(selectedSalary?.deductions || 0).toLocaleString("en-IN")}`,
+            },
+        ];
+
+        const ROW_H = 9;
+        sections.forEach((sec, si) => {
+            const x = M + si * (tW + 6);
+
+            // Section header
+            doc.setFillColor(...sec.color);
+            doc.rect(x, y, tW, 9, "F");
+            doc.setFontSize(8);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(255, 255, 255);
+            doc.text(sec.title, x + 4, y + 6);
+
+            // Rows
+            sec.rows.forEach((row, ri) => {
+                const ry = y + 9 + ri * ROW_H;
+                doc.setFillColor(ri % 2 === 0 ? 255 : 248, ri % 2 === 0 ? 255 : 251, ri % 2 === 0 ? 255 : 253);
+                doc.rect(x, ry, tW, ROW_H, "F");
+                doc.setDrawColor(238, 245, 250);
+                doc.setLineWidth(0.2);
+                doc.line(x, ry + ROW_H, x + tW, ry + ROW_H);
+
+                doc.setFontSize(9);
+                doc.setFont("helvetica", "normal");
+                doc.setTextColor(74, 104, 120);
+                doc.text(row[0], x + 4, ry + 6);
+                doc.setFont("helvetica", "bold");
+                doc.setTextColor(60, 93, 116);
+                doc.text(row[1], x + tW - 3, ry + 6, { align: "right" });
+            });
+
+            // Footer row
+            const fy = y + 9 + sec.rows.length * ROW_H;
+            doc.setFillColor(234, 241, 246);
+            doc.rect(x, fy, tW, 10, "F");
+            doc.setDrawColor(212, 228, 238);
+            doc.setLineWidth(0.5);
+            doc.line(x, fy, x + tW, fy);
+            doc.setFontSize(9.5);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(60, 93, 116);
+            doc.text(sec.footLabel, x + 4, fy + 7);
+            doc.text(sec.foot, x + tW - 3, fy + 7, { align: "right" });
+
+            // Border around table
+            doc.setDrawColor(200, 220, 236);
+            doc.setLineWidth(0.3);
+            doc.rect(x, y + 9, tW, sec.rows.length * ROW_H + 10, "S");
+        });
+
+        y += 9 + sections[0].rows.length * ROW_H + 10 + 8;
+
+        // ── Net Salary banner ──
+        doc.setFillColor(28, 48, 64);
+        doc.roundedRect(M, y, CW, 20, 2, 2, "F");
+
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(140, 170, 190);
+        doc.text("NET SALARY PAYABLE", M + 8, y + 8);
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(120, 155, 175);
+        doc.text(`For ${monthName(selectedSalary.month)} ${selectedSalary.year}`, M + 8, y + 15);
+
+        doc.setFontSize(20);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(255, 255, 255);
+        doc.text(`Rs.${Number(selectedSalary?.netSalary || 0).toLocaleString("en-IN")}`, W - M - 8, y + 13, { align: "right" });
+
+        y += 28;
+
+        // ── Signature lines ──
+
+
+        // ── Footer strip ──
+        doc.setFillColor(234, 241, 246);
+        doc.rect(0, y, W, 12, "F");
+        doc.setDrawColor(200, 220, 236);
+        doc.setLineWidth(0.3);
+        doc.line(0, y, W, y);
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(82, 122, 145);
+        doc.text(
+            "This is a system-generated payslip and does not require a physical signature.",
+            W / 2, y + 8, { align: "center" }
+        );
+
+        doc.save(`Payslip-${selectedSalary.teacher?.firstName || "Teacher"}-${monthName(selectedSalary.month)}-${selectedSalary.year}.pdf`);
+    };
+
+    const handleSendSalarySlip = async (salary) => {
+
+        try {
+
+            if (!window.jspdf) {
+                alert("PDF library not loaded yet.");
+                return;
+            }
+
+            const auth =
+                JSON.parse(localStorage.getItem("auth"));
+
+            const token = auth?.token;
+
+            const { jsPDF } = window.jspdf;
+
+            const doc =
+                new jsPDF("p", "mm", "a4");
+
+            const W = 210,
+                M = 14,
+                CW = 210 - M * 2;
+
+            // =========================
+            // SAME PDF CONTENT
+            // =========================
+
+            doc.setFillColor(28, 48, 64);
+            doc.rect(0, 0, W, 44, "F");
+
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(18);
+            doc.setTextColor(255, 255, 255);
+
+            doc.text(
+                authSchool.schoolName,
+                M,
+                16
+            );
+
+            doc.setFontSize(15);
+
+            doc.text(
+                `${monthName(salary.month)} ${salary.year}`,
+                W - M,
+                22,
+                { align: "right" }
+            );
+
+            doc.setFontSize(12);
+
+            doc.text(
+                `${salary.teacher?.firstName || ""}
+                ${salary.teacher?.lastName || ""}`,
+                M,
+                60
+            );
+
+            doc.text(
+                `Net Salary: Rs.${Number(
+                    salary.netSalary || 0
+                ).toLocaleString("en-IN")}`,
+                M,
+                75
+            );
+
+            // =========================
+            // PDF BLOB
+            // =========================
+
+            const pdfBlob =
+                doc.output("blob");
+
+            // =========================
+            // UPLOAD PDF
+            // =========================
+
+            const uploadRes = await fetch(
+
+                `${API_URL}/api/teachers/salary/uploadSalarySlip/${salary.id}`,
+
+                {
+                    method: "POST",
+
+                    headers: {
+                        Authorization:
+                            `Bearer ${token}`,
+                    },
+
+                    body: pdfBlob,
+                }
+            );
+
+            const uploadData =
+                await uploadRes.json();
+
+            if (!uploadRes.ok) {
+
+                alert(uploadData.message);
+
+                return;
+
+            }
+
+            // =========================
+            // SEND WHATSAPP
+            // =========================
+
+            const sendRes = await fetch(
+
+                `${API_URL}/api/teachers/salary/sendSalarySlip/${salary.id}`,
+
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json",
+
+                        Authorization:
+                            `Bearer ${token}`,
+                    },
+
+                    body: JSON.stringify({
+                        pdfUrl:
+                            uploadData.pdfUrl,
+                    }),
+                }
+            );
+
+            const sendData =
+                await sendRes.json();
+
+            if (!sendRes.ok) {
+
+                alert(sendData.message);
+
+                return;
+
+            }
+
+            alert(
+                "Salary slip sent successfully"
+            );
+
+        } catch (error) {
+
+            console.log(error);
+
+            alert(
+                "Failed to send salary slip"
+            );
+
+        }
+
     };
 
     const searchFn = (t) =>
@@ -594,10 +961,80 @@ export default function GroupASalary() {
                                         <td className="px-3 sm:px-4 py-2.5 sm:py-3">
                                             <div className="flex items-center gap-1">
                                                 {[
-                                                    { icon: Pencil, fn: () => t._isPlaceholder ? createThenEdit(t) : openEditModal(t), color: "text-[#27435B] hover:bg-[#EAF1F6]", title: t._isPlaceholder ? "Set Bonus & Leaves" : "Edit" },
-                                                    { icon: Trash2, fn: () => openDeleteModal(t), color: t._isPlaceholder ? "text-[#C8DCEC] cursor-not-allowed" : "text-red-500 hover:bg-red-50", title: "Delete", disabled: t._isPlaceholder },
-                                                    { icon: History, fn: () => openHistoryModal(t), color: "text-[#4A6B80] hover:bg-[#EAF1F6]", title: "History" },
-                                                    { icon: Eye, fn: () => !t._isPlaceholder && openSlipModal(t), color: t._isPlaceholder ? "text-[#C8DCEC] cursor-not-allowed" : "text-[#27435B] hover:bg-[#EAF1F6]", title: "View Slip", disabled: t._isPlaceholder },
+                                                    {
+                                                        icon: Pencil,
+                                                        fn: () =>
+                                                            t._isPlaceholder
+                                                                ? createThenEdit(t)
+                                                                : openEditModal(t),
+
+                                                        color:
+                                                            "text-[#27435B] hover:bg-[#EAF1F6]",
+
+                                                        title:
+                                                            t._isPlaceholder
+                                                                ? "Set Bonus & Leaves"
+                                                                : "Edit",
+                                                    },
+
+                                                    {
+                                                        icon: Trash2,
+                                                        fn: () => openDeleteModal(t),
+
+                                                        color:
+                                                            t._isPlaceholder
+                                                                ? "text-[#C8DCEC] cursor-not-allowed"
+                                                                : "text-red-500 hover:bg-red-50",
+
+                                                        title: "Delete",
+
+                                                        disabled: t._isPlaceholder,
+                                                    },
+
+                                                    {
+                                                        icon: History,
+                                                        fn: () => openHistoryModal(t),
+
+                                                        color:
+                                                            "text-[#4A6B80] hover:bg-[#EAF1F6]",
+
+                                                        title: "History",
+                                                    },
+
+                                                    {
+                                                        icon: Eye,
+                                                        fn: () =>
+                                                            !t._isPlaceholder &&
+                                                            openSlipModal(t),
+
+                                                        color:
+                                                            t._isPlaceholder
+                                                                ? "text-[#C8DCEC] cursor-not-allowed"
+                                                                : "text-[#27435B] hover:bg-[#EAF1F6]",
+
+                                                        title: "View Slip",
+
+                                                        disabled: t._isPlaceholder,
+                                                    },
+
+                                                    // ✅ WHATSAPP BUTTON
+
+                                                    {
+                                                        icon: FaWhatsapp,
+
+                                                        fn: () =>
+                                                            !t._isPlaceholder &&
+                                                            handleSendSalarySlip(t),
+
+                                                        color:
+                                                            t._isPlaceholder
+                                                                ? "text-[#C8DCEC] cursor-not-allowed"
+                                                                : "text-green-600 hover:bg-green-50",
+
+                                                        title: "Send WhatsApp",
+
+                                                        disabled: t._isPlaceholder,
+                                                    },
                                                 ].map(({ icon: Ic, fn, color, title, disabled }, i) => (
                                                     <button key={i} onClick={disabled ? undefined : fn} title={title} disabled={disabled}
                                                         className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center transition-colors ${color}`}>
@@ -1037,14 +1474,6 @@ export default function GroupASalary() {
                                 <div style={{ fontSize: 24, fontWeight: 800, color: "#fff", letterSpacing: "-1px" }}>₹{Number(selectedSalary?.netSalary || 0).toLocaleString("en-IN")}</div>
                             </div>
 
-                            <div className="grid grid-cols-3 gap-4">
-                                {["Employee Signature", "HR Department", "Principal / Director"].map((label, i) => (
-                                    <div key={i} style={{ textAlign: "center" }}>
-                                        <div style={{ width: "80%", height: 1, background: "#B8CCD8", margin: "32px auto 8px" }} />
-                                        <div style={{ fontSize: 9.5, fontWeight: 600, color: "#527a91", textTransform: "uppercase", letterSpacing: "0.8px" }}>{label}</div>
-                                    </div>
-                                ))}
-                            </div>
                         </div>
 
                         <div className="bg-[#EAF1F6] border-t border-[#C8DCEC] px-5 sm:px-9 py-2.5 sm:py-3 text-[10px] sm:text-[10.5px] text-[#527a91] text-center italic">
@@ -1061,12 +1490,8 @@ export default function GroupASalary() {
                 </div>
             )}
 
-            {/* Hidden PDF Template */}
-            <div ref={pdfRef} style={{ position: "absolute", left: "-9999px", top: 0 }}>
-                <div style={{ width: "794px", background: "#fff", fontFamily: "Arial, sans-serif" }}>
-                    {/* (unchanged PDF template) */}
-                </div>
-            </div>
+            {/* PDF generated directly via jsPDF – no DOM template needed */}
+            <div style={{ display: "none" }}></div>
         </>
     );
 }

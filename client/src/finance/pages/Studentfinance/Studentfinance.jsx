@@ -14,7 +14,7 @@ const API_URL = import.meta.env.VITE_API_URL;
 // ─────────────────────────────────────────────────────────────────────────────
 // INVOICE MODAL
 // ─────────────────────────────────────────────────────────────────────────────
-function InvoiceModal({ student, onClose }) {
+function InvoiceModal({ student, onClose, schoolName, schoolAddress }) {
     const paidAmount = Number(student.paidAmount || 0);
     const totalFees = Number(student.fees || 0);
     const due = Math.max(0, totalFees - paidAmount);
@@ -29,31 +29,62 @@ function InvoiceModal({ student, onClose }) {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
         const W = 210, m = 18;
-        doc.setFillColor(28, 48, 68); doc.rect(0, 0, W, 40, "F");
-        doc.setFont("helvetica", "bold"); doc.setFontSize(20); doc.setTextColor(255, 255, 255);
-        doc.text("Invoice", m, 17);
-        doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.setTextColor(180, 205, 220);
+
+        // ── Header: School name prominently ──
+        const headerH = schoolAddress ? 50 : 44;
+        doc.setFillColor(28, 48, 68); doc.rect(0, 0, W, headerH, "F");
+        doc.setFont("helvetica", "bold"); doc.setFontSize(18); doc.setTextColor(255, 255, 255);
+        doc.text(schoolName || "Fee Invoice", m, 16);
+        doc.setFontSize(9.5); doc.setFont("helvetica", "normal"); doc.setTextColor(180, 205, 220);
         doc.text("Fee Invoice & Payment Receipt", m, 25);
+        if (schoolAddress) {
+            doc.setFontSize(8.5); doc.setTextColor(140, 175, 200);
+            doc.text(schoolAddress, m, 33);
+        }
+        // Invoice badge (top right)
         doc.setFillColor(255, 255, 255); doc.roundedRect(W - m - 52, 8, 52, 22, 3, 3, "F");
         doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(28, 48, 68);
         doc.text("INVOICE", W - m - 26, 16, { align: "center" });
         doc.setFontSize(10); doc.text(invoiceNo, W - m - 26, 24, { align: "center" });
-        doc.setFillColor(39, 67, 91); doc.rect(0, 40, W, 10, "F");
+        // Status bar
+        doc.setFillColor(39, 67, 91); doc.rect(0, headerH, W, 10, "F");
         doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.setTextColor(180, 205, 220);
-        doc.text(`Date: ${today}`, m, 47);
-        doc.text(`Status: ${due === 0 ? "PAID" : "PARTIALLY PAID"}`, W - m, 47, { align: "right" });
-        let y = 62;
-        doc.setFillColor(240, 247, 252); doc.roundedRect(m, y - 6, W - m * 2, 36, 3, 3, "F");
-        doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(28, 48, 68);
-        doc.text("STUDENT DETAILS", m + 4, y);
-        doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(30, 50, 70);
-        doc.setFont("helvetica", "bold"); doc.text("Name:", m + 4, y + 8);
-        doc.setFont("helvetica", "normal"); doc.text(student.name || "N/A", m + 24, y + 8);
-        doc.setFont("helvetica", "bold"); doc.text("Email:", W / 2 + 4, y + 8);
-        doc.setFont("helvetica", "normal"); doc.text(student.email || "N/A", W / 2 + 24, y + 8);
-        doc.setFont("helvetica", "bold"); doc.text("Course:", m + 4, y + 17);
-        doc.setFont("helvetica", "normal"); doc.text(student.course || "N/A", m + 24, y + 17);
-        y += 46;
+        doc.text(`Date: ${today}`, m, headerH + 7);
+        doc.text(`Status: ${due === 0 ? "PAID" : "PARTIALLY PAID"}`, W - m, headerH + 7, { align: "right" });
+
+        // ── Student details box ──
+            // Student details
+            let y = headerH + 18;
+            const hasAddress = !!student.address;
+            const boxHeight = hasAddress ? 60 : 48;
+            doc.setFillColor(240, 247, 252); doc.roundedRect(m, y - 6, W - m * 2, boxHeight, 3, 3, "F");
+            doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(28, 48, 68);
+            doc.text("STUDENT DETAILS", m + 4, y);
+
+            // Row 1: Name | Email
+            doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(30, 50, 70);
+            doc.text("Name:", m + 4, y + 10);
+            doc.setFont("helvetica", "normal"); doc.text(student.name || "N/A", m + 22, y + 10);
+            doc.setFont("helvetica", "bold"); doc.text("Email:", W / 2 + 4, y + 10);
+            doc.setFont("helvetica", "normal"); doc.text(student.email || "N/A", W / 2 + 22, y + 10);
+
+            // Row 2: Course | Phone
+            doc.setFont("helvetica", "bold"); doc.text("Course:", m + 4, y + 20);
+            doc.setFont("helvetica", "normal"); doc.text(student.course || "N/A", m + 22, y + 20);
+            doc.setFont("helvetica", "bold"); doc.text("Phone:", W / 2 + 4, y + 20);
+            doc.setFont("helvetica", "normal"); doc.text(student.phone || "N/A", W / 2 + 22, y + 20);
+
+            // Row 3: Address (full width, only if present)
+            if (hasAddress) {
+            doc.setFont("helvetica", "bold"); doc.text("Address:", m + 4, y + 30);
+            doc.setFont("helvetica", "normal");
+            const addrLines = doc.splitTextToSize(student.address, W - m * 2 - 34);
+            doc.text(addrLines, m + 22, y + 30);
+            }
+
+            y += boxHeight + 12;
+
+        // ── Fee Summary table ──
         doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(28, 48, 68);
         doc.text("FEE SUMMARY", m, y); y += 5;
         doc.setFillColor(28, 48, 68); doc.rect(m, y, W - m * 2, 9, "F");
@@ -88,7 +119,7 @@ function InvoiceModal({ student, onClose }) {
         y = 272;
         doc.setFillColor(28, 48, 68); doc.rect(0, y, W, 25, "F");
         doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(180, 205, 220);
-        doc.text("This is a system-generated invoice. No signature required.", W / 2, y + 9, { align: "center" });
+        doc.text(schoolName ? `${schoolName} · System-generated invoice. No signature required.` : "This is a system-generated invoice. No signature required.", W / 2, y + 9, { align: "center" });
         doc.save(`Invoice_${student.name?.replace(/\s+/g, "_") || "Student"}_${invoiceNo}.pdf`);
     };
 
@@ -99,7 +130,7 @@ function InvoiceModal({ student, onClose }) {
                     <div className="inv-head-left">
                         <div className="inv-head-ico"><Receipt size={18} color="#fff" /></div>
                         <div>
-                            <div className="inv-head-title">Student Invoice</div>
+                            <div className="inv-head-title">{schoolName || "Student Invoice"}</div>
                             <div className="inv-head-sub">{invoiceNo} · {today}</div>
                         </div>
                     </div>
@@ -109,6 +140,14 @@ function InvoiceModal({ student, onClose }) {
                     </div>
                 </div>
                 <div className="inv-body">
+                    {/* School info banner */}
+                    {schoolName && (
+                        <div style={{ background: "linear-gradient(135deg,#f0f7fc,#e4f0f8)", border: "1px solid #c8dff0", borderRadius: 10, padding: "10px 14px", display: "flex", flexDirection: "column", gap: 2 }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: "#4A6B80", textTransform: "uppercase", letterSpacing: ".7px" }}>Issued By</span>
+                            <span style={{ fontSize: 14, fontWeight: 700, color: "#1C3044" }}>{schoolName}</span>
+                            {schoolAddress && <span style={{ fontSize: 12, color: "#4A6B80" }}>{schoolAddress}</span>}
+                        </div>
+                    )}
                     <div className="inv-section">
                         <div className="inv-sec-label">Student Details</div>
                         <div className="inv-detail-grid">
@@ -116,7 +155,14 @@ function InvoiceModal({ student, onClose }) {
                             <div><span className="inv-dl">Email</span><span className="inv-dv">{student.email}</span></div>
                             <div><span className="inv-dl">Course</span><span className="inv-dv">{student.course}</span></div>
                             <div><span className="inv-dl">Student ID</span><span className="inv-dv">#{student.id}</span></div>
+                            {student.phone && <div><span className="inv-dl">Phone</span><span className="inv-dv">{student.phone}</span></div>}
                         </div>
+                        {student.address && (
+                            <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #e0eef6" }}>
+                                <span className="inv-dl">Address</span>
+                                <span className="inv-dv" style={{ display: "block", marginTop: 2, lineHeight: 1.5 }}>{student.address}</span>
+                            </div>
+                        )}
                     </div>
                     <div className="inv-section">
                         <div className="inv-sec-label">Fee Summary</div>
@@ -227,6 +273,7 @@ export default function StudentFeesPage() {
     const [invoiceStudent, setInvoiceStudent] = useState(null);
     const [payStudent, setPayStudent] = useState(null);
     const [waStudent, setWaStudent] = useState(null);
+    const [schoolInfo, setSchoolInfo] = useState({ name: "", address: "", city: "", phone: "" });
 
     useEffect(() => {
         if (!window.jspdf) {
@@ -235,6 +282,31 @@ export default function StudentFeesPage() {
             s.async = true;
             document.head.appendChild(s);
         }
+    }, []);
+
+    // Fetch school info from backend (auth token contains schoolId, backend returns name/address)
+    useEffect(() => {
+        const fetchSchool = async () => {
+            try {
+                const auth = JSON.parse(localStorage.getItem("auth"));
+                const token = auth?.token;
+                const res = await fetch(`${API_URL}/api/finance/mySchool`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setSchoolInfo({
+                        name: data.name || "",
+                        address: data.address || "",
+                        city: data.city || "",
+                        phone: data.phone || "",
+                    });
+                }
+            } catch (err) {
+                console.error("School fetch error:", err);
+            }
+        };
+        fetchSchool();
     }, []);
 
     const fetchStudents = async () => {
@@ -303,6 +375,163 @@ export default function StudentFeesPage() {
         }
         setWaStudent(null);
     };
+
+const handleSendReceipt = async (student) => {
+  try {
+    // Step 1: generate PDF as a Blob (same logic as handleDownload)
+    if (!window.jspdf) {
+      alert("PDF library not loaded yet. Please try again in a moment.");
+      return;
+    }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+
+    const W = 210, m = 18;
+    const paidAmount = Number(student.paidAmount || 0);
+    const totalFees  = Number(student.fees || 0);
+    const due = Math.max(0, totalFees - paidAmount);
+    const invoiceNo = `INV-${String(student.id || "").slice(-4).padStart(4, "0")}-${new Date().getFullYear()}`;
+    const today = new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+    let breakdown = null;
+    try { breakdown = student.feeBreakdown ? JSON.parse(student.feeBreakdown) : null; } catch {}
+
+    // Header
+    const schoolName = schoolInfo.name;
+    const schoolAddress = `${schoolInfo.address || ""}${schoolInfo.city ? ", " + schoolInfo.city : ""}`;
+    const headerH = schoolAddress ? 50 : 44;
+    doc.setFillColor(28, 48, 68); doc.rect(0, 0, W, headerH, "F");
+    doc.setFont("helvetica", "bold"); doc.setFontSize(18); doc.setTextColor(255, 255, 255);
+    doc.text(schoolName || "Fee Invoice", m, 16);
+    doc.setFontSize(9.5); doc.setFont("helvetica", "normal"); doc.setTextColor(180, 205, 220);
+    doc.text("Fee Invoice & Payment Receipt", m, 25);
+    if (schoolAddress) {
+      doc.setFontSize(8.5); doc.setTextColor(140, 175, 200);
+      doc.text(schoolAddress, m, 33);
+    }
+    doc.setFillColor(255, 255, 255); doc.roundedRect(W - m - 52, 8, 52, 22, 3, 3, "F");
+    doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(28, 48, 68);
+    doc.text("INVOICE", W - m - 26, 16, { align: "center" });
+    doc.setFontSize(10); doc.text(invoiceNo, W - m - 26, 24, { align: "center" });
+    doc.setFillColor(39, 67, 91); doc.rect(0, headerH, W, 10, "F");
+    doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.setTextColor(180, 205, 220);
+    doc.text(`Date: ${today}`, m, headerH + 7);
+    doc.text(`Status: ${due === 0 ? "PAID" : "PARTIALLY PAID"}`, W - m, headerH + 7, { align: "right" });
+ 
+        // Student details
+        let y = headerH + 18;
+        const hasAddress = !!student.address;
+        const boxHeight = hasAddress ? 60 : 48;
+        doc.setFillColor(240, 247, 252); doc.roundedRect(m, y - 6, W - m * 2, boxHeight, 3, 3, "F");
+        doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(28, 48, 68);
+        doc.text("STUDENT DETAILS", m + 4, y);
+
+        // Row 1: Name | Email
+        doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(30, 50, 70);
+        doc.text("Name:", m + 4, y + 10);
+        doc.setFont("helvetica", "normal"); doc.text(student.name || "N/A", m + 22, y + 10);
+        doc.setFont("helvetica", "bold"); doc.text("Email:", W / 2 + 4, y + 10);
+        doc.setFont("helvetica", "normal"); doc.text(student.email || "N/A", W / 2 + 22, y + 10);
+
+        // Row 2: Course | Phone
+        doc.setFont("helvetica", "bold"); doc.text("Course:", m + 4, y + 20);
+        doc.setFont("helvetica", "normal"); doc.text(student.course || "N/A", m + 22, y + 20);
+        doc.setFont("helvetica", "bold"); doc.text("Phone:", W / 2 + 4, y + 20);
+        doc.setFont("helvetica", "normal"); doc.text(student.phone || "N/A", W / 2 + 22, y + 20);
+
+        // Row 3: Address (full width, only if present)
+        if (hasAddress) {
+        doc.setFont("helvetica", "bold"); doc.text("Address:", m + 4, y + 30);
+        doc.setFont("helvetica", "normal");
+        const addrLines = doc.splitTextToSize(student.address, W - m * 2 - 34);
+        doc.text(addrLines, m + 22, y + 30);
+        }
+
+        y += boxHeight + 12;
+
+    // Fee table
+    doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(28, 48, 68);
+    doc.text("FEE SUMMARY", m, y); y += 5;
+    doc.setFillColor(28, 48, 68); doc.rect(m, y, W - m * 2, 9, "F");
+    doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(255, 255, 255);
+    doc.text("Description", m + 4, y + 6); doc.text("Amount (INR)", m + 145, y + 6); y += 9;
+    const rows = breakdown
+      ? Object.entries(breakdown).filter(([k, v]) => k !== "customFees" && Number(v) > 0)
+          .map(([k, v]) => [k.replace(/Fee$/, "").replace(/([A-Z])/g, " $1").trim(), v])
+      : [["Total Fees", totalFees]];
+    rows.forEach(([label, amt], i) => {
+      doc.setFillColor(i % 2 === 0 ? 248 : 255, i % 2 === 0 ? 252 : 255, 255);
+      doc.rect(m, y, W - m * 2, 9, "F");
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9.5); doc.setTextColor(30, 50, 70);
+      doc.text(label, m + 4, y + 6);
+      doc.setFont("helvetica", "bold"); doc.text(`Rs. ${Number(amt).toLocaleString("en-IN")}`, m + 145, y + 6); y += 9;
+    });
+    y += 12;
+    const bx = W - m - 80;
+    doc.setFillColor(240, 247, 252); doc.roundedRect(bx, y, 80, 34, 3, 3, "F");
+    doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(80, 100, 120);
+    doc.text("Total Fees:", bx + 4, y + 9);
+    doc.setFont("helvetica", "bold"); doc.setTextColor(28, 48, 68);
+    doc.text(`Rs. ${totalFees.toLocaleString("en-IN")}`, bx + 78, y + 9, { align: "right" });
+    doc.setFont("helvetica", "normal"); doc.setTextColor(80, 100, 120);
+    doc.text("Amount Paid:", bx + 4, y + 18);
+    doc.setFont("helvetica", "bold"); doc.setTextColor(28, 68, 48);
+    doc.text(`Rs. ${paidAmount.toLocaleString("en-IN")}`, bx + 78, y + 18, { align: "right" });
+    doc.setDrawColor(28, 48, 68); doc.setLineWidth(0.5); doc.line(bx + 4, y + 22, bx + 76, y + 22);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(28, 48, 68);
+    doc.text("Balance Due:", bx + 4, y + 30);
+    doc.setTextColor(due === 0 ? 28 : 180, due === 0 ? 90 : 30, due === 0 ? 50 : 30);
+    doc.text(`Rs. ${due.toLocaleString("en-IN")}`, bx + 78, y + 30, { align: "right" });
+    y = 272;
+    doc.setFillColor(28, 48, 68); doc.rect(0, y, W, 25, "F");
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(180, 205, 220);
+    doc.text(`${schoolName || "School"} · System-generated invoice. No signature required.`, W / 2, y + 9, { align: "center" });
+
+    // Step 2: Get PDF as ArrayBuffer and upload to R2
+    const pdfArrayBuffer = doc.output("arraybuffer");
+
+    const auth = JSON.parse(localStorage.getItem("auth"));
+    const token = auth?.token;
+
+    const uploadRes = await fetch(`${API_URL}/api/finance/uploadFeeReceipt/${student.id}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/pdf",
+        Authorization: `Bearer ${token}`,
+      },
+      body: pdfArrayBuffer,
+    });
+
+    const uploadData = await uploadRes.json();
+    if (!uploadData.success || !uploadData.pdfUrl) {
+      alert("Failed to upload receipt PDF: " + (uploadData.message || "unknown error"));
+      return;
+    }
+
+    const pdfUrl = uploadData.pdfUrl;
+    console.log("Uploaded PDF URL:", pdfUrl);
+
+    // Step 3: Send WhatsApp with the real URL
+    const res = await fetch(`${API_URL}/api/finance/sendFeeReceipt/${student.id}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ pdfUrl }),
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      alert("✅ WhatsApp receipt sent successfully!");
+    } else {
+      alert(data.message || "Failed to send");
+    }
+
+  } catch (err) {
+    console.error(err);
+    alert("Failed to send receipt: " + err.message);
+  }
+};
 
     const courses = ["All", ...Array.from(new Set(students.map(s => s.course).filter(Boolean))).sort()];
 
@@ -586,6 +815,8 @@ export default function StudentFeesPage() {
                                                         <button className="sf2-act sf2-act-wa" title="Send WhatsApp to Parent" onClick={() => setWaStudent(student)}>
                                                             <FaWhatsapp size={13} />
                                                         </button>
+                                                        <button className="sf2-act sf2-act-inv" title="Send Receipt PDF" onClick={() => handleSendReceipt(student)} > <Receipt size={13} className="color=green-600" /> </button>
+
                                                     </div>
                                                 </td>
                                             </tr>
@@ -601,7 +832,7 @@ export default function StudentFeesPage() {
 
             {/* ── MODALS ── */}
             <Addstudent open={openPopup} handleClose={() => setOpenPopup(false)} addStudentData={addStudentData} editData={editData} />
-            {invoiceStudent && <InvoiceModal student={invoiceStudent} onClose={() => setInvoiceStudent(null)} />}
+            {invoiceStudent && <InvoiceModal student={invoiceStudent} onClose={() => setInvoiceStudent(null)} schoolName={schoolInfo.name} schoolAddress={`${schoolInfo.address || ""}${schoolInfo.city ? ", " + schoolInfo.city : ""}`} />}
             {payStudent && <PayModal student={payStudent} onClose={() => setPayStudent(null)} onPaymentDone={handlePaymentDone} />}
             {waStudent && <WhatsAppConfirmModal student={waStudent} onClose={() => setWaStudent(null)} onConfirm={handleSendWhatsApp} />}
         </>

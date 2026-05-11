@@ -1,7 +1,9 @@
 import express from "express";
 import { PrismaClient } from "@prisma/client";
 import { saveBackup } from "../../utils/cloudBackup.js";
-import { sendFeePendingWhatsApp } from "../../whatsapp/sendFeePendingWhatsApp.js";
+import { sendFeePendingWhatsApp } from "../../whatsapp/fees/sendFeePendingWhatsApp.js";
+import { sendFeeReceiptWhatsApp } from "../../whatsapp/fees/sendFeeReceiptWhatsApp.js";
+
 import authMiddleware from "../../middlewares/authMiddleware.js";
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -247,6 +249,25 @@ router.delete("/deleteStudent/:id", async (req, res) => {
   }
 });
 
+// ── Return the school info for the logged-in user ────────────────────────────
+router.get("/mySchool", authMiddleware, async (req, res) => {
+  try {
+    const schoolId = req.user?.schoolId;
+    if (!schoolId) return res.status(400).json({ message: "schoolId missing" });
+
+    const school = await prisma.school.findUnique({
+      where: { id: schoolId },
+      select: { id: true, name: true, address: true, city: true, phone: true, email: true, logoUrl: true }
+    });
+
+    if (!school) return res.status(404).json({ message: "School not found" });
+    res.json(school);
+  } catch (error) {
+    console.error("mySchool error:", error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
 export default router;
 // ── Student self-view: fetch MY fees by email ────────────────────────────────
 router.get("/myFees", async (req, res) => {
@@ -405,3 +426,115 @@ router.post(
     }
   }
 );
+
+router.post(
+"/sendFeeReceipt/:id",
+authMiddleware,
+async (req, res) => {
+try {
+ 
+  const id = parseInt(req.params.id);
+
+  const financeStudent = await prisma.studentList.findUnique({
+    where: { id },
+  });
+
+  if (!financeStudent) {
+    return res.status(404).json({
+      message: "Student not found",
+    });
+  }
+
+  const realStudent = await prisma.student.findFirst({
+    where: {
+      id: financeStudent.studentId,
+    },
+    include: {
+      parentLinks: {
+        include: {
+          parent: true,
+        },
+      },
+    },
+  });
+
+  if (!realStudent) {
+    return res.status(404).json({
+      message: "Real student not found",
+    });
+  }
+
+  const school = await prisma.school.findUnique({
+    where: {
+      id: req.user.schoolId,
+    },
+  });
+
+  // YOUR PDF URL
+  const pdfUrl = req.body.pdfUrl;
+
+  for (const link of realStudent.parentLinks) {
+
+    const parentPhone = link.parent?.phone;
+
+    if (!parentPhone) continue;
+
+    await sendFeeReceiptWhatsApp({
+      phone: parentPhone,
+      studentName: financeStudent.name,
+      schoolName: school?.name || "School",
+      pdfUrl,
+    });
+  }
+
+  res.json({
+    success: true,
+    message: "Fee receipt sent successfully",
+  });
+
+} catch (error) {
+
+  console.log(error);
+
+  res.status(500).json({
+    message: error.message,
+  });
+}
+ 
+});
+
+ 
+
+
+// ── Upload fee receipt PDF to R2 ─────────────────────────────────────────────
+import { uploadPdfToR2 } from "../../utils/uploadPdfToR2.js"; // adjust path as needed
+ 
+
+router.post("/uploadFeeReceipt/:id", authMiddleware, async (req, res) => {
+  try {
+    const id = req.params.id;
+    const chunks = [];
+
+    req.on("data", chunk => chunks.push(chunk));
+    req.on("end", async () => {
+      try {
+        const pdfBuffer = Buffer.concat(chunks);
+        const fileName = `receipts/${id}_${Date.now()}.pdf`;
+        const pdfUrl = await uploadPdfToR2(pdfBuffer, fileName);
+        res.json({ success: true, pdfUrl });
+      } catch (err) {
+        console.error("R2 upload error:", err);
+        res.status(500).json({ message: err.message });
+      }
+    });
+
+    req.on("error", err => {
+      console.error("Stream error:", err);
+      res.status(500).json({ message: err.message });
+    });
+
+  } catch (error) {
+    console.error("uploadFeeReceipt error:", error);
+    res.status(500).json({ message: error.message });
+  }
+});
