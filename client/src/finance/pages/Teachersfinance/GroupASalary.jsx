@@ -73,6 +73,15 @@ export default function GroupASalary() {
     const [authSchool, setAuthSchool] = useState({ schoolId: "", schoolName: "Your School" });
     const [loading, setLoading] = useState(false);
 
+    // ── Bulk WhatsApp state ──
+    const [selectedRows, setSelectedRows] = useState([]);
+    const [bulkSending, setBulkSending] = useState(false);
+    const [bulkProgress, setBulkProgress] = useState({
+        total: 0,
+        completed: 0,
+        current: "",
+    });
+
     const dropdownRef = useRef();
     const tok = () => {
         try {
@@ -119,22 +128,18 @@ export default function GroupASalary() {
     }, []);
 
     useEffect(() => {
-
         if (!window.jspdf) {
-
-            const script =
-                document.createElement("script");
-
-            script.src =
-                "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
-
+            const script = document.createElement("script");
+            script.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
             script.async = true;
-
             document.body.appendChild(script);
-
         }
-
     }, []);
+
+    // Clear selection when view changes
+    useEffect(() => {
+        setSelectedRows([]);
+    }, [viewMonth, tableStatusFilter, search]);
 
     const fetchTeachersBySchool = async (id) => {
         const res = await fetch(`${API_URL}/api/teachers/salary/teachers-by-school/${id}`, {
@@ -319,61 +324,47 @@ export default function GroupASalary() {
 
     const openHistoryModal = async (salary) => {
         setSelectedSalary(salary);
-        const res = await fetch(`${API_URL}/api/teachers/salary/history/${salary.teacher?.id || salary.teacherId}`, {
+        const teacherId = salary.teacher?.id || salary.teacherId;
+        if (!teacherId) return;
+        const res = await fetch(`${API_URL}/api/teachers/salary/history/${teacherId}`, {
             headers: { Authorization: `Bearer ${tok()}` }
         });
-        const data = await res.json();
-        setSalaryHistory(Array.isArray(data) ? data : []);
+        if (!res.ok) { setSalaryHistory([]); setHistoryModal(true); return; }
+        setSalaryHistory(await res.json());
         setHistoryModal(true);
     };
 
     const openSlipModal = (salary) => { setSelectedSalary(salary); setSlipModal(true); };
 
     const downloadPayslip = () => {
-        if (!selectedSalary) return;
         const doc = new jsPDF("p", "mm", "a4");
         const W = 210, M = 14, CW = 210 - M * 2;
         let y = 0;
 
-        // ── Header background ──
         doc.setFillColor(28, 48, 64);
         doc.rect(0, 0, W, 44, "F");
-
-        // School name
         doc.setFont("helvetica", "bold");
         doc.setFontSize(18);
         doc.setTextColor(255, 255, 255);
         doc.text(authSchool.schoolName, M, 16);
-
-        // Country
         doc.setFont("helvetica", "normal");
         doc.setFontSize(9);
         doc.setTextColor(160, 185, 200);
         doc.text("India", M, 23);
-
-        // "SALARY SLIP" label (right)
         doc.setFontSize(7.5);
         doc.setFont("helvetica", "bold");
         doc.setTextColor(140, 170, 190);
         doc.text("SALARY SLIP", W - M, 13, { align: "right" });
-
-        // Month / Year (right)
         doc.setFontSize(15);
         doc.setTextColor(255, 255, 255);
         doc.text(`${monthName(selectedSalary.month)} ${selectedSalary.year}`, W - M, 22, { align: "right" });
-
-        // Divider
         doc.setDrawColor(255, 255, 255, 0.15);
         doc.setLineWidth(0.3);
         doc.line(M, 30, W - M, 30);
-
-        // Generated date (left)
         doc.setFontSize(8);
         doc.setFont("helvetica", "normal");
         doc.setTextColor(140, 170, 190);
         doc.text(`Generated: ${new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}`, M, 38);
-
-        // Confidential badge (right)
         doc.setDrawColor(140, 170, 190);
         doc.setLineWidth(0.3);
         doc.roundedRect(W - M - 28, 33, 28, 7, 1, 1, "S");
@@ -382,8 +373,6 @@ export default function GroupASalary() {
         doc.text("Confidential", W - M - 14, 37.5, { align: "center" });
 
         y = 44;
-
-        // ── Employee info strip ──
         doc.setFillColor(234, 241, 246);
         doc.rect(0, y, W, 24, "F");
         doc.setDrawColor(200, 220, 236);
@@ -392,9 +381,9 @@ export default function GroupASalary() {
 
         const infoFields = [
             { label: "EMPLOYEE NAME", val: `${selectedSalary?.teacher?.firstName || ""} ${selectedSalary?.teacher?.lastName || ""}`.trim() || "—" },
-            { label: "DEPARTMENT",    val: selectedSalary?.teacher?.department || "—" },
-            { label: "PAY PERIOD",    val: `${monthName(selectedSalary.month)} ${selectedSalary.year}` },
-            { label: "EMAIL",         val: selectedSalary?.teacher?.user?.email || "—" },
+            { label: "DEPARTMENT", val: selectedSalary?.teacher?.department || "—" },
+            { label: "PAY PERIOD", val: `${monthName(selectedSalary.month)} ${selectedSalary.year}` },
+            { label: "EMAIL", val: selectedSalary?.teacher?.user?.email || "—" },
         ];
         const colW = CW / 4;
         infoFields.forEach((f, i) => {
@@ -412,7 +401,6 @@ export default function GroupASalary() {
         });
         y += 28;
 
-        // ── Earnings & Deductions tables ──
         const tW = (CW - 6) / 2;
         const leaveDed = calcLeaveDeduction(selectedSalary?.basicSalary || 0, selectedSalary?.leaveDays || 0);
         const otherDed = Math.max(0, Number(selectedSalary?.deductions || 0) - leaveDed);
@@ -423,9 +411,9 @@ export default function GroupASalary() {
                 color: [43, 69, 87],
                 rows: [
                     ["Basic Salary", `Rs.${Number(selectedSalary?.basicSalary || 0).toLocaleString("en-IN")}`],
-                    ["Bonus",        `Rs.${Number(selectedSalary?.bonus || 0).toLocaleString("en-IN")}`],
-                    ["HRA",          "Rs.0"],
-                    ["Other",        "Rs.0"],
+                    ["Bonus", `Rs.${Number(selectedSalary?.bonus || 0).toLocaleString("en-IN")}`],
+                    ["HRA", "Rs.0"],
+                    ["Other", "Rs.0"],
                 ],
                 footLabel: "Gross Earnings",
                 foot: `Rs.${(Number(selectedSalary?.basicSalary || 0) + Number(selectedSalary?.bonus || 0)).toLocaleString("en-IN")}`,
@@ -434,10 +422,10 @@ export default function GroupASalary() {
                 title: "DEDUCTIONS",
                 color: [28, 48, 64],
                 rows: [
-                    ["Leave Deduction",  `${selectedSalary?.leaveDays ?? 0}d -> Rs.${leaveDed.toLocaleString("en-IN")}`],
+                    ["Leave Deduction", `${selectedSalary?.leaveDays ?? 0}d -> Rs.${leaveDed.toLocaleString("en-IN")}`],
                     ["Other Deductions", `Rs.${otherDed.toLocaleString("en-IN")}`],
-                    ["PF",               "Rs.0"],
-                    ["Tax (TDS)",        "Rs.0"],
+                    ["PF", "Rs.0"],
+                    ["Tax (TDS)", "Rs.0"],
                 ],
                 footLabel: "Total Deductions",
                 foot: `Rs.${Number(selectedSalary?.deductions || 0).toLocaleString("en-IN")}`,
@@ -447,8 +435,6 @@ export default function GroupASalary() {
         const ROW_H = 9;
         sections.forEach((sec, si) => {
             const x = M + si * (tW + 6);
-
-            // Section header
             doc.setFillColor(...sec.color);
             doc.rect(x, y, tW, 9, "F");
             doc.setFontSize(8);
@@ -456,7 +442,6 @@ export default function GroupASalary() {
             doc.setTextColor(255, 255, 255);
             doc.text(sec.title, x + 4, y + 6);
 
-            // Rows
             sec.rows.forEach((row, ri) => {
                 const ry = y + 9 + ri * ROW_H;
                 doc.setFillColor(ri % 2 === 0 ? 255 : 248, ri % 2 === 0 ? 255 : 251, ri % 2 === 0 ? 255 : 253);
@@ -464,7 +449,6 @@ export default function GroupASalary() {
                 doc.setDrawColor(238, 245, 250);
                 doc.setLineWidth(0.2);
                 doc.line(x, ry + ROW_H, x + tW, ry + ROW_H);
-
                 doc.setFontSize(9);
                 doc.setFont("helvetica", "normal");
                 doc.setTextColor(74, 104, 120);
@@ -474,7 +458,6 @@ export default function GroupASalary() {
                 doc.text(row[1], x + tW - 3, ry + 6, { align: "right" });
             });
 
-            // Footer row
             const fy = y + 9 + sec.rows.length * ROW_H;
             doc.setFillColor(234, 241, 246);
             doc.rect(x, fy, tW, 10, "F");
@@ -486,8 +469,6 @@ export default function GroupASalary() {
             doc.setTextColor(60, 93, 116);
             doc.text(sec.footLabel, x + 4, fy + 7);
             doc.text(sec.foot, x + tW - 3, fy + 7, { align: "right" });
-
-            // Border around table
             doc.setDrawColor(200, 220, 236);
             doc.setLineWidth(0.3);
             doc.rect(x, y + 9, tW, sec.rows.length * ROW_H + 10, "S");
@@ -495,10 +476,8 @@ export default function GroupASalary() {
 
         y += 9 + sections[0].rows.length * ROW_H + 10 + 8;
 
-        // ── Net Salary banner ──
         doc.setFillColor(28, 48, 64);
         doc.roundedRect(M, y, CW, 20, 2, 2, "F");
-
         doc.setFontSize(8);
         doc.setFont("helvetica", "bold");
         doc.setTextColor(140, 170, 190);
@@ -507,18 +486,12 @@ export default function GroupASalary() {
         doc.setFont("helvetica", "normal");
         doc.setTextColor(120, 155, 175);
         doc.text(`For ${monthName(selectedSalary.month)} ${selectedSalary.year}`, M + 8, y + 15);
-
         doc.setFontSize(20);
         doc.setFont("helvetica", "bold");
         doc.setTextColor(255, 255, 255);
         doc.text(`Rs.${Number(selectedSalary?.netSalary || 0).toLocaleString("en-IN")}`, W - M - 8, y + 13, { align: "right" });
-
         y += 28;
 
-        // ── Signature lines ──
-
-
-        // ── Footer strip ──
         doc.setFillColor(234, 241, 246);
         doc.rect(0, y, W, 12, "F");
         doc.setDrawColor(200, 220, 236);
@@ -535,227 +508,251 @@ export default function GroupASalary() {
         doc.save(`Payslip-${selectedSalary.teacher?.firstName || "Teacher"}-${monthName(selectedSalary.month)}-${selectedSalary.year}.pdf`);
     };
 
-const handleSendSalarySlip = async (salary) => {
-    try {
-        const auth = JSON.parse(localStorage.getItem("auth"));
-        const token = auth?.token;
+    const handleSendSalarySlip = async (salary) => {
+        try {
+            const auth = JSON.parse(localStorage.getItem("auth"));
+            const token = auth?.token;
 
-        // ── Build the SAME full PDF as downloadPayslip ──
-        const doc = new jsPDF("p", "mm", "a4");
-        const W = 210, M = 14, CW = 210 - M * 2;
-        let y = 0;
+            const doc = new jsPDF("p", "mm", "a4");
+            const W = 210, M = 14, CW = 210 - M * 2;
+            let y = 0;
 
-        // Header background
-        doc.setFillColor(28, 48, 64);
-        doc.rect(0, 0, W, 44, "F");
-
-        // School name
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(18);
-        doc.setTextColor(255, 255, 255);
-        doc.text(authSchool.schoolName, M, 16);
-
-        // Country
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(9);
-        doc.setTextColor(160, 185, 200);
-        doc.text("India", M, 23);
-
-        // "SALARY SLIP" label
-        doc.setFontSize(7.5);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(140, 170, 190);
-        doc.text("SALARY SLIP", W - M, 13, { align: "right" });
-
-        // Month / Year
-        doc.setFontSize(15);
-        doc.setTextColor(255, 255, 255);
-        doc.text(`${monthName(salary.month)} ${salary.year}`, W - M, 22, { align: "right" });
-
-        // Divider
-        doc.setDrawColor(255, 255, 255, 0.15);
-        doc.setLineWidth(0.3);
-        doc.line(M, 30, W - M, 30);
-
-        // Generated date
-        doc.setFontSize(8);
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(140, 170, 190);
-        doc.text(`Generated: ${new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}`, M, 38);
-
-        // Confidential badge
-        doc.setDrawColor(140, 170, 190);
-        doc.setLineWidth(0.3);
-        doc.roundedRect(W - M - 28, 33, 28, 7, 1, 1, "S");
-        doc.setTextColor(140, 170, 190);
-        doc.setFontSize(7);
-        doc.text("Confidential", W - M - 14, 37.5, { align: "center" });
-
-        y = 44;
-
-        // Employee info strip
-        doc.setFillColor(234, 241, 246);
-        doc.rect(0, y, W, 24, "F");
-        doc.setDrawColor(200, 220, 236);
-        doc.setLineWidth(0.3);
-        doc.line(0, y + 24, W, y + 24);
-
-        const infoFields = [
-            { label: "EMPLOYEE NAME", val: `${salary?.teacher?.firstName || ""} ${salary?.teacher?.lastName || ""}`.trim() || "—" },
-            { label: "DEPARTMENT",    val: salary?.teacher?.department || "—" },
-            { label: "PAY PERIOD",    val: `${monthName(salary.month)} ${salary.year}` },
-            { label: "EMAIL",         val: salary?.teacher?.user?.email || "—" },
-        ];
-        const colW = CW / 4;
-        infoFields.forEach((f, i) => {
-            const x = M + i * colW;
-            doc.setFontSize(7);
+            doc.setFillColor(28, 48, 64);
+            doc.rect(0, 0, W, 44, "F");
             doc.setFont("helvetica", "bold");
-            doc.setTextColor(82, 122, 145);
-            doc.text(f.label, x, y + 8);
-            doc.setFontSize(10);
-            doc.setFont("helvetica", "bold");
-            doc.setTextColor(28, 48, 64);
-            const maxChars = 20;
-            const display = f.val.length > maxChars ? f.val.slice(0, maxChars - 1) + "…" : f.val;
-            doc.text(display, x, y + 17);
-        });
-        y += 28;
-
-        // Earnings & Deductions tables
-        const tW = (CW - 6) / 2;
-        const leaveDed = calcLeaveDeduction(salary?.basicSalary || 0, salary?.leaveDays || 0);
-        const otherDed = Math.max(0, Number(salary?.deductions || 0) - leaveDed);
-
-        const sections = [
-            {
-                title: "EARNINGS",
-                color: [43, 69, 87],
-                rows: [
-                    ["Basic Salary", `Rs.${Number(salary?.basicSalary || 0).toLocaleString("en-IN")}`],
-                    ["Bonus",        `Rs.${Number(salary?.bonus || 0).toLocaleString("en-IN")}`],
-                    ["HRA",          "Rs.0"],
-                    ["Other",        "Rs.0"],
-                ],
-                footLabel: "Gross Earnings",
-                foot: `Rs.${(Number(salary?.basicSalary || 0) + Number(salary?.bonus || 0)).toLocaleString("en-IN")}`,
-            },
-            {
-                title: "DEDUCTIONS",
-                color: [28, 48, 64],
-                rows: [
-                    ["Leave Deduction",  `${salary?.leaveDays ?? 0}d -> Rs.${leaveDed.toLocaleString("en-IN")}`],
-                    ["Other Deductions", `Rs.${otherDed.toLocaleString("en-IN")}`],
-                    ["PF",               "Rs.0"],
-                    ["Tax (TDS)",        "Rs.0"],
-                ],
-                footLabel: "Total Deductions",
-                foot: `Rs.${Number(salary?.deductions || 0).toLocaleString("en-IN")}`,
-            },
-        ];
-
-        const ROW_H = 9;
-        sections.forEach((sec, si) => {
-            const x = M + si * (tW + 6);
-            doc.setFillColor(...sec.color);
-            doc.rect(x, y, tW, 9, "F");
-            doc.setFontSize(8);
-            doc.setFont("helvetica", "bold");
+            doc.setFontSize(18);
             doc.setTextColor(255, 255, 255);
-            doc.text(sec.title, x + 4, y + 6);
-
-            sec.rows.forEach((row, ri) => {
-                const ry = y + 9 + ri * ROW_H;
-                doc.setFillColor(ri % 2 === 0 ? 255 : 248, ri % 2 === 0 ? 255 : 251, ri % 2 === 0 ? 255 : 253);
-                doc.rect(x, ry, tW, ROW_H, "F");
-                doc.setDrawColor(238, 245, 250);
-                doc.setLineWidth(0.2);
-                doc.line(x, ry + ROW_H, x + tW, ry + ROW_H);
-                doc.setFontSize(9);
-                doc.setFont("helvetica", "normal");
-                doc.setTextColor(74, 104, 120);
-                doc.text(row[0], x + 4, ry + 6);
-                doc.setFont("helvetica", "bold");
-                doc.setTextColor(60, 93, 116);
-                doc.text(row[1], x + tW - 3, ry + 6, { align: "right" });
-            });
-
-            const fy = y + 9 + sec.rows.length * ROW_H;
-            doc.setFillColor(234, 241, 246);
-            doc.rect(x, fy, tW, 10, "F");
-            doc.setDrawColor(212, 228, 238);
-            doc.setLineWidth(0.5);
-            doc.line(x, fy, x + tW, fy);
-            doc.setFontSize(9.5);
+            doc.text(authSchool.schoolName, M, 16);
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(9);
+            doc.setTextColor(160, 185, 200);
+            doc.text("India", M, 23);
+            doc.setFontSize(7.5);
             doc.setFont("helvetica", "bold");
-            doc.setTextColor(60, 93, 116);
-            doc.text(sec.footLabel, x + 4, fy + 7);
-            doc.text(sec.foot, x + tW - 3, fy + 7, { align: "right" });
+            doc.setTextColor(140, 170, 190);
+            doc.text("SALARY SLIP", W - M, 13, { align: "right" });
+            doc.setFontSize(15);
+            doc.setTextColor(255, 255, 255);
+            doc.text(`${monthName(salary.month)} ${salary.year}`, W - M, 22, { align: "right" });
+            doc.setDrawColor(255, 255, 255, 0.15);
+            doc.setLineWidth(0.3);
+            doc.line(M, 30, W - M, 30);
+            doc.setFontSize(8);
+            doc.setFont("helvetica", "normal");
+            doc.setTextColor(140, 170, 190);
+            doc.text(`Generated: ${new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}`, M, 38);
+            doc.setDrawColor(140, 170, 190);
+            doc.setLineWidth(0.3);
+            doc.roundedRect(W - M - 28, 33, 28, 7, 1, 1, "S");
+            doc.setTextColor(140, 170, 190);
+            doc.setFontSize(7);
+            doc.text("Confidential", W - M - 14, 37.5, { align: "center" });
+
+            y = 44;
+            doc.setFillColor(234, 241, 246);
+            doc.rect(0, y, W, 24, "F");
             doc.setDrawColor(200, 220, 236);
             doc.setLineWidth(0.3);
-            doc.rect(x, y + 9, tW, sec.rows.length * ROW_H + 10, "S");
-        });
+            doc.line(0, y + 24, W, y + 24);
 
-        y += 9 + sections[0].rows.length * ROW_H + 10 + 8;
+            const infoFields = [
+                { label: "EMPLOYEE NAME", val: `${salary?.teacher?.firstName || ""} ${salary?.teacher?.lastName || ""}`.trim() || "—" },
+                { label: "DEPARTMENT", val: salary?.teacher?.department || "—" },
+                { label: "PAY PERIOD", val: `${monthName(salary.month)} ${salary.year}` },
+                { label: "EMAIL", val: salary?.teacher?.user?.email || "—" },
+            ];
+            const colW = CW / 4;
+            infoFields.forEach((f, i) => {
+                const x = M + i * colW;
+                doc.setFontSize(7);
+                doc.setFont("helvetica", "bold");
+                doc.setTextColor(82, 122, 145);
+                doc.text(f.label, x, y + 8);
+                doc.setFontSize(10);
+                doc.setFont("helvetica", "bold");
+                doc.setTextColor(28, 48, 64);
+                const maxChars = 20;
+                const display = f.val.length > maxChars ? f.val.slice(0, maxChars - 1) + "…" : f.val;
+                doc.text(display, x, y + 17);
+            });
+            y += 28;
 
-        // Net Salary banner
-        doc.setFillColor(28, 48, 64);
-        doc.roundedRect(M, y, CW, 20, 2, 2, "F");
-        doc.setFontSize(8);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(140, 170, 190);
-        doc.text("NET SALARY PAYABLE", M + 8, y + 8);
-        doc.setFontSize(9);
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(120, 155, 175);
-        doc.text(`For ${monthName(salary.month)} ${salary.year}`, M + 8, y + 15);
-        doc.setFontSize(20);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(255, 255, 255);
-        doc.text(`Rs.${Number(salary?.netSalary || 0).toLocaleString("en-IN")}`, W - M - 8, y + 13, { align: "right" });
-        y += 28;
+            const tW = (CW - 6) / 2;
+            const leaveDed = calcLeaveDeduction(salary?.basicSalary || 0, salary?.leaveDays || 0);
+            const otherDed = Math.max(0, Number(salary?.deductions || 0) - leaveDed);
 
-        // Footer strip
-        doc.setFillColor(234, 241, 246);
-        doc.rect(0, y, W, 12, "F");
-        doc.setDrawColor(200, 220, 236);
-        doc.setLineWidth(0.3);
-        doc.line(0, y, W, y);
-        doc.setFontSize(8);
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(82, 122, 145);
-        doc.text(
-            "This is a system-generated payslip and does not require a physical signature.",
-            W / 2, y + 8, { align: "center" }
+            const sections = [
+                {
+                    title: "EARNINGS",
+                    color: [43, 69, 87],
+                    rows: [
+                        ["Basic Salary", `Rs.${Number(salary?.basicSalary || 0).toLocaleString("en-IN")}`],
+                        ["Bonus", `Rs.${Number(salary?.bonus || 0).toLocaleString("en-IN")}`],
+                        ["HRA", "Rs.0"],
+                        ["Other", "Rs.0"],
+                    ],
+                    footLabel: "Gross Earnings",
+                    foot: `Rs.${(Number(salary?.basicSalary || 0) + Number(salary?.bonus || 0)).toLocaleString("en-IN")}`,
+                },
+                {
+                    title: "DEDUCTIONS",
+                    color: [28, 48, 64],
+                    rows: [
+                        ["Leave Deduction", `${salary?.leaveDays ?? 0}d -> Rs.${leaveDed.toLocaleString("en-IN")}`],
+                        ["Other Deductions", `Rs.${otherDed.toLocaleString("en-IN")}`],
+                        ["PF", "Rs.0"],
+                        ["Tax (TDS)", "Rs.0"],
+                    ],
+                    footLabel: "Total Deductions",
+                    foot: `Rs.${Number(salary?.deductions || 0).toLocaleString("en-IN")}`,
+                },
+            ];
+
+            const ROW_H = 9;
+            sections.forEach((sec, si) => {
+                const x = M + si * (tW + 6);
+                doc.setFillColor(...sec.color);
+                doc.rect(x, y, tW, 9, "F");
+                doc.setFontSize(8);
+                doc.setFont("helvetica", "bold");
+                doc.setTextColor(255, 255, 255);
+                doc.text(sec.title, x + 4, y + 6);
+
+                sec.rows.forEach((row, ri) => {
+                    const ry = y + 9 + ri * ROW_H;
+                    doc.setFillColor(ri % 2 === 0 ? 255 : 248, ri % 2 === 0 ? 255 : 251, ri % 2 === 0 ? 255 : 253);
+                    doc.rect(x, ry, tW, ROW_H, "F");
+                    doc.setDrawColor(238, 245, 250);
+                    doc.setLineWidth(0.2);
+                    doc.line(x, ry + ROW_H, x + tW, ry + ROW_H);
+                    doc.setFontSize(9);
+                    doc.setFont("helvetica", "normal");
+                    doc.setTextColor(74, 104, 120);
+                    doc.text(row[0], x + 4, ry + 6);
+                    doc.setFont("helvetica", "bold");
+                    doc.setTextColor(60, 93, 116);
+                    doc.text(row[1], x + tW - 3, ry + 6, { align: "right" });
+                });
+
+                const fy = y + 9 + sec.rows.length * ROW_H;
+                doc.setFillColor(234, 241, 246);
+                doc.rect(x, fy, tW, 10, "F");
+                doc.setDrawColor(212, 228, 238);
+                doc.setLineWidth(0.5);
+                doc.line(x, fy, x + tW, fy);
+                doc.setFontSize(9.5);
+                doc.setFont("helvetica", "bold");
+                doc.setTextColor(60, 93, 116);
+                doc.text(sec.footLabel, x + 4, fy + 7);
+                doc.text(sec.foot, x + tW - 3, fy + 7, { align: "right" });
+                doc.setDrawColor(200, 220, 236);
+                doc.setLineWidth(0.3);
+                doc.rect(x, y + 9, tW, sec.rows.length * ROW_H + 10, "S");
+            });
+
+            y += 9 + sections[0].rows.length * ROW_H + 10 + 8;
+
+            doc.setFillColor(28, 48, 64);
+            doc.roundedRect(M, y, CW, 20, 2, 2, "F");
+            doc.setFontSize(8);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(140, 170, 190);
+            doc.text("NET SALARY PAYABLE", M + 8, y + 8);
+            doc.setFontSize(9);
+            doc.setFont("helvetica", "normal");
+            doc.setTextColor(120, 155, 175);
+            doc.text(`For ${monthName(salary.month)} ${salary.year}`, M + 8, y + 15);
+            doc.setFontSize(20);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(255, 255, 255);
+            doc.text(`Rs.${Number(salary?.netSalary || 0).toLocaleString("en-IN")}`, W - M - 8, y + 13, { align: "right" });
+            y += 28;
+
+            doc.setFillColor(234, 241, 246);
+            doc.rect(0, y, W, 12, "F");
+            doc.setDrawColor(200, 220, 236);
+            doc.setLineWidth(0.3);
+            doc.line(0, y, W, y);
+            doc.setFontSize(8);
+            doc.setFont("helvetica", "normal");
+            doc.setTextColor(82, 122, 145);
+            doc.text(
+                "This is a system-generated payslip and does not require a physical signature.",
+                W / 2, y + 8, { align: "center" }
+            );
+
+            const pdfBlob = doc.output("blob");
+            const uploadRes = await fetch(
+                `${API_URL}/api/teachers/salary/uploadSalarySlip/${salary.id}`,
+                { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: pdfBlob }
+            );
+            const uploadData = await uploadRes.json();
+            if (!uploadRes.ok) { alert(uploadData.message); return; }
+
+            const sendRes = await fetch(
+                `${API_URL}/api/teachers/salary/sendSalarySlip/${salary.id}`,
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                    body: JSON.stringify({ pdfUrl: uploadData.pdfUrl }),
+                }
+            );
+            const sendData = await sendRes.json();
+            if (!sendRes.ok) { alert(sendData.message); return; }
+
+            
+        } catch (error) {
+            console.log(error);
+            alert("Failed to send salary slip");
+        }
+    };
+
+    // ── Checkbox selection helpers ──
+    const toggleRowSelection = (rowId) => {
+        setSelectedRows(prev =>
+            prev.includes(rowId)
+                ? prev.filter(id => id !== rowId)
+                : [...prev, rowId]
         );
+    };
 
-        // Upload to R2
-        const pdfBlob = doc.output("blob");
-        const uploadRes = await fetch(
-            `${API_URL}/api/teachers/salary/uploadSalarySlip/${salary.id}`,
-            { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: pdfBlob }
-        );
-        const uploadData = await uploadRes.json();
-        if (!uploadRes.ok) { alert(uploadData.message); return; }
+    const toggleSelectAll = (selectableRows) => {
+        const selectableIds = selectableRows.map(r => r.id || r.salaryId).filter(Boolean);
+        const allSelected = selectableIds.every(id => selectedRows.includes(id));
+        if (allSelected) {
+            setSelectedRows(prev => prev.filter(id => !selectableIds.includes(id)));
+        } else {
+            setSelectedRows(prev => {
+                const combined = new Set([...prev, ...selectableIds]);
+                return Array.from(combined);
+            });
+        }
+    };
 
-        // Send via WhatsApp
-        const sendRes = await fetch(
-            `${API_URL}/api/teachers/salary/sendSalarySlip/${salary.id}`,
-            {
-                method: "POST",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ pdfUrl: uploadData.pdfUrl }),
+    // ── Bulk WhatsApp send (sequential with 2s delay) ──
+    const handleBulkWhatsAppSend = async (rowsToSend) => {
+        if (rowsToSend.length === 0) return;
+        setBulkSending(true);
+        setBulkProgress({ total: rowsToSend.length, completed: 0, current: "" });
+
+        for (let i = 0; i < rowsToSend.length; i++) {
+            const staff = rowsToSend[i];
+            const name = `${staff.teacher?.firstName || ""} ${staff.teacher?.lastName || ""}`.trim();
+            setBulkProgress(prev => ({ ...prev, current: name }));
+
+            await handleSendSalarySlip(staff);
+
+            setBulkProgress(prev => ({ ...prev, completed: prev.completed + 1 }));
+
+            if (i < rowsToSend.length - 1) {
+                await new Promise(resolve => setTimeout(resolve, 2000));
             }
-        );
-        const sendData = await sendRes.json();
-        if (!sendRes.ok) { alert(sendData.message); return; }
+        }
 
-        alert("Salary slip sent successfully");
-    } catch (error) {
-        console.log(error);
-        alert("Failed to send salary slip");
-    }
-};
+        setBulkSending(false);
+        setBulkProgress({ total: 0, completed: 0, current: "" });
+        setSelectedRows([]);
+    };
 
     const searchFn = (t) =>
         `${t.teacher?.firstName} ${t.teacher?.lastName}`.toLowerCase().includes(search.toLowerCase()) ||
@@ -800,6 +797,21 @@ const handleSendSalarySlip = async (salary) => {
     const editLeaveDed = calcLeaveDeduction(editBasic, leaveDays);
     const editTotalDeduction = editLeaveDed + Number(deduction || 0);
     const editNetPreview = Number(editBasic) + Number(bonus || 0) - editTotalDeduction;
+
+    // Rows selectable for bulk action (non-placeholder, current month view)
+    const currentSelectableRows = viewMonth === "current"
+        ? filtered.filter(r => !r._isPlaceholder)
+        : [];
+
+    const selectedSelectableRows = currentSelectableRows.filter(r =>
+        selectedRows.includes(r.id || r.salaryId)
+    );
+
+    const allCurrentSelected =
+        currentSelectableRows.length > 0 &&
+        currentSelectableRows.every(r => selectedRows.includes(r.id || r.salaryId));
+
+    const someCurrentSelected = currentSelectableRows.some(r => selectedRows.includes(r.id || r.salaryId));
 
     return (
         <>
@@ -924,10 +936,89 @@ const handleSendSalarySlip = async (salary) => {
                     </div>
                 </div>
 
+                {/* ── Bulk Action Bar ── */}
+                {viewMonth === "current" && selectedSelectableRows.length > 0 && (
+                    <div className="bg-gradient-to-r from-[#064E3B] to-[#065F46] border-b border-green-700 px-4 sm:px-6 py-3 flex flex-col sm:flex-row sm:items-center gap-3">
+                        <div className="flex items-center gap-3 flex-1 flex-wrap">
+                            {/* Selected count */}
+                            <div className="flex items-center gap-2 bg-white/15 rounded-xl px-3 py-1.5">
+                                <CheckCircle2 size={14} color="#6EE7B7" />
+                                <span className="text-white font-bold text-[12px] sm:text-[13px]">
+                                    {selectedSelectableRows.length} selected
+                                </span>
+                            </div>
+
+                            {/* Progress info while sending */}
+                            {bulkSending && (
+                                <>
+                                    <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-1.5">
+                                        <Clock size={13} color="#A7F3D0" />
+                                        <span className="text-white/80 text-[11px] sm:text-[12px]">
+                                            Sending: <span className="font-bold text-white">{bulkProgress.current}</span>
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-1.5">
+                                        <span className="text-white/80 text-[11px] sm:text-[12px]">
+                                            <span className="font-bold text-[#6EE7B7]">{bulkProgress.completed}</span>
+                                            <span className="text-white/50"> / {bulkProgress.total} done</span>
+                                        </span>
+                                    </div>
+                                    {/* Progress bar */}
+                                    <div className="flex-1 min-w-[80px] max-w-[180px]">
+                                        <div className="w-full bg-white/20 rounded-full h-1.5">
+                                            <div
+                                                className="bg-[#6EE7B7] h-1.5 rounded-full transition-all duration-500"
+                                                style={{ width: `${bulkProgress.total > 0 ? (bulkProgress.completed / bulkProgress.total) * 100 : 0}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            {/* Clear selection */}
+                            {!bulkSending && (
+                                <button
+                                    onClick={() => setSelectedRows([])}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white/70 hover:text-white text-[11px] sm:text-[12px] font-semibold transition-all border border-white/20"
+                                >
+                                    <X size={12} /> Clear
+                                </button>
+                            )}
+                            {/* Bulk WhatsApp send button */}
+                            <button
+                                onClick={() => handleBulkWhatsAppSend(selectedSelectableRows)}
+                                disabled={bulkSending}
+                                className="flex items-center gap-2 px-4 sm:px-5 py-2 rounded-xl bg-[#25D366] hover:bg-[#1ebe5d] disabled:opacity-50 disabled:cursor-not-allowed text-white text-[12px] sm:text-[13px] font-bold transition-all shadow-lg shadow-green-900/30"
+                            >
+                                <FaWhatsapp size={15} />
+                                {bulkSending
+                                    ? `Sending ${bulkProgress.completed + 1}/${bulkProgress.total}...`
+                                    : `Send ${selectedSelectableRows.length} Slip${selectedSelectableRows.length > 1 ? "s" : ""} via WhatsApp`
+                                }
+                            </button>
+                        </div>
+                    </div>
+                )}
+
                 <div className="overflow-x-auto">
-                    <table className="w-full text-[12px] sm:text-[13px] min-w-[700px]">
+                    <table className="w-full text-[12px] sm:text-[13px] min-w-[750px]">
                         <thead>
                             <tr className="bg-[#EAF1F6] border-b border-[#C8DCEC]">
+                                {/* Checkbox column header */}
+                                <th className="px-3 sm:px-4 py-2.5 sm:py-3 w-10">
+                                    {viewMonth === "current" && currentSelectableRows.length > 0 && (
+                                        <input
+                                            type="checkbox"
+                                            checked={allCurrentSelected}
+                                            ref={el => { if (el) el.indeterminate = someCurrentSelected && !allCurrentSelected; }}
+                                            onChange={() => toggleSelectAll(currentSelectableRows)}
+                                            className="w-4 h-4 rounded accent-[#27435B] cursor-pointer"
+                                            title="Select All"
+                                        />
+                                    )}
+                                </th>
                                 {["Name", "Email", "Department", "Basic Salary", "Bonus", "Deductions", "Leave Days", "Net Salary", "Status", "Actions"].map(h => (
                                     <th key={h} className="px-3 sm:px-4 py-2.5 sm:py-3 text-left text-[10px] sm:text-[11px] font-bold text-[#27435B] uppercase tracking-wide whitespace-nowrap">{h}</th>
                                 ))}
@@ -937,7 +1028,7 @@ const handleSendSalarySlip = async (salary) => {
                             {viewMonth === "next" ? (
                                 filteredNext.length === 0 ? (
                                     <tr>
-                                        <td colSpan={10} className="text-center py-12 text-[#4A6B80]">
+                                        <td colSpan={11} className="text-center py-12 text-[#4A6B80]">
                                             <div className="flex flex-col items-center gap-3">
                                                 <div className="w-14 h-14 rounded-2xl bg-[#EAF1F6] flex items-center justify-center">
                                                     <GraduationCap size={24} color="#8AAFC4" />
@@ -949,6 +1040,7 @@ const handleSendSalarySlip = async (salary) => {
                                     </tr>
                                 ) : filteredNext.map((t, idx) => (
                                     <tr key={`nm-${idx}`} className="border-b border-[#EAF1F6] hover:bg-[#F5FAFE] transition-colors bg-[#FAFCFE]">
+                                        <td className="px-3 sm:px-4 py-2.5 sm:py-3" />
                                         <td className="px-3 sm:px-4 py-2.5 sm:py-3 font-semibold text-[#1A2E3D]">{t.teacher?.firstName} {t.teacher?.lastName}</td>
                                         <td className="px-3 sm:px-4 py-2.5 sm:py-3 text-[#4A6B80]">{t.teacher?.user?.email}</td>
                                         <td className="px-3 sm:px-4 py-2.5 sm:py-3">
@@ -968,7 +1060,7 @@ const handleSendSalarySlip = async (salary) => {
                             ) : (
                                 filtered.length === 0 ? (
                                     <tr>
-                                        <td colSpan={10} className="text-center py-12 text-[#4A6B80]">
+                                        <td colSpan={11} className="text-center py-12 text-[#4A6B80]">
                                             <div className="flex flex-col items-center gap-3">
                                                 <div className="w-14 h-14 rounded-2xl bg-[#EAF1F6] flex items-center justify-center">
                                                     <GraduationCap size={24} color="#8AAFC4" />
@@ -978,147 +1070,131 @@ const handleSendSalarySlip = async (salary) => {
                                             </div>
                                         </td>
                                     </tr>
-                                ) : filtered.map((t, idx) => (
-                                    <tr key={t.id || idx} className={`border-b border-[#EAF1F6] hover:bg-[#F5FAFE] transition-colors ${t._isPlaceholder ? "bg-[#FAFCFE]" : ""}`}>
-                                        <td className="px-3 sm:px-4 py-2.5 sm:py-3 font-semibold text-[#1A2E3D]">{t.teacher?.firstName} {t.teacher?.lastName}</td>
-                                        <td className="px-3 sm:px-4 py-2.5 sm:py-3 text-[#4A6B80]">{t.teacher?.user?.email}</td>
-                                        <td className="px-3 sm:px-4 py-2.5 sm:py-3">
-                                            <span className="bg-[#EAF1F6] text-[#27435B] text-[10px] sm:text-[11px] font-bold px-2 sm:px-2.5 py-1 rounded-full">{t.teacher?.department || "—"}</span>
-                                        </td>
-                                        <td className="px-3 sm:px-4 py-2.5 sm:py-3 font-semibold text-[#27435B]">₹{Number(t.basicSalary || 0).toLocaleString("en-IN")}</td>
-                                        <td className="px-3 sm:px-4 py-2.5 sm:py-3 text-[#1E7E4E] font-semibold">
-                                            {t._isPlaceholder ? "₹0" : `₹${Number(t.bonus || 0).toLocaleString("en-IN")}`}
-                                        </td>
-                                        <td className="px-3 sm:px-4 py-2.5 sm:py-3 text-[#B83232] font-semibold">
-                                            {t._isPlaceholder ? "₹0" : `₹${Number(t.deductions || 0).toLocaleString("en-IN")}`}
-                                        </td>
-                                        <td className="px-3 sm:px-4 py-2.5 sm:py-3 text-[#4A6B80]">
-                                            {t._isPlaceholder ? "0 days" : `${t.leaveDays ?? 0} days`}
-                                        </td>
-                                        <td className="px-3 sm:px-4 py-2.5 sm:py-3">
-                                            <div className="flex flex-col gap-1.5">
-                                                <span className="font-bold text-[#1A2E3D]">₹{Number(t._isPlaceholder ? t.basicSalary : t.netSalary || 0).toLocaleString("en-IN")}</span>
-                                                {!t._isPlaceholder && (t.status === "PENDING" ? (
-                                                    <button
-                                                        onClick={() => requestPay(t.salaryId || t.id)}
-                                                        className="text-[10px] sm:text-[11px] font-bold px-2 sm:px-3 py-1 rounded-lg bg-gradient-to-r from-[#27435B] to-[#1C3044] text-white hover:opacity-80 transition-opacity"
-                                                    >
-                                                        Pay Now
-                                                    </button>
-                                                ) : t.status === "HOLD" ? (
-                                                    <button
-                                                        onClick={() => requestPay(t.salaryId || t.id)}
-                                                        className="text-[10px] sm:text-[11px] font-bold px-2 sm:px-3 py-1 rounded-lg bg-gradient-to-r from-orange-500 to-orange-700 text-white hover:opacity-80 transition-opacity"
-                                                    >
-                                                        Pay (Hold)
-                                                    </button>
+                                ) : filtered.map((t, idx) => {
+                                    const rowId = t.id || t.salaryId;
+                                    const isSelected = !t._isPlaceholder && rowId && selectedRows.includes(rowId);
+                                    return (
+                                        <tr
+                                            key={t.id || idx}
+                                            className={`border-b border-[#EAF1F6] hover:bg-[#F5FAFE] transition-colors
+                                                ${t._isPlaceholder ? "bg-[#FAFCFE]" : ""}
+                                                ${isSelected ? "bg-green-50 hover:bg-green-50" : ""}`}
+                                        >
+                                            {/* Checkbox cell */}
+                                            <td className="px-3 sm:px-4 py-2.5 sm:py-3">
+                                                {!t._isPlaceholder && rowId ? (
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={!!isSelected}
+                                                        onChange={() => toggleRowSelection(rowId)}
+                                                        disabled={bulkSending}
+                                                        className="w-4 h-4 rounded accent-[#27435B] cursor-pointer disabled:cursor-not-allowed"
+                                                    />
                                                 ) : (
-                                                    <span className="text-[10px] sm:text-[11px] font-bold px-2 sm:px-2.5 py-1 rounded-full bg-green-100 text-green-700 w-fit">✓ Paid</span>
-                                                ))}
-                                            </div>
-                                        </td>
-                                        <td className="px-3 sm:px-4 py-2.5 sm:py-3">
-                                            {t._isPlaceholder
-                                                ? <span className="text-[10px] sm:text-[11px] font-bold px-2 sm:px-2.5 py-1 rounded-full bg-[#EAF1F6] text-[#8AAFC4]">Not Created</span>
-                                                : <span className={`text-[10px] sm:text-[11px] font-bold px-2 sm:px-2.5 py-1 rounded-full ${statusStyle(t.status)}`}>{t.status || "PENDING"}</span>
-                                            }
-                                        </td>
-                                        <td className="px-3 sm:px-4 py-2.5 sm:py-3">
-                                            <div className="flex items-center gap-1">
-                                                {[
-                                                    {
-                                                        icon: Pencil,
-                                                        fn: () =>
-                                                            t._isPlaceholder
-                                                                ? createThenEdit(t)
-                                                                : openEditModal(t),
-
-                                                        color:
-                                                            "text-[#27435B] hover:bg-[#EAF1F6]",
-
-                                                        title:
-                                                            t._isPlaceholder
-                                                                ? "Set Bonus & Leaves"
-                                                                : "Edit",
-                                                    },
-
-                                                    {
-                                                        icon: Trash2,
-                                                        fn: () => openDeleteModal(t),
-
-                                                        color:
-                                                            t._isPlaceholder
+                                                    <span className="w-4 h-4 inline-block" />
+                                                )}
+                                            </td>
+                                            <td className="px-3 sm:px-4 py-2.5 sm:py-3 font-semibold text-[#1A2E3D]">{t.teacher?.firstName} {t.teacher?.lastName}</td>
+                                            <td className="px-3 sm:px-4 py-2.5 sm:py-3 text-[#4A6B80]">{t.teacher?.user?.email}</td>
+                                            <td className="px-3 sm:px-4 py-2.5 sm:py-3">
+                                                <span className="bg-[#EAF1F6] text-[#27435B] text-[10px] sm:text-[11px] font-bold px-2 sm:px-2.5 py-1 rounded-full">{t.teacher?.department || "—"}</span>
+                                            </td>
+                                            <td className="px-3 sm:px-4 py-2.5 sm:py-3 font-semibold text-[#27435B]">₹{Number(t.basicSalary || 0).toLocaleString("en-IN")}</td>
+                                            <td className="px-3 sm:px-4 py-2.5 sm:py-3 text-[#1E7E4E] font-semibold">
+                                                {t._isPlaceholder ? "₹0" : `₹${Number(t.bonus || 0).toLocaleString("en-IN")}`}
+                                            </td>
+                                            <td className="px-3 sm:px-4 py-2.5 sm:py-3 text-[#B83232] font-semibold">
+                                                {t._isPlaceholder ? "₹0" : `₹${Number(t.deductions || 0).toLocaleString("en-IN")}`}
+                                            </td>
+                                            <td className="px-3 sm:px-4 py-2.5 sm:py-3 text-[#4A6B80]">
+                                                {t._isPlaceholder ? "0 days" : `${t.leaveDays ?? 0} days`}
+                                            </td>
+                                            <td className="px-3 sm:px-4 py-2.5 sm:py-3">
+                                                <div className="flex flex-col gap-1.5">
+                                                    <span className="font-bold text-[#1A2E3D]">₹{Number(t._isPlaceholder ? t.basicSalary : t.netSalary || 0).toLocaleString("en-IN")}</span>
+                                                    {!t._isPlaceholder && (t.status === "PENDING" ? (
+                                                        <button
+                                                            onClick={() => requestPay(t.salaryId || t.id)}
+                                                            className="text-[10px] sm:text-[11px] font-bold px-2 sm:px-3 py-1 rounded-lg bg-gradient-to-r from-[#27435B] to-[#1C3044] text-white hover:opacity-80 transition-opacity"
+                                                        >
+                                                            Pay Now
+                                                        </button>
+                                                    ) : t.status === "HOLD" ? (
+                                                        <button
+                                                            onClick={() => requestPay(t.salaryId || t.id)}
+                                                            className="text-[10px] sm:text-[11px] font-bold px-2 sm:px-3 py-1 rounded-lg bg-gradient-to-r from-orange-500 to-orange-700 text-white hover:opacity-80 transition-opacity"
+                                                        >
+                                                            Pay (Hold)
+                                                        </button>
+                                                    ) : (
+                                                        <span className="text-[10px] sm:text-[11px] font-bold px-2 sm:px-2.5 py-1 rounded-full bg-green-100 text-green-700 w-fit">✓ Paid</span>
+                                                    ))}
+                                                </div>
+                                            </td>
+                                            <td className="px-3 sm:px-4 py-2.5 sm:py-3">
+                                                {t._isPlaceholder
+                                                    ? <span className="text-[10px] sm:text-[11px] font-bold px-2 sm:px-2.5 py-1 rounded-full bg-[#EAF1F6] text-[#8AAFC4]">Not Created</span>
+                                                    : <span className={`text-[10px] sm:text-[11px] font-bold px-2 sm:px-2.5 py-1 rounded-full ${statusStyle(t.status)}`}>{t.status || "PENDING"}</span>
+                                                }
+                                            </td>
+                                            <td className="px-3 sm:px-4 py-2.5 sm:py-3">
+                                                <div className="flex items-center gap-1">
+                                                    {[
+                                                        {
+                                                            icon: Pencil,
+                                                            fn: () => t._isPlaceholder ? createThenEdit(t) : openEditModal(t),
+                                                            color: "text-[#27435B] hover:bg-[#EAF1F6]",
+                                                            title: t._isPlaceholder ? "Set Bonus & Leaves" : "Edit",
+                                                        },
+                                                        {
+                                                            icon: Trash2,
+                                                            fn: () => openDeleteModal(t),
+                                                            color: t._isPlaceholder ? "text-[#C8DCEC] cursor-not-allowed" : "text-red-500 hover:bg-red-50",
+                                                            title: "Delete",
+                                                            disabled: t._isPlaceholder,
+                                                        },
+                                                        {
+                                                            icon: History,
+                                                            fn: () => openHistoryModal(t),
+                                                            color: "text-[#4A6B80] hover:bg-[#EAF1F6]",
+                                                            title: "History",
+                                                        },
+                                                        {
+                                                            icon: Eye,
+                                                            fn: () => !t._isPlaceholder && openSlipModal(t),
+                                                            color: t._isPlaceholder ? "text-[#C8DCEC] cursor-not-allowed" : "text-[#27435B] hover:bg-[#EAF1F6]",
+                                                            title: "View Slip",
+                                                            disabled: t._isPlaceholder,
+                                                        },
+                                                        {
+                                                            icon: FaWhatsapp,
+                                                            fn: () => !t._isPlaceholder && !bulkSending && handleSendSalarySlip(t),
+                                                            color: t._isPlaceholder
                                                                 ? "text-[#C8DCEC] cursor-not-allowed"
-                                                                : "text-red-500 hover:bg-red-50",
-
-                                                        title: "Delete",
-
-                                                        disabled: t._isPlaceholder,
-                                                    },
-
-                                                    {
-                                                        icon: History,
-                                                        fn: () => openHistoryModal(t),
-
-                                                        color:
-                                                            "text-[#4A6B80] hover:bg-[#EAF1F6]",
-
-                                                        title: "History",
-                                                    },
-
-                                                    {
-                                                        icon: Eye,
-                                                        fn: () =>
-                                                            !t._isPlaceholder &&
-                                                            openSlipModal(t),
-
-                                                        color:
-                                                            t._isPlaceholder
-                                                                ? "text-[#C8DCEC] cursor-not-allowed"
-                                                                : "text-[#27435B] hover:bg-[#EAF1F6]",
-
-                                                        title: "View Slip",
-
-                                                        disabled: t._isPlaceholder,
-                                                    },
-
-                                                    // ✅ WHATSAPP BUTTON
-
-                                                    {
-                                                        icon: FaWhatsapp,
-
-                                                        fn: () =>
-                                                            !t._isPlaceholder &&
-                                                            handleSendSalarySlip(t),
-
-                                                        color:
-                                                            t._isPlaceholder
-                                                                ? "text-[#C8DCEC] cursor-not-allowed"
-                                                                : "text-green-600 hover:bg-green-50",
-
-                                                        title: "Send WhatsApp",
-
-                                                        disabled: t._isPlaceholder,
-                                                    },
-                                                ].map(({ icon: Ic, fn, color, title, disabled }, i) => (
-                                                    <button key={i} onClick={disabled ? undefined : fn} title={title} disabled={disabled}
-                                                        className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center transition-colors ${color}`}>
-                                                        <Ic size={12} />
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
+                                                                : bulkSending
+                                                                    ? "text-[#C8DCEC] cursor-not-allowed"
+                                                                    : "text-green-600 hover:bg-green-50",
+                                                            title: "Send WhatsApp",
+                                                            disabled: t._isPlaceholder || bulkSending,
+                                                        },
+                                                    ].map(({ icon: Ic, fn, color, title, disabled }, i) => (
+                                                        <button key={i} onClick={disabled ? undefined : fn} title={title} disabled={disabled}
+                                                            className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center transition-colors ${color}`}>
+                                                            <Ic size={12} />
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })
                             )}
                         </tbody>
                     </table>
                 </div>
             </div>
 
-            
-
-            {/* ── All Modals (unchanged from original, already mobile-friendly with p-4 and max-w) ── */}
+            {/* ── All Modals ── */}
 
             {payConfirmModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => { setPayConfirmModal(false); setPendingPayId(null); }}>
@@ -1538,7 +1614,6 @@ const handleSendSalarySlip = async (salary) => {
                                 </div>
                                 <div style={{ fontSize: 24, fontWeight: 800, color: "#fff", letterSpacing: "-1px" }}>₹{Number(selectedSalary?.netSalary || 0).toLocaleString("en-IN")}</div>
                             </div>
-
                         </div>
 
                         <div className="bg-[#EAF1F6] border-t border-[#C8DCEC] px-5 sm:px-9 py-2.5 sm:py-3 text-[10px] sm:text-[10.5px] text-[#527a91] text-center italic">

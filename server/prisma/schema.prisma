@@ -328,6 +328,7 @@ model School {
   GroupDStaffSalary      GroupDStaffSalary[]
   Payment                Payment[]
   TeacherTutorialProfile TeacherTutorialProfile[]
+  adminProfiles          SchoolAdminProfile[]
 
   @@index([universityId])
   @@index([type])
@@ -536,11 +537,55 @@ model User {
   classFeeCreated          ClassFee[]           @relation("ClassFeeCreatedBy")
   classFeeUpdated          ClassFee[]           @relation("ClassFeeUpdatedBy")
 
+  schoolAdminProfile SchoolAdminProfile?
+
   @@unique([email, schoolId])
   @@index([role])
   @@index([isActive])
   @@index([schoolId])
   @@map("users")
+}
+
+model SchoolAdminProfile {
+  id String @id @default(cuid())
+
+  userId   String @unique
+  schoolId String
+
+  // ADMIN DETAILS
+  adminName   String?
+  email       String?
+  phoneNumber String?
+  address     String?
+
+  employeeId  String?
+  designation String?
+
+  // SALARY
+  basicSalary Float @default(0)
+
+  // BANK DETAILS
+  bankName      String?
+  accountNumber String?
+  ifscCode      String?
+
+  // DOCUMENT DETAILS
+  panNumber    String?
+  aadharNumber String?
+
+  photoUrl          String?
+  panDocumentUrl    String?
+  aadharDocumentUrl String?
+
+  // OTHER DETAILS
+  joiningDate DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // RELATIONS
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 }
 
 model Student {
@@ -1366,13 +1411,33 @@ model StreamCombination {
 }
 
 model FinanceProfile {
-  id           String   @id @default(uuid())
-  userId       String   @unique
-  schoolId     String
+  id       String @id @default(uuid())
+  userId   String @unique
+  schoolId String
+
+  name  String?
+  email String?
+
+  // ── Core ──
   employeeCode String?
   designation  String?
   phone        String?
-  salary       Decimal?
+  address      String? // NEW
+  salary       Decimal? // was present, kept
+
+  // ── Banking ── (NEW)
+  bankName      String?
+  accountNumber String?
+  ifscCode      String?
+
+  // ── Identity ── (NEW)
+  panNumber    String?
+  aadharNumber String?
+
+  // ── Documents ── (NEW — store URLs after upload to S3/Cloudinary/disk)
+  photoUrl     String?
+  panDocUrl    String?
+  aadharDocUrl String?
 
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)

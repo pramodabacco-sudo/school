@@ -1,8 +1,8 @@
 import express from "express";
 import { PrismaClient } from "@prisma/client";
 import { saveBackup } from "../../utils/cloudBackup.js";
-import { sendFeePendingWhatsApp } from "../../whatsapp/fees/sendFeePendingWhatsApp.js";
-import { sendFeeReceiptWhatsApp } from "../../whatsapp/fees/sendFeeReceiptWhatsApp.js";
+import { sendFeePendingWhatsApp } from "../../whatsapp/Fees/sendFeePendingWhatsApp.js";
+import { sendFeeReceiptWhatsApp } from "../../whatsapp/Fees/sendFeeReceiptWhatsApp.js";
 
 import authMiddleware from "../../middlewares/authMiddleware.js";
 const router = express.Router();

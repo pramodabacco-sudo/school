@@ -7,10 +7,8 @@ const prisma = new PrismaClient();
 const SALT_ROUNDS = 10;
 const CACHE_TTL = 300;
 
-const cacheKey = (schoolId) => `school_admins:${schoolId}`;
-
-async function bustCache(schoolId) {
-  await redisClient.del(cacheKey(schoolId));
+async function bustCache(universityId) {
+  await redisClient.del(`school_admins:uni:${universityId}`);
 }
 
 /**
@@ -41,6 +39,7 @@ export async function getSchoolAdmins(req, res) {
         school: {
           select: { id: true, name: true, code: true, type: true },
         },
+        schoolAdminProfile: true,
       },
     });
 
@@ -60,43 +59,73 @@ export async function getSchoolAdmins(req, res) {
 /**
  * POST /api/school-admins
  * Creates a User with role ADMIN for a specific school
- * Body: { name, email, password, schoolId }
  */
 export async function createSchoolAdmin(req, res) {
   try {
-    const { name, email, password, schoolId, role } = req.body;
+    const {
+      name,
+      email,
+      password,
+      schoolId,
+      role,
+
+      // Admin Details
+      employeeId,
+      designation = "School Admin",
+
+      phoneNumber,
+      address,
+      salary,
+
+      // Identity
+      panNumber,
+      aadharNumber,
+
+      // Banking
+      bankName,
+      accountNumber,
+      ifscCode,
+    } = req.body;
+
     const universityId = req.user.universityId;
 
+    /* ── Basic validation ── */
     if (!name || !email || !password || !schoolId) {
       return res.status(400).json({
         message: "Name, email, password, and schoolId are required",
       });
     }
 
-    // Verify the school belongs to this university
+    /* ── School must belong to this university ── */
     const school = await prisma.school.findFirst({
       where: { id: schoolId, universityId },
     });
-
     if (!school) {
       return res.status(404).json({
         message: "School not found or does not belong to your university",
       });
     }
 
-    // Check duplicate email within the same school
+    /* ── Duplicate email check ── */
     const existing = await prisma.user.findUnique({
       where: { email_schoolId: { email, schoolId } },
     });
-
     if (existing) {
       return res.status(409).json({
         message: "An admin with this email already exists in this school",
       });
     }
 
+    /* ── Hash password ── */
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
+    /* ── Parse numeric values safely ── */
+    const toFloat = (v) => {
+      const n = parseFloat(v);
+      return isNaN(n) ? 0 : n;
+    };
+
+    /* ── Create admin + salary profile in one transaction ── */
     const admin = await prisma.user.create({
       data: {
         name,
@@ -104,21 +133,55 @@ export async function createSchoolAdmin(req, res) {
         password: hashedPassword,
         role: role || "ADMIN",
         schoolId,
+
+        schoolAdminProfile: {
+          create: {
+            schoolId,
+
+            adminName: name,
+            email: email,
+
+            phoneNumber: phoneNumber || "",
+            address: address || "",
+
+            employeeId: employeeId || `ADM-${Date.now()}`,
+            designation: designation || "School Admin",
+
+            basicSalary: toFloat(salary),
+
+            bankName: bankName || "",
+            accountNumber: accountNumber || "",
+            ifscCode: ifscCode || "",
+
+            panNumber: panNumber || "",
+            aadharNumber: aadharNumber || "",
+
+            joiningDate: new Date(),
+          },
+        },
       },
+
       select: {
         id: true,
         name: true,
         email: true,
+        role: true,
         isActive: true,
         createdAt: true,
         schoolId: true,
-        school: { select: { id: true, name: true, code: true, type: true } },
+        school: {
+          select: { id: true, name: true, code: true, type: true },
+        },
+        schoolAdminProfile: true,
       },
     });
 
-    await redisClient.del(`school_admins:uni:${universityId}`);
+    await bustCache(universityId);
 
-    return res.status(201).json({ message: "School admin created ✅", admin });
+    return res.status(201).json({
+      message: "School admin created successfully ✅",
+      admin,
+    });
   } catch (err) {
     if (err.code === "P2002") {
       return res.status(409).json({
@@ -132,32 +195,95 @@ export async function createSchoolAdmin(req, res) {
 
 /**
  * PATCH /api/school-admins/:id
- * Update name, email, isActive — optionally reset password
+ * FIX: Update User fields AND schoolAdminProfile fields
  */
 export async function updateSchoolAdmin(req, res) {
   try {
     const { id } = req.params;
     const universityId = req.user.universityId;
-    const { name, email, password, isActive } = req.body;
 
-    const data = {};
-    if (name !== undefined) data.name = name;
-    if (email !== undefined) data.email = email;
-    if (isActive !== undefined) data.isActive = isActive;
-    if (password) data.password = await bcrypt.hash(password, SALT_ROUNDS);
+    const {
+      // User-level fields
+      name,
+      email,
+      password,
+      isActive,
 
+      // FIX: Profile fields that were previously ignored on update
+      employeeId,
+      designation,
+      phoneNumber,
+      address,
+      salary,
+      bankName,
+      accountNumber,
+      ifscCode,
+      panNumber,
+      aadharNumber,
+    } = req.body;
+
+    /* ── Build User-level update data ── */
+    const userData = {};
+    if (name     !== undefined) userData.name     = name;
+    if (email    !== undefined) userData.email    = email;
+    if (isActive !== undefined) userData.isActive = isActive;
+    if (password) userData.password = await bcrypt.hash(password, SALT_ROUNDS);
+
+    /* ── Build SchoolAdminProfile update data ── */
+    const toFloat = (v) => {
+      const n = parseFloat(v);
+      return isNaN(n) ? undefined : n;
+    };
+
+    const profileData = {};
+    if (name          !== undefined) profileData.adminName      = name;
+    if (email         !== undefined) profileData.email          = email;
+    if (employeeId    !== undefined) profileData.employeeId     = employeeId;
+    if (designation   !== undefined) profileData.designation    = designation;
+    if (phoneNumber   !== undefined) profileData.phoneNumber    = phoneNumber;
+    if (address       !== undefined) profileData.address        = address;
+    if (salary        !== undefined) profileData.basicSalary    = toFloat(salary) ?? 0;
+    if (bankName      !== undefined) profileData.bankName       = bankName;
+    if (accountNumber !== undefined) profileData.accountNumber  = accountNumber;
+    if (ifscCode      !== undefined) profileData.ifscCode       = ifscCode;
+    if (panNumber     !== undefined) profileData.panNumber      = panNumber;
+    if (aadharNumber  !== undefined) profileData.aadharNumber   = aadharNumber;
+
+    const hasProfileUpdates = Object.keys(profileData).length > 0;
+
+    /* ── Update user (and optionally upsert profile) in one call ── */
     const updated = await prisma.user.update({
       where: { id },
-      data,
+      data: {
+        ...userData,
+        // FIX: Also update schoolAdminProfile if any profile fields were sent
+        ...(hasProfileUpdates && {
+          schoolAdminProfile: {
+            upsert: {
+              create: {
+                schoolId: (await prisma.user.findUnique({ where: { id }, select: { schoolId: true } })).schoolId,
+                adminName: name || "",
+                email: email || "",
+                ...profileData,
+                joiningDate: new Date(),
+              },
+              update: profileData,
+            },
+          },
+        }),
+      },
       select: {
-        id: true, name: true, email: true, isActive: true,
+        id: true,
+        name: true,
+        email: true,
+        isActive: true,
         schoolId: true,
         school: { select: { id: true, name: true, code: true, type: true } },
+        schoolAdminProfile: true,
       },
     });
 
-    await redisClient.del(`school_admins:uni:${universityId}`);
-
+    await bustCache(universityId);
     return res.json({ message: "Admin updated ✅", admin: updated });
   } catch (err) {
     console.error("[updateSchoolAdmin]", err);
@@ -166,23 +292,28 @@ export async function updateSchoolAdmin(req, res) {
 }
 
 /**
- * DELETE /api/school-admins/:id  (soft delete — sets isActive: false)
+ * DELETE /api/school-admins/:id
+ * FIX: Hard delete — permanently removes the admin and their profile
  */
 export async function deleteSchoolAdmin(req, res) {
   try {
     const { id } = req.params;
     const universityId = req.user.universityId;
 
-    await prisma.user.update({
-      where: { id },
-      data: { isActive: false },
+    // FIX: Delete schoolAdminProfile first (if no cascade set in Prisma schema),
+    // then delete the user — wrapped in a transaction so it's atomic.
+    await prisma.$transaction(async (tx) => {
+      // Delete profile first to avoid FK constraint errors
+      await tx.schoolAdminProfile.deleteMany({ where: { userId: id } });
+      // Then permanently delete the user
+      await tx.user.delete({ where: { id } });
     });
 
-    await redisClient.del(`school_admins:uni:${universityId}`);
+    await bustCache(universityId);
 
-    return res.json({ message: "Admin deactivated ✅" });
+    return res.json({ message: "Admin permanently deleted ✅" });
   } catch (err) {
     console.error("[deleteSchoolAdmin]", err);
-    return res.status(500).json({ message: "Failed to deactivate admin" });
+    return res.status(500).json({ message: "Failed to delete admin" });
   }
 }
