@@ -11,6 +11,15 @@ import { FaWhatsapp } from "react-icons/fa";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
+const getPlan = () => {
+    try {
+        const auth = JSON.parse(localStorage.getItem("auth"));
+        return auth?.user?.planName || auth?.planName || "Silver";
+    } catch {
+        return "Silver";
+    }
+};
+
 const getAuthSchool = () => {
     try {
         const raw = localStorage.getItem("auth");
@@ -39,6 +48,7 @@ const statusStyle = (s) => {
 };
 
 export default function GroupCSalary() {
+    const isPremium = getPlan() === "Premium";
     const [search, setSearch] = useState("");
     const [tableStatusFilter, setTableStatusFilter] = useState("ALL");
     const [showStatusDropdown, setShowStatusDropdown] = useState(false);
@@ -66,6 +76,10 @@ export default function GroupCSalary() {
     const [loading, setLoading] = useState(false);
     const pdfRef = useRef();
     const dropdownRef = useRef();
+    const [waConfirmModal, setWaConfirmModal] = useState(false);
+
+    const [selectedWhatsAppSalary, setSelectedWhatsAppSalary] = useState(null);
+
     const tok = () => {
         try {
             const raw = localStorage.getItem("auth");
@@ -496,187 +510,195 @@ const fetchAllHistory = async (id) => {
         return pdf;
     };
 
-const handleSendSalarySlip = async (salary) => {
+    const handleSendSalarySlip = async (salary) => {
 
-    try {
+        try {
 
-        // ✅ SET SALARY FIRST
-        setSelectedSalary(salary);
+            // ✅ SET SALARY FIRST
+            setSelectedSalary(salary);
 
-        // ✅ OPEN MODAL TEMPORARILY
-        setSlipModal(true);
-
-        // ✅ WAIT FOR RENDER
-        await new Promise(
-            (resolve) =>
-                setTimeout(resolve, 1200)
-        );
-
-        const auth =
-            JSON.parse(
-                localStorage.getItem("auth")
+            // ✅ WAIT FOR RENDER
+            await new Promise(
+                (resolve) =>
+                    setTimeout(resolve, 1200)
             );
 
-        const token =
-            auth?.token;
+            const auth =
+                JSON.parse(
+                    localStorage.getItem("auth")
+                );
 
-        // ✅ CAPTURE FULL PDF CONTENT
-        const canvas =
-            await html2canvas(
-                pdfRef.current,
-                {
-                    scale: 2,
-                    useCORS: true,
-                    backgroundColor:
-                        "#ffffff",
-                    logging: false,
-                }
+            const token =
+                auth?.token;
+
+            // ✅ CAPTURE FULL PDF CONTENT
+            const canvas =
+                await html2canvas(
+                    pdfRef.current,
+                    {
+                        scale: 2,
+                        useCORS: true,
+                        backgroundColor:
+                            "#ffffff",
+                        logging: false,
+                    }
+                );
+
+            const imgData =
+                canvas.toDataURL(
+                    "image/png"
+                );
+
+            // ✅ CREATE PDF
+            const pdf =
+                new jsPDF(
+                    "p",
+                    "mm",
+                    "a4"
+                );
+
+            const pdfWidth =
+                pdf.internal
+                    .pageSize
+                    .getWidth();
+
+            const pdfHeight =
+                (canvas.height *
+                    (pdfWidth - 10)) /
+                canvas.width;
+
+            pdf.addImage(
+                imgData,
+                "PNG",
+                5,
+                5,
+                pdfWidth - 10,
+                pdfHeight
             );
 
-        const imgData =
-            canvas.toDataURL(
-                "image/png"
+            // ✅ PDF BASE64
+            const pdfBase64 =
+                pdf.output(
+                    "datauristring"
+                );
+
+            console.log(
+                "PDF GENERATED"
             );
 
-        // ✅ CREATE PDF
-        const pdf =
-            new jsPDF(
-                "p",
-                "mm",
-                "a4"
+            // ✅ UPLOAD PDF
+            const uploadRes =
+                await fetch(
+                    `${API_URL}/api/groupc/salary/uploadSalarySlip/${salary.id}`,
+                    {
+                        method: "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json",
+
+                            Authorization:
+                                `Bearer ${token}`,
+                        },
+
+                        body: JSON.stringify({
+                            pdfBase64,
+                        }),
+                    }
+                );
+
+            const uploadData =
+                await uploadRes.json();
+
+            console.log(
+                "UPLOAD DATA =>",
+                uploadData
             );
 
-        const pdfWidth =
-            pdf.internal
-                .pageSize
-                .getWidth();
+            if (!uploadRes.ok) {
 
-        const pdfHeight =
-            (canvas.height *
-                (pdfWidth - 10)) /
-            canvas.width;
+                alert(
+                    uploadData.message ||
+                    "PDF Upload Failed"
+                );
 
-        pdf.addImage(
-            imgData,
-            "PNG",
-            5,
-            5,
-            pdfWidth - 10,
-            pdfHeight
-        );
+                return;
+            }
 
-        // ✅ PDF BASE64
-        const pdfBase64 =
-            pdf.output(
-                "datauristring"
+            // ✅ SEND WHATSAPP
+            const sendRes =
+                await fetch(
+                    `${API_URL}/api/groupc/salary/sendSalarySlip/${salary.id}`,
+                    {
+                        method: "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json",
+
+                            Authorization:
+                                `Bearer ${token}`,
+                        },
+
+                        body: JSON.stringify({
+                            pdfUrl:
+                                uploadData.pdfUrl,
+                        }),
+                    }
+                );
+
+            const sendData =
+                await sendRes.json();
+
+            console.log(
+                "SEND DATA =>",
+                sendData
             );
 
-        console.log(
-            "PDF GENERATED"
-        );
+            if (!sendRes.ok) {
 
-        // ✅ UPLOAD PDF
-        const uploadRes =
-            await fetch(
-                `${API_URL}/api/groupc/salary/uploadSalarySlip/${salary.id}`,
-                {
-                    method: "POST",
+                alert(
+                    sendData.message ||
+                    "WhatsApp Send Failed"
+                );
 
-                    headers: {
-                        "Content-Type":
-                            "application/json",
+                return;
+            }
 
-                        Authorization:
-                            `Bearer ${token}`,
-                    },
-
-                    body: JSON.stringify({
-                        pdfBase64,
-                    }),
-                }
-            );
-
-        const uploadData =
-            await uploadRes.json();
-
-        console.log(
-            "UPLOAD DATA =>",
-            uploadData
-        );
-
-        if (!uploadRes.ok) {
+            // ✅ CLOSE MODAL
+            setSlipModal(false);
 
             alert(
-                uploadData.message ||
-                "PDF Upload Failed"
+                "Salary slip sent successfully"
             );
 
-            return;
-        }
+        } catch (error) {
 
-        // ✅ SEND WHATSAPP
-        const sendRes =
-            await fetch(
-                `${API_URL}/api/groupc/salary/sendSalarySlip/${salary.id}`,
-                {
-                    method: "POST",
-
-                    headers: {
-                        "Content-Type":
-                            "application/json",
-
-                        Authorization:
-                            `Bearer ${token}`,
-                    },
-
-                    body: JSON.stringify({
-                        pdfUrl:
-                            uploadData.pdfUrl,
-                    }),
-                }
+            console.log(
+                "SEND ERROR =>",
+                error
             );
 
-        const sendData =
-            await sendRes.json();
-
-        console.log(
-            "SEND DATA =>",
-            sendData
-        );
-
-        if (!sendRes.ok) {
+            setSlipModal(false);
 
             alert(
-                sendData.message ||
-                "WhatsApp Send Failed"
+                "Failed to send salary slip"
             );
 
-            return;
         }
 
-        // ✅ CLOSE MODAL
-        setSlipModal(false);
+    };
 
-        alert(
-            "Salary slip sent successfully"
-        );
+    const confirmWhatsAppSend = async () => {
 
-    } catch (error) {
+        if (!selectedWhatsAppSalary) return;
 
-        console.log(
-            "SEND ERROR =>",
-            error
-        );
+        await handleSendSalarySlip(selectedWhatsAppSalary);
 
-        setSlipModal(false);
+        setWaConfirmModal(false);
 
-        alert(
-            "Failed to send salary slip"
-        );
-
-    }
-
-};
+        setSelectedWhatsAppSalary(null);
+    };
 
     // ── Helpers ───────────────────────────────────────────────────────────────
     const rowName = (r) => r.staffName || `${r.staff?.firstName || ""} ${r.staff?.lastName || ""}`;
@@ -854,8 +876,23 @@ const handleSendSalarySlip = async (salary) => {
                                                 { icon: Trash2, fn: () => openDeleteModal(r), color: r._isPlaceholder ? "text-[#C8DCEC] cursor-not-allowed" : "text-red-500 hover:bg-red-50", disabled: r._isPlaceholder },
                                                 { icon: History, fn: () => openHistoryModal(r), color: "text-[#4A6B80] hover:bg-[#EAF1F6]", disabled: false },
                                                 { icon: Eye, fn: () => !r._isPlaceholder && openSlipModal(r), color: r._isPlaceholder ? "text-[#C8DCEC] cursor-not-allowed" : "text-[#27435B] hover:bg-[#EAF1F6]", disabled: r._isPlaceholder },
-                                                { icon: FaWhatsapp, fn: () => !r._isPlaceholder && handleSendSalarySlip(r), color: r._isPlaceholder ? "text-[#C8DCEC] cursor-not-allowed" : "text-green-600 hover:bg-green-50", disabled: r._isPlaceholder },
+                                                ...(isPremium ? [{
+                                                    icon: FaWhatsapp,
+                                                    fn: () => {
+                                                        if (r._isPlaceholder) return;
 
+                                                        setSelectedWhatsAppSalary(r);
+
+                                                        setWaConfirmModal(true);
+                                                    },
+                                                    color: r._isPlaceholder
+                                                        ? "text-[#C8DCEC] cursor-not-allowed"
+                                                        : "text-green-600 hover:bg-green-50",
+
+                                                    title: "Send WhatsApp",
+
+                                                    disabled: r._isPlaceholder,
+                                                }] : []),
                                             ].map(({ icon: Ic, fn, color, disabled }, i) => (
                                                 <button key={i} onClick={disabled ? undefined : fn} disabled={disabled}
                                                     className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${color}`}>
@@ -1119,7 +1156,7 @@ const handleSendSalarySlip = async (salary) => {
 
                 <div className="fixed inset-0 z-[999] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
 
-                    <div className="bg-white w-full max-w-5xl rounded-3xl overflow-hidden shadow-2xl relative max-h-[95vh] overflow-y-auto">
+                    <div className="bg-white w-full max-w-3xl rounded-3xl overflow-hidden shadow-2xl relative max-h-[95vh] overflow-y-auto">
 
                         {/* CLOSE BUTTON */}
                         <button
@@ -1149,7 +1186,7 @@ const handleSendSalarySlip = async (salary) => {
                                         </p>
                                     </div>
 
-                                    <div className="text-right">
+                                    <div className="text-right mr-10">
                                         <p className="text-xs text-[#A8C0D4]">
                                             SALARY SLIP
                                         </p>
@@ -1198,7 +1235,7 @@ const handleSendSalarySlip = async (salary) => {
                                     </p>
                                 </div>
 
-                                <div>
+                                <div className="text-right">
                                     <p className="text-xs font-bold text-[#537A91]">
                                         PAY PERIOD
                                     </p>
@@ -1377,6 +1414,65 @@ const handleSendSalarySlip = async (salary) => {
                     </div>
                 </div>
             </div>
+            {/* WhatsApp Confirm Modal */}
+            {waConfirmModal && (
+                <div
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+                    onClick={() => {
+                        setWaConfirmModal(false);
+                        setSelectedWhatsAppSalary(null);
+                    }}
+                >
+                    <div
+                        className="bg-white rounded-3xl w-full max-w-[420px] shadow-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="p-6 flex flex-col items-center text-center gap-4">
+
+                            <div className="w-16 h-16 rounded-2xl bg-green-100 flex items-center justify-center">
+                                <FaWhatsapp size={28} className="text-green-600" />
+                            </div>
+
+                            <div>
+                                <div className="text-[18px] font-bold text-[#1A2E3D]">
+                                    Send WhatsApp Salary Slip?
+                                </div>
+
+                                <div className="text-[13px] text-[#4A6B80] mt-2">
+                                    Are you sure you want to send salary slip to
+                                    <span className="font-bold text-[#1A2E3D]">
+                                        {" "}
+                                        {selectedWhatsAppSalary?.admin?.name ||
+                                            selectedWhatsAppSalary?.adminName ||
+                                            "Staff"}
+                                    </span>
+                                    ?
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 w-full">
+                                <button
+                                    onClick={() => {
+                                        setWaConfirmModal(false);
+                                        setSelectedWhatsAppSalary(null);
+                                    }}
+                                    className="flex-1 py-3 border border-[#C8DCEC] rounded-xl text-[14px] font-semibold text-[#4A6B80]"
+                                >
+                                    Cancel
+                                </button>
+
+                                <button
+                                    onClick={confirmWhatsAppSend}
+                                    className="flex-1 py-3 rounded-xl bg-[#25D366] hover:bg-[#1ebe5d] text-white text-[14px] font-bold"
+                                >
+                                    Send
+                                </button>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

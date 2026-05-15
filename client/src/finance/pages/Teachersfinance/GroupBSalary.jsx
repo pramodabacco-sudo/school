@@ -1,3 +1,4 @@
+// src/finance/pages/Teachersfinance/GroupBSalary.jsx
 import {
     Search, IndianRupee, Pencil, Trash2, History, Eye,
     TrendingUp, TrendingDown, Users, ClipboardList,
@@ -10,6 +11,15 @@ import jsPDF from "jspdf";
 import { FaWhatsapp } from "react-icons/fa";
 
 const API_URL = import.meta.env.VITE_API_URL;
+
+const getPlan = () => {
+    try {
+        const auth = JSON.parse(localStorage.getItem("auth"));
+        return auth?.user?.planName || auth?.planName || "Silver";
+    } catch {
+        return "Silver";
+    }
+};
 
 const getAuthSchool = () => {
     try {
@@ -39,6 +49,7 @@ const statusStyle = (s) => {
 };
 
 export default function GroupBSalary() {
+    const isPremium = getPlan() === "Premium";
     const [search, setSearch] = useState("");
     const [tableStatusFilter, setTableStatusFilter] = useState("ALL");
     const [showStatusDropdown, setShowStatusDropdown] = useState(false);
@@ -65,6 +76,9 @@ export default function GroupBSalary() {
     const [authSchool, setAuthSchool] = useState({ schoolId: "", schoolName: "Your School" });
     const [loading, setLoading] = useState(false);
     const dropdownRef = useRef();
+    const [waConfirmModal, setWaConfirmModal] = useState(false);
+
+    const [selectedWhatsAppSalary, setSelectedWhatsAppSalary] = useState(null);
 
     const tok = () => {
         try {
@@ -702,6 +716,17 @@ const fetchAllHistory = async (id) => {
     }
     };
 
+    const confirmWhatsAppSend = async () => {
+
+        if (!selectedWhatsAppSalary) return;
+
+        await handleSendSalarySlip(selectedWhatsAppSalary);
+
+        setWaConfirmModal(false);
+
+        setSelectedWhatsAppSalary(null);
+    };
+
 
     // ── Derived / filtered lists ──────────────────────────────────────────────
     const searchFn = (r) => {
@@ -884,8 +909,24 @@ const fetchAllHistory = async (id) => {
                                                 { icon: History, fn: () => openHistoryModal(r), color: "text-[#4A6B80] hover:bg-[#EAF1F6]", title: "History", disabled: false },
                                                 { icon: Eye, fn: () => !r._isPlaceholder && openSlipModal(r), color: r._isPlaceholder ? "text-[#C8DCEC] cursor-not-allowed" : "text-[#27435B] hover:bg-[#EAF1F6]", title: "View Slip", disabled: r._isPlaceholder },
                                                 // ✅ WHATSAPP BUTTON
-                                                { icon: FaWhatsapp, fn: () => !r._isPlaceholder && handleSendSalarySlip(r), color: r._isPlaceholder ? "text-[#C8DCEC] cursor-not-allowed" : "text-green-600 hover:bg-green-50", title: "Send WhatsApp", disabled: r._isPlaceholder },
-                                            ].map(({ icon: Ic, fn, color, title, disabled }, i) => (
+                                                ...(isPremium ? [{
+                                                    icon: FaWhatsapp,
+                                                    fn: () => {
+                                                        if (r._isPlaceholder) return;
+
+                                                        setSelectedWhatsAppSalary(r);
+
+                                                        setWaConfirmModal(true);
+                                                    },
+                                                    color: r._isPlaceholder
+                                                        ? "text-[#C8DCEC] cursor-not-allowed"
+                                                        : "text-green-600 hover:bg-green-50",
+
+                                                    title: "Send WhatsApp",
+
+                                                    disabled: r._isPlaceholder,
+                                                }] : []),
+                                             ].map(({ icon: Ic, fn, color, title, disabled }, i) => (
                                                 <button key={i} onClick={disabled ? undefined : fn} title={title} disabled={disabled}
                                                     className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center transition-colors ${color}`}>
                                                     <Ic size={12} />
@@ -1233,15 +1274,69 @@ const fetchAllHistory = async (id) => {
                         <div className="px-4 sm:px-6 py-3 sm:py-4 flex justify-end gap-3 border-t border-[#C8DCEC]">
                             <button onClick={() => setSlipModal(false)} className="px-4 sm:px-5 py-2.5 border border-[#C8DCEC] rounded-xl text-[12px] sm:text-[13px] font-semibold text-[#4A6B80] hover:border-[#27435B] transition-colors">Close</button>
                             {/* ✅ WhatsApp send button inside slip modal */}
-                            <button
-                                onClick={() => handleSendSalarySlip(selectedSalary)}
-                                className="flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl bg-gradient-to-r from-green-600 to-green-700 text-white text-[12px] sm:text-[13px] font-bold hover:opacity-90 transition-opacity"
-                            >
-                                <FaWhatsapp size={14} /> Send WhatsApp
-                            </button>
+                             
                             <button onClick={downloadPayslip} className="flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#27435B] to-[#1A2E3D] text-white text-[12px] sm:text-[13px] font-bold hover:opacity-90 transition-opacity">
                                 <Printer size={13} /> Download PDF
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        {/* WhatsApp Confirm Modal */}
+            {waConfirmModal && (
+                <div
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+                    onClick={() => {
+                        setWaConfirmModal(false);
+                        setSelectedWhatsAppSalary(null);
+                    }}
+                >
+                    <div
+                        className="bg-white rounded-3xl w-full max-w-[420px] shadow-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="p-6 flex flex-col items-center text-center gap-4">
+
+                            <div className="w-16 h-16 rounded-2xl bg-green-100 flex items-center justify-center">
+                                <FaWhatsapp size={28} className="text-green-600" />
+                            </div>
+
+                            <div>
+                                <div className="text-[18px] font-bold text-[#1A2E3D]">
+                                    Send WhatsApp Salary Slip?
+                                </div>
+
+                                <div className="text-[13px] text-[#4A6B80] mt-2">
+                                    Are you sure you want to send salary slip to
+                                    <span className="font-bold text-[#1A2E3D]">
+                                        {" "}
+                                        {selectedWhatsAppSalary?.admin?.name ||
+                                            selectedWhatsAppSalary?.adminName ||
+                                            "Staff"}
+                                    </span>
+                                    ?
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 w-full">
+                                <button
+                                    onClick={() => {
+                                        setWaConfirmModal(false);
+                                        setSelectedWhatsAppSalary(null);
+                                    }}
+                                    className="flex-1 py-3 border border-[#C8DCEC] rounded-xl text-[14px] font-semibold text-[#4A6B80]"
+                                >
+                                    Cancel
+                                </button>
+
+                                <button
+                                    onClick={confirmWhatsAppSend}
+                                    className="flex-1 py-3 rounded-xl bg-[#25D366] hover:bg-[#1ebe5d] text-white text-[14px] font-bold"
+                                >
+                                    Send
+                                </button>
+                            </div>
+
                         </div>
                     </div>
                 </div>

@@ -10,6 +10,15 @@ import jsPDF from "jspdf";
 import { FaWhatsapp } from "react-icons/fa";
 const API_URL = import.meta.env.VITE_API_URL;
 
+const getPlan = () => {
+    try {
+        const auth = JSON.parse(localStorage.getItem("auth"));
+        return auth?.user?.planName || auth?.planName || "Silver";
+    } catch {
+        return "Silver";
+    }
+};
+
 const getAuthSchool = () => {
     try {
         const raw = localStorage.getItem("auth");
@@ -45,6 +54,7 @@ const statusStyle = (s) => {
 };
 
 export default function GroupASalary() {
+    const isPremium = getPlan() === "Premium";
     const [search, setSearch] = useState("");
     const [tableStatusFilter, setTableStatusFilter] = useState("ALL");
     const [showStatusDropdown, setShowStatusDropdown] = useState(false);
@@ -81,6 +91,11 @@ export default function GroupASalary() {
         completed: 0,
         current: "",
     });
+
+
+    const [waConfirmModal, setWaConfirmModal] = useState(false);
+
+    const [selectedWhatsAppSalary, setSelectedWhatsAppSalary] = useState(null);
 
     const dropdownRef = useRef();
     const tok = () => {
@@ -707,6 +722,16 @@ export default function GroupASalary() {
         }
     };
 
+    const confirmWhatsAppSend = async () => {
+
+        if (!selectedWhatsAppSalary) return;
+
+        await handleSendSalarySlip(selectedWhatsAppSalary);
+
+        setWaConfirmModal(false);
+
+        setSelectedWhatsAppSalary(null);
+    };
     // ── Checkbox selection helpers ──
     const toggleRowSelection = (rowId) => {
         setSelectedRows(prev =>
@@ -937,7 +962,7 @@ export default function GroupASalary() {
                 </div>
 
                 {/* ── Bulk Action Bar ── */}
-                {viewMonth === "current" && selectedSelectableRows.length > 0 && (
+                {isPremium && viewMonth === "current" && selectedSelectableRows.length > 0 && (
                     <div className="bg-gradient-to-r from-[#064E3B] to-[#065F46] border-b border-green-700 px-4 sm:px-6 py-3 flex flex-col sm:flex-row sm:items-center gap-3">
                         <div className="flex items-center gap-3 flex-1 flex-wrap">
                             {/* Selected count */}
@@ -987,17 +1012,19 @@ export default function GroupASalary() {
                                 </button>
                             )}
                             {/* Bulk WhatsApp send button */}
-                            <button
-                                onClick={() => handleBulkWhatsAppSend(selectedSelectableRows)}
-                                disabled={bulkSending}
-                                className="flex items-center gap-2 px-4 sm:px-5 py-2 rounded-xl bg-[#25D366] hover:bg-[#1ebe5d] disabled:opacity-50 disabled:cursor-not-allowed text-white text-[12px] sm:text-[13px] font-bold transition-all shadow-lg shadow-green-900/30"
-                            >
-                                <FaWhatsapp size={15} />
-                                {bulkSending
-                                    ? `Sending ${bulkProgress.completed + 1}/${bulkProgress.total}...`
-                                    : `Send ${selectedSelectableRows.length} Slip${selectedSelectableRows.length > 1 ? "s" : ""} via WhatsApp`
-                                }
-                            </button>
+                            {isPremium && (
+                                <button
+                                    onClick={() => handleBulkWhatsAppSend(selectedSelectableRows)}
+                                    disabled={bulkSending}
+                                    className="flex items-center gap-2 px-4 sm:px-5 py-2 rounded-xl bg-[#25D366] hover:bg-[#1ebe5d] disabled:opacity-50 disabled:cursor-not-allowed text-white text-[12px] sm:text-[13px] font-bold transition-all shadow-lg shadow-green-900/30"
+                                >
+                                    <FaWhatsapp size={15} />
+                                    {bulkSending
+                                        ? `Sending ${bulkProgress.completed + 1}/${bulkProgress.total}...`
+                                        : `Send ${selectedSelectableRows.length} Slip${selectedSelectableRows.length > 1 ? "s" : ""} via WhatsApp`
+                                    }
+                                </button>
+                            )}
                         </div>
                     </div>
                 )}
@@ -1008,7 +1035,7 @@ export default function GroupASalary() {
                             <tr className="bg-[#EAF1F6] border-b border-[#C8DCEC]">
                                 {/* Checkbox column header */}
                                 <th className="px-3 sm:px-4 py-2.5 sm:py-3 w-10">
-                                    {viewMonth === "current" && currentSelectableRows.length > 0 && (
+                                    {isPremium && viewMonth === "current" && selectedSelectableRows.length > 0 && (
                                         <input
                                             type="checkbox"
                                             checked={allCurrentSelected}
@@ -1166,17 +1193,23 @@ export default function GroupASalary() {
                                                             title: "View Slip",
                                                             disabled: t._isPlaceholder,
                                                         },
-                                                        {
+                                                        ...(isPremium ? [{
                                                             icon: FaWhatsapp,
-                                                            fn: () => !t._isPlaceholder && !bulkSending && handleSendSalarySlip(t),
-                                                            color: t._isPlaceholder
+                                                                fn: () => {
+                                                                    if (t._isPlaceholder || bulkSending) return;
+
+                                                                    setSelectedWhatsAppSalary(t);
+
+                                                                    setWaConfirmModal(true);
+                                                                },                                                            
+                                                                color: t._isPlaceholder
                                                                 ? "text-[#C8DCEC] cursor-not-allowed"
                                                                 : bulkSending
                                                                     ? "text-[#C8DCEC] cursor-not-allowed"
                                                                     : "text-green-600 hover:bg-green-50",
                                                             title: "Send WhatsApp",
                                                             disabled: t._isPlaceholder || bulkSending,
-                                                        },
+                                                        }] : [])
                                                     ].map(({ icon: Ic, fn, color, title, disabled }, i) => (
                                                         <button key={i} onClick={disabled ? undefined : fn} title={title} disabled={disabled}
                                                             className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center transition-colors ${color}`}>
@@ -1632,6 +1665,65 @@ export default function GroupASalary() {
 
             {/* PDF generated directly via jsPDF – no DOM template needed */}
             <div style={{ display: "none" }}></div>
+            {/* WhatsApp Confirm Modal */}
+{waConfirmModal && (
+    <div
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+        onClick={() => {
+            setWaConfirmModal(false);
+            setSelectedWhatsAppSalary(null);
+        }}
+    >
+        <div
+            className="bg-white rounded-3xl w-full max-w-[420px] shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+        >
+            <div className="p-6 flex flex-col items-center text-center gap-4">
+
+                <div className="w-16 h-16 rounded-2xl bg-green-100 flex items-center justify-center">
+                    <FaWhatsapp size={28} className="text-green-600" />
+                </div>
+
+                <div>
+                    <div className="text-[18px] font-bold text-[#1A2E3D]">
+                        Send WhatsApp Salary Slip?
+                    </div>
+
+                    <div className="text-[13px] text-[#4A6B80] mt-2">
+                        Are you sure you want to send salary slip to
+                        <span className="font-bold text-[#1A2E3D]">
+                            {" "}
+                            {selectedWhatsAppSalary?.admin?.name ||
+                                selectedWhatsAppSalary?.adminName ||
+                                "Staff"}
+                        </span>
+                        ?
+                    </div>
+                </div>
+
+                <div className="flex gap-3 w-full">
+                    <button
+                        onClick={() => {
+                            setWaConfirmModal(false);
+                            setSelectedWhatsAppSalary(null);
+                        }}
+                        className="flex-1 py-3 border border-[#C8DCEC] rounded-xl text-[14px] font-semibold text-[#4A6B80]"
+                    >
+                        Cancel
+                    </button>
+
+                    <button
+                        onClick={confirmWhatsAppSend}
+                        className="flex-1 py-3 rounded-xl bg-[#25D366] hover:bg-[#1ebe5d] text-white text-[14px] font-bold"
+                    >
+                        Send
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+)}
         </>
     );
 }

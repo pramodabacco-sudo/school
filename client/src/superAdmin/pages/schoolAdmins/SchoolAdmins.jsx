@@ -189,7 +189,7 @@ export default function SchoolAdmins() {
     setError("");
     try {
       const data = await getSchoolAdmins();
-      setAdmins(data.admins || []);
+      setAdmins((data.admins || []).filter(Boolean));
     } catch (err) {
       setError(err?.response?.data?.message || "Failed to load admins.");
     } finally {
@@ -201,19 +201,27 @@ export default function SchoolAdmins() {
 
   // ── Handlers ───────────────────────────────────────────────────────────────
   const handleCreated = (newAdmin) => {
-    setAdmins((prev) => [newAdmin, ...prev]);
+    setAdmins((prev = []) =>
+      [newAdmin, ...prev].filter(Boolean)
+    );
   };
 
   const handleUpdated = (updatedAdmin) => {
-    setAdmins((prev) =>
-      prev.map((a) => {
-        if (a.id !== updatedAdmin.id) return a;
-        return {
-          ...a,
-          ...updatedAdmin,
-          school: { ...a.school, ...(updatedAdmin.school || {}) },
-        };
-      })
+    setAdmins((prev = []) =>
+      prev
+        .filter(Boolean)
+        .map((a) => {
+          if (a?.id !== updatedAdmin?.id) return a;
+
+          return {
+            ...a,
+            ...updatedAdmin,
+            school: {
+              ...(a?.school || {}),
+              ...(updatedAdmin?.school || {}),
+            },
+          };
+        })
     );
   };
 
@@ -234,8 +242,8 @@ export default function SchoolAdmins() {
   };
 
   // ── Derived ────────────────────────────────────────────────────────────────
-  const filtered = admins.filter((a) =>
-    a.name.toLowerCase().includes(search.toLowerCase()) ||
+const filtered = admins?.filter(Boolean).filter((a) =>
+      a.name.toLowerCase().includes(search.toLowerCase()) ||
     a.email.toLowerCase().includes(search.toLowerCase()) ||
     (a.school?.name || "").toLowerCase().includes(search.toLowerCase())
   );
@@ -403,7 +411,7 @@ export default function SchoolAdmins() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((admin, i) => (
+                  {filtered?.filter(Boolean).map((admin, i) => (
                     <tr
                       key={admin.id}
                       className="admin-row"
