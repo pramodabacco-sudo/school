@@ -1,13 +1,12 @@
 // financeProfile.controller.js
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "../../config/db.js";
 import redisClient from "../../utils/redis.js";
 import bcrypt from "bcryptjs";
 import multer from "multer";
 import path from "path";
 import { fileURLToPath } from "url";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const prisma = new PrismaClient();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const CACHE_ONE = (id) => `finance_profile:${id}`;
 const CACHE_UNI = (uid) => `finance_profiles:uni:${uid}`;
@@ -285,6 +284,19 @@ export const deleteFinanceProfile = async (req, res) => {
     const { id } = req.params;
     const universityId = req.user?.universityId;
 
+   prisma.financeProfile.update({
+      where: { id },
+
+      data: {
+        deletedAt: new Date(),
+      },
+    });
+    prisma.user.update({
+      data: {
+        deletedAt: new Date(),
+        isActive: false,
+      }
+    })
     const uid = universityId ?? (await getUniversityIdForProfile(id));
 
     await prisma.$transaction(async (tx) => {
