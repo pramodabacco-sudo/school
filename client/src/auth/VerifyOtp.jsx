@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
+const API_URL = import.meta.env.VITE_API_URL;
 
 export default function VerifyOtp() {
     const [otp, setOtp] = useState("");
@@ -24,7 +25,7 @@ export default function VerifyOtp() {
         }
 
         try {
-            await axios.post("http://localhost:5000/api/auth/verify-otp", {
+            await axios.post(`${API_URL}/api/auth/verify-otp`, {
                 identifier,
                 otp,
             });
