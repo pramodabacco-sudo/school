@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
+const API_URL = import.meta.env.VITE_API_URL;
 
 export default function ResetPassword() {
     const [password, setPassword] = useState("");
@@ -28,7 +29,7 @@ export default function ResetPassword() {
         }
 
         try {
-            await axios.post("http://localhost:5000/api/auth/reset-password", {
+            await axios.post(`${API_URL}/api/auth/reset-password`, {
                 identifier,
                 newPassword: password,
             });

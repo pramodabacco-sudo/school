@@ -9,6 +9,7 @@ import {
     AlertTriangle,
     DatabaseBackup,
 } from "lucide-react";
+const API_URL = import.meta.env.VITE_API_URL;
 
 export default function DeletedRecords() {
 
@@ -35,7 +36,7 @@ export default function DeletedRecords() {
                 JSON.parse(localStorage.getItem("auth"))?.token;
 
             const response = await axios.get(
-                "http://localhost:5000/api/backups/deleted",
+                `${API_URL}/api/backups/deleted`,
                 {
                     headers: {
                         Authorization: `Bearer ${token}`,
@@ -150,7 +151,7 @@ export default function DeletedRecords() {
                 JSON.parse(localStorage.getItem("auth"))?.token;
 
             await axios.post(
-                `http://localhost:5000/api/backups/restore/${model}/${recordId}`,
+                `${API_URL}/api/backups/restore/${model}/${recordId}`,
                 {},
                 {
                     headers: {
