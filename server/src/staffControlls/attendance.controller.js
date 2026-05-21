@@ -7,7 +7,7 @@ import {
   uploadAttendanceReportToR2,
   sendMonthlyAttendanceWhatsApp,
 } from "../whatsapp/attendanceWhatsAppService.js";
-import { sendAttendanceSMS } from "../sms/sms.helper.js";
+import { sendAttendanceSMS } from "../SMS/sms.helper.js";
 
 import fs from "fs";
 
