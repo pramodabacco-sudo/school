@@ -467,23 +467,21 @@ export const sendMonthlyAttendanceWhatsApp =
   }) => {
 
     try {
-      const cleanPhone =
-        formatPhone(phone);
+      const cleanPhone = formatPhone(phone);
 
       if (!cleanPhone) {
         console.log("❌ Invalid phone");
         return;
       }
 
-      await axios.post(
+      const response = await axios.post(
         `https://graph.facebook.com/v23.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`,
         {
           messaging_product: "whatsapp",
           to: cleanPhone,
           type: "template",
           template: {
-            name:
-              "monthly_attendance_report",
+            name: "monthly_attendance_report",
             language: {
               code: "en_US",
             },
@@ -508,11 +506,11 @@ export const sendMonthlyAttendanceWhatsApp =
                   },
                   {
                     type: "text",
-                    text: cleanText(monthName),
+                    text: cleanText(monthName || "Month"),
                   },
                   {
                     type: "text",
-                    text: cleanText(schoolName),
+                    text: cleanText(schoolName || "School"),
                   },
                 ],
               },
@@ -521,23 +519,21 @@ export const sendMonthlyAttendanceWhatsApp =
         },
         {
           headers: {
-            Authorization:
-              `Bearer ${process.env.WHATSAPP_TOKEN}`,
-            "Content-Type":
-              "application/json",
+            Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
+            "Content-Type": "application/json",
           },
         }
       );
 
       console.log(
-        `✅ Monthly report sent to ${cleanPhone}`
+        "✅ Monthly attendance WhatsApp sent:",
+        response.data
       );
 
     } catch (err) {
-
       console.error(
         "❌ Monthly Attendance WhatsApp Error:",
         err.response?.data || err.message
       );
     }
-  };
+};

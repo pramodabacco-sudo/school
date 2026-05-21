@@ -24,6 +24,7 @@ import {
   AlertCircle,
   BookOpen,
 } from "lucide-react";
+import { getToken } from "../../../auth/storage";
 
 // ── Design tokens ─────────────────────────────────────────────
 const C = {
@@ -312,12 +313,12 @@ export default function Attendance() {
       setSendingMonthlyReport(true);
 
       const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/attendance/send-monthly-report`,
+       `${import.meta.env.VITE_API_URL}/api/attendance/send-monthly-report`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getToken()}`,
           },
           body: JSON.stringify({
             classSectionId: selectedClassId,

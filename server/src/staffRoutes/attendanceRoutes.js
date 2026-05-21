@@ -34,4 +34,5 @@ router.post(
   authMiddleware,
   sendMonthlyAttendanceReport
 );
+
 export default router;

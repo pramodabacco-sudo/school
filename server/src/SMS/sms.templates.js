@@ -1,0 +1,4 @@
+export const SMS_TEMPLATES = {
+  ATTENDANCE: process.env.SMS_TEMPLATE_ATTENDANCE,
+  ABSENT: process.env.SMS_TEMPLATE_ABSENT,
+};

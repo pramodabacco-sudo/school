@@ -890,7 +890,7 @@ export default function TimetablePage() {
               Set up school timings first to define periods and breaks.
             </p>
             <button
-              onClick={() => navigate("/classes/timings")}
+              onClick={() => navigate("/admin/classes/timings")}
               style={{
                 padding: "8px 18px",
                 borderRadius: 10,

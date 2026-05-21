@@ -7,7 +7,10 @@ import {
   uploadAttendanceReportToR2,
   sendMonthlyAttendanceWhatsApp,
 } from "../whatsapp/attendanceWhatsAppService.js";
+import { sendAttendanceSMS } from "../sms/sms.helper.js";
+
 import fs from "fs";
+
 export const getTeacherClasses = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -313,6 +316,12 @@ export const markAttendance = async (req, res) => {
                 : record.status === "ABSENT"
                 ? "Absent"
                 : record.status,
+            schoolName: school?.name || "School",
+          });
+          await sendAttendanceSMS({
+            mobile: parent.phone,
+            studentName: student.name,
+            status: record.status, // "PRESENT" | "ABSENT" | etc.
             schoolName: school?.name || "School",
           });
         }
@@ -692,13 +701,23 @@ export const sendMonthlyAttendanceReport = async (req, res) => {
       }
       for (const link of student.parentLinks || []) {
         const parent = link.parent;
+
         if (!parent?.phone) continue;
 
+        // WHATSAPP — monthly summary report (image card)
         await sendMonthlyAttendanceWhatsApp({
           phone: parent.phone,
-          imageUrl,       // ✅ now a real public R2 URL
           studentName: student.name,
           monthName,
+          imageUrl,
+          schoolName: school?.name || "School",
+        });
+
+        // SMS — monthly summary (present/absent derived from percentage)
+        await sendAttendanceSMS({
+          mobile: parent.phone,
+          studentName: student.name,
+          status: attendancePercentage >= 75 ? "PRESENT" : "ABSENT",
           schoolName: school?.name || "School",
         });
       }
