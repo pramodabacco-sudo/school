@@ -12,6 +12,7 @@ import sharp from "sharp";
 const ALLOWED_FORMATS = ["jpeg", "png", "webp", "gif", "heif", "avif", "tiff"];
 const FULL_MAX_PX    = 1920;
 const THUMB_SIZE     = 300;
+
 const WEBP_QUALITY   = 82;
 const THUMB_QUALITY  = 78;
 
