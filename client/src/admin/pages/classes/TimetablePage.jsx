@@ -922,47 +922,60 @@ const handleBulkUpload = async (e) => {
   }
 };
 
-  const handleSave = async () => {
-    if (!selectedClass || !yearId) return;
-    setSaving(true);
-    try {
-      // ✅ Get configId from the loaded slots (all slots share same configId)
-      const configId = slots[0]?.configId || satSlots[0]?.configId || null;
-      const entries = [];
-      DAYS.forEach((day) => {
+const handleSave = async () => {
+  if (!selectedClass || !yearId) return;
 
-        const row = [day];
+  setSaving(true);
 
-        periodSlots.forEach((_, index) => {
+  try {
+    // Get configId from loaded slots
+    const configId =
+      slots[0]?.configId ||
+      satSlots[0]?.configId ||
+      null;
 
-          if (
-            day === "MONDAY" &&
-            index === 0
-          ) {
+    const entries = [];
 
-            row.push(
-              "Maths\r\nJohn Doe"
-            );
+    DAYS.forEach((day) => {
+      const daySlots = getSlotsForDay(day);
 
-          } else {
+      daySlots.forEach((slot) => {
+        // Skip breaks
+        if (slot.slotType !== "PERIOD") return;
 
-            row.push("");
-          }
+        const cell = timetable?.[day]?.[slot.id];
+
+        // Skip empty cells
+        if (!cell?.subjectId) return;
+
+        entries.push({
+          day,
+          periodDefinitionId: slot.id,
+          configId,
+          subjectId: cell.subjectId,
+          teacherId: cell.teacherId || null,
         });
+      });
+    });
 
-        data.push(row);
-      });
-      await saveTimetableEntries(selectedClass.id, {
-        academicYearId: yearId,
-        entries,
-      });
-      setToast({ type: "success", msg: "Timetable saved!" });
-    } catch (err) {
-      setToast({ type: "error", msg: err.message });
-    } finally {
-      setSaving(false);
-    }
-  };
+    await saveTimetableEntries(selectedClass.id, {
+      academicYearId: yearId,
+      entries,
+    });
+
+    setToast({
+      type: "success",
+      msg: "Timetable saved!",
+    });
+  } catch (err) {
+    setToast({
+      type: "error",
+      msg: err.message,
+    });
+  } finally {
+    setSaving(false);
+  }
+};
 
   const weekdays = DAYS.filter((d) => d !== "SATURDAY");
   const activeDays = satSlots.length > 0 ? DAYS : weekdays;

@@ -616,12 +616,12 @@ model Student {
   schoolId String
   school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
-  personalInfo                  StudentPersonalInfo?
-  documents                     StudentDocumentInfo[]
-  enrollments                   StudentEnrollment[]
-  marks                         Marks[]
-  resultSummaries               ResultSummary[]
-  revaluationRequests           RevaluationRequest[]
+  personalInfo    StudentPersonalInfo?
+  documents       StudentDocumentInfo[]
+  enrollments     StudentEnrollment[]
+  marks           Marks[]
+  resultSummaries ResultSummary[]
+
   parentLinks                   StudentParent[]
   meetings                      MeetingStudent[]
   attendanceRecords             AttendanceRecord[]
@@ -776,7 +776,6 @@ model Subject {
   liveClasses                   LiveClass[]
   assignments                   Assignment[]
   StudentTutorialRecommendation StudentTutorialRecommendation[]
-  revaluationRequests           RevaluationRequest[]
 
   @@unique([code, schoolId])
   @@index([schoolId])
@@ -1180,8 +1179,7 @@ model Marks {
   studentId  String
   student    Student            @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
-  marksObtained       Float?
-  revaluationRequests RevaluationRequest[]
+  marksObtained Float?
 
   isAbsent Boolean @default(false)
   remarks  String?
@@ -1226,32 +1224,6 @@ enum RevaluationStatus {
   APPROVED
   REJECTED
   COMPLETED
-}
-
-model RevaluationRequest {
-  id String @id @default(uuid())
-
-  studentId String
-  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
-
-  markId String
-  mark   Marks  @relation(fields: [markId], references: [id], onDelete: Cascade)
-
-  subjectId String
-  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-
-  requestedMarks Float?
-  currentMarks   Float?
-
-  reason String?
-
-  status RevaluationStatus @default(PENDING)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([studentId])
-  @@index([status])
 }
 
 model ExtraClass {
@@ -2928,8 +2900,8 @@ model Payment {
   // 👤 Buyer Details
   fullName   String
   schoolName String
-  email      String
-  phone      String
+  email      String @unique
+  phone      String @unique
   address    String
 
   // 🏫 University

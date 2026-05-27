@@ -74,7 +74,7 @@ export default function ContactUs() {
         <div className="pointer-events-none absolute -bottom-16 -left-12 h-64 w-64 rounded-full bg-sky-200 opacity-20" />
 
         <div className="relative z-10">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-white px-4 py-1.5 text-[11px] font-semibold uppercase tracking-widest text-blue-500 mb-6">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-white px-4 mt-4 py-1.5 text-[11px] font-semibold uppercase tracking-widest text-blue-500 mb-6">
             <MessageSquare size={11} /> Contact Us
           </span>
 

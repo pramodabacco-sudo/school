@@ -12,7 +12,6 @@ import profileRoutes from "./parent/routes/Profileroutes.js";
 import certificatesRoutes from "./parent/routes/Certificatesroutes.js";
 import syllabusProgressRoutes from "./parent/routes/SyllabusProgressRoutes.js";
 import tutorialRoutes from "./parent/routes/tutorialRoutes.js";
-import revaluationRoutes from "./parent/routes/revaluation.routes.js";
 
 import logoRoutes from "./utils/logoRoutes.js";
 import { requireAuth } from "./middlewares/auth.middleware.js";
@@ -59,7 +58,6 @@ parent.use(express.urlencoded({
 parent.use("/attendance", attendanceRoutes);
 parent.use("/students", studentsRoutes);
 parent.use("/marks", marksRoutes);
-parent.use("/revaluation", revaluationRoutes);
 parent.use("/timetable", timetableRoutes);
 parent.use("/activities", activitiesRoutes);
 parent.use("/dashboard", dashboardRoutes);

@@ -40,7 +40,7 @@ export default function PaymentModal({ isOpen, onClose, selectedPlanId }) {
   const [teacherCount, setTeacherCount] = useState(MIN_COUNTS);
 
   const userCount = Number(studentCount) + Number(teacherCount);
-
+  const [serverError, setServerError] = useState("");
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState("summary");
   const [errors, setErrors] = useState({});
@@ -112,7 +112,31 @@ export default function PaymentModal({ isOpen, onClose, selectedPlanId }) {
       const data = await res.json();
 
       if (!res.ok || !data.orderId) {
-        alert(`❌ Order creation failed: ${data.error || "Unknown error"}`);
+
+        setErrors((prev) => ({
+          ...prev,
+
+          email:
+            data.error === "Email already exists"
+              ? "This email is already registered"
+              : "",
+
+          phone:
+            data.error === "Phone number already exists"
+              ? "This phone number is already registered"
+              : "",
+        }));
+
+        // General errors
+        if (
+          data.error !== "Email already exists" &&
+          data.error !== "Phone number already exists"
+        ) {
+          setServerError(
+            data.error || "Order creation failed. Please try again."
+          );
+        }
+
         setLoading(false);
         return;
       }

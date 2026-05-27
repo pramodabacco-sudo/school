@@ -37,7 +37,40 @@ export const createOrder = async (req, res) => {
     if (!amount || amount <= 0) {
       return res.status(400).json({ error: "Invalid amount. Please add at least 1 user." });
     }
+    // ✅ Check duplicate email
+    const existingEmail = await prisma.payment.findFirst({
+      where: {
+        email: {
+          equals: email.trim(),
+          mode: "insensitive",
+        },
+        status: {
+          in: ["PENDING", "SUCCESS"],
+        },
+      },
+    });
 
+    if (existingEmail) {
+      return res.status(400).json({
+        error: "Email already exists",
+      });
+    }
+
+    // ✅ Check duplicate phone
+    const existingPhone = await prisma.payment.findFirst({
+      where: {
+        phone: phone.trim(),
+        status: {
+          in: ["PENDING", "SUCCESS"],
+        },
+      },
+    });
+
+    if (existingPhone) {
+      return res.status(400).json({
+        error: "Phone number already exists",
+      });
+    }
     // ✅ Create Razorpay Order
     const order = await Promise.race([
       razorpay.orders.create({

@@ -17,7 +17,6 @@ import TeacherChatPage from "./pages/chat/TeacherChatPage";
 import TeacherHolidayPage from "./pages/holidays/HolidayPage";
 import TeacherProfilePage from "./pages/profile/profile.jsx";
 import SubmissionsViewPage from "./pages/assignments/SubmissionsViewPage";
-import RevaluationRequestsPage from "./pages/revaluation/RevaluationRequestsPage";
 function TeacherRoutes() {
   return (
     <PageLayout>
@@ -32,7 +31,6 @@ function TeacherRoutes() {
         <Route path="online-classes" element={<OnlineClassesPage />} />
         <Route path="timetable"      element={<TimetablePage />} />
         <Route path="results"        element={<Result />} />
-        <Route path="revaluation" element={<RevaluationRequestsPage />} />
         <Route path="certificates" element={<CertificatesUploadPage />} />
         <Route path="assignments" element={<AssignmentsPage />} />
         <Route path="chat" element={<TeacherChatPage />} />
