@@ -9,6 +9,8 @@
 //  - Extra Classes section: add/edit/delete one-off or recurring extra sessions
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import * as XLSX from "xlsx";
+import { Upload, Download } from "lucide-react";
 import {
   Grid3X3,
   Save,
@@ -341,6 +343,7 @@ export default function TimetablePage() {
   const [loading, setLoading] = useState(true);
   const [configLoading, setConfigLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [bulkUploading, setBulkUploading] = useState(false);
   const [toast, setToast] = useState(null);
   const [samePattern, setSamePattern] = useState(null);
 
@@ -430,12 +433,12 @@ export default function TimetablePage() {
           if (!map[e.day]) map[e.day] = {};
           // ✅ UPDATED: use periodDefinitionId (not periodSlotId)
           map[e.day][e.periodDefinitionId] = {
-            teacherId: e.teacher?.id || e.teacherId,
-            subjectId: e.subject?.id || e.subjectId,
-            teacherName: e.teacher
-              ? `${e.teacher.firstName} ${e.teacher.lastName}`
-              : "",
-            subjectName: e.subject?.name || "",
+          teacherId: e.teacherId || e.teacher?.id || "",
+          subjectId: e.subjectId || e.subject?.id || "",
+          teacherName: e.teacher
+            ? `${e.teacher.firstName} ${e.teacher.lastName}`
+            : "No teacher",
+          subjectName: e.subject?.name || "",
           };
         });
         setTimetable(map);
@@ -570,18 +573,19 @@ export default function TimetablePage() {
     if (!editCell) return;
     const { day, slot } = editCell;
     const foundTeacher = allTeachers.find((t) => t.id === cellForm.teacherId);
-    const cellData =
-      cellForm.teacherId && cellForm.subjectId
-        ? {
-            teacherId: cellForm.teacherId,
-            subjectId: cellForm.subjectId,
-            teacherName: foundTeacher
-              ? `${foundTeacher.firstName} ${foundTeacher.lastName}`
-              : "",
-            subjectName:
-              subjects.find((s) => s.id === cellForm.subjectId)?.name || "",
-          }
-        : undefined;
+const cellData = cellForm.subjectId
+  ? {
+      teacherId: cellForm.teacherId || null,
+      subjectId: cellForm.subjectId,
+      teacherName: foundTeacher
+        ? `${foundTeacher.firstName} ${foundTeacher.lastName}`
+        : "",
+      subjectName:
+        subjects.find(
+          (s) => s.id === cellForm.subjectId
+        )?.name || "",
+    }
+  : undefined;
 
     setTimetable((prev) => {
       const next = { ...prev };
@@ -611,6 +615,313 @@ export default function TimetablePage() {
     });
   };
 
+const downloadTemplate = () => {
+
+  const periodSlots =
+    mergedGridSlots.filter(
+      (s) => s.slotType === "PERIOD"
+    );
+
+  const workbook =
+    XLSX.utils.book_new();
+
+  // ───────────────── MAIN SHEET ─────────────────
+
+  const data = [];
+
+  data.push([
+    "DAY",
+    ...periodSlots.map((p) => p.label),
+  ]);
+
+  DAYS.forEach((day) => {
+
+    const row = [day];
+
+    periodSlots.forEach(() => {
+
+      row.push(
+        "Maths\nJohn Doe"
+      );
+    });
+
+    data.push(row);
+  });
+
+  const worksheet =
+    XLSX.utils.aoa_to_sheet(data);
+
+  // Proper multiline cells
+  const range =
+    XLSX.utils.decode_range(
+      worksheet["!ref"]
+    );
+
+  for (
+    let R = 1;
+    R <= range.e.r;
+    ++R
+  ) {
+
+    for (
+      let C = 1;
+      C <= range.e.c;
+      ++C
+    ) {
+
+      const cell =
+        worksheet[
+          XLSX.utils.encode_cell({
+            r: R,
+            c: C,
+          })
+        ];
+
+      if (cell) {
+
+        cell.s = {
+          alignment: {
+            wrapText: true,
+            vertical: "top",
+          },
+        };
+      }
+    }
+  }
+
+  worksheet["!cols"] = [
+    { wch: 16 },
+    ...periodSlots.map(() => ({
+      wch: 24,
+    })),
+  ];
+
+  XLSX.utils.book_append_sheet(
+    workbook,
+    worksheet,
+    "Timetable",
+  );
+  const hintData = [];
+
+hintData.push([
+  "IMPORTANT INSTRUCTIONS",
+]);
+
+hintData.push([
+  `Use only subjects configured for ${selectedClass?.name || "this class"}`,
+]);
+
+hintData.push([
+  "First line = Subject Name",
+]);
+
+hintData.push([
+  "Second line = Teacher Name (Optional)",
+]);
+
+hintData.push([
+  "Use exact names from Reference sheet",
+]);
+
+hintData.push([
+  "Do not change DAY or PERIOD headers",
+]);
+
+const hintSheet =
+  XLSX.utils.aoa_to_sheet(
+    hintData
+  );
+
+hintSheet["!cols"] = [
+  { wch: 70 },
+];
+
+XLSX.utils.book_append_sheet(
+  workbook,
+  hintSheet,
+  "Instructions",
+);
+
+  // ───────────────── REFERENCE SHEET ─────────────────
+
+  const refData = [];
+
+  refData.push([
+    "SUBJECT NAME",
+    "TEACHER NAME",
+  ]);
+
+  subjects.forEach((subject) => {
+
+    const relatedTeachers =
+      allTeachers.filter(
+        (t) =>
+          t.department
+            ?.toLowerCase()
+            ?.includes(
+              subject.name.toLowerCase()
+            )
+      );
+
+    if (relatedTeachers.length === 0) {
+
+      refData.push([
+        subject.name,
+        "",
+      ]);
+
+    } else {
+
+      relatedTeachers.forEach(
+        (teacher) => {
+
+          refData.push([
+            subject.name,
+            `${teacher.firstName} ${teacher.lastName}`,
+          ]);
+        }
+      );
+    }
+  });
+
+  const refSheet =
+    XLSX.utils.aoa_to_sheet(
+      refData
+    );
+
+  refSheet["!cols"] = [
+    { wch: 30 },
+    { wch: 30 },
+  ];
+
+  XLSX.utils.book_append_sheet(
+    workbook,
+    refSheet,
+    "Reference",
+  );
+
+  XLSX.writeFile(
+    workbook,
+    `timetable-template-${selectedClass?.name || "class"}.xlsx`,
+  );
+};
+
+const handleBulkUpload = async (e) => {
+
+  try {
+
+    const file =
+      e.target.files?.[0];
+
+    if (!file) return;
+
+    setBulkUploading(true);
+
+    const formData =
+      new FormData();
+
+    formData.append("file", file);
+
+    formData.append(
+      "academicYearId",
+      yearId,
+    );
+
+    const token =
+      localStorage.getItem("token");
+
+    const response =
+      await fetch(
+        `${import.meta.env.VITE_API_URL}/class-sections/${selectedClass.id}/timetable/bulk-upload`,
+        {
+          method: "POST",
+          headers: {
+            Authorization:
+              `Bearer ${token}`,
+          },
+          body: formData,
+        },
+      );
+
+    const data =
+      await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message ||
+        "Upload failed",
+      );
+    }
+
+    const entryData =
+      await fetchTimetableEntries(
+        selectedClass.id,
+        {
+          academicYearId:
+            yearId,
+        },
+      );
+
+    const map = {};
+
+    DAYS.forEach(
+      (d) => (map[d] = {})
+    );
+
+    (entryData.entries || [])
+      .forEach((e) => {
+
+        if (!map[e.day]) {
+          map[e.day] = {};
+        }
+
+        map[e.day][
+          e.periodDefinitionId
+        ] = {
+          teacherId:
+            e.teacherId ||
+            e.teacher?.id ||
+            "",
+
+          subjectId:
+            e.subjectId ||
+            e.subject?.id ||
+            "",
+
+          teacherName:
+            e.teacher
+              ? `${e.teacher.firstName} ${e.teacher.lastName}`
+              : "No teacher",
+
+          subjectName:
+            e.subject?.name ||
+            "",
+        };
+      });
+
+    setTimetable(map);
+
+    setToast({
+      type: "success",
+      msg:
+        "Timetable uploaded successfully",
+    });
+
+  } catch (err) {
+
+    setToast({
+      type: "error",
+      msg: err.message,
+    });
+
+  } finally {
+
+    setBulkUploading(false);
+
+    e.target.value = "";
+  }
+};
+
   const handleSave = async () => {
     if (!selectedClass || !yearId) return;
     setSaving(true);
@@ -619,21 +930,27 @@ export default function TimetablePage() {
       const configId = slots[0]?.configId || satSlots[0]?.configId || null;
       const entries = [];
       DAYS.forEach((day) => {
-        const daySlots = getSlotsForDay(day);
-        daySlots
-          .filter((s) => s.slotType === "PERIOD")
-          .forEach((slot) => {
-            const cell = timetable[day]?.[slot.id];
-            if (cell?.teacherId && cell?.subjectId) {
-              entries.push({
-                day,
-                periodDefinitionId: slot.id, // ✅ UPDATED: was periodSlotId
-                configId, // ✅ NEW: required by backend
-                subjectId: cell.subjectId,
-                teacherId: cell.teacherId,
-              });
-            }
-          });
+
+        const row = [day];
+
+        periodSlots.forEach((_, index) => {
+
+          if (
+            day === "MONDAY" &&
+            index === 0
+          ) {
+
+            row.push(
+              "Maths\r\nJohn Doe"
+            );
+
+          } else {
+
+            row.push("");
+          }
+        });
+
+        data.push(row);
       });
       await saveTimetableEntries(selectedClass.id, {
         academicYearId: yearId,
@@ -1177,7 +1494,7 @@ export default function TimetablePage() {
                                          fontFamily: "'Inter', sans-serif",
                                       }}
                                     >
-                                      {cell.teacherName}
+                                      {cell.teacherName || "No teacher"}
                                     </p>
                                   </>
                                 ) : (
@@ -1406,7 +1723,7 @@ export default function TimetablePage() {
                                            fontFamily: "'Inter', sans-serif",
                                         }}
                                       >
-                                        {cell.teacherName}
+                                        {cell.teacherName || "No teacher"}
                                       </p>
                                     </>
                                   ) : (
@@ -1585,7 +1902,7 @@ export default function TimetablePage() {
                                     {cell.subjectName}
                                   </p>
                                 </div>
-                                <p style={{ fontSize: 10, color: C.mid, fontFamily: "'Inter', sans-serif" }}>{cell.teacherName}</p>
+                                <p style={{ fontSize: 10, color: C.mid, fontFamily: "'Inter', sans-serif" }}>{cell.teacherName || "No teacher"}</p>
                               </>
                             ) : (
                               <p style={{ fontSize: 10, color: C.light, fontFamily: "'Inter', sans-serif" }}>+ Assign</p>
@@ -1602,42 +1919,96 @@ export default function TimetablePage() {
         )}
 
         {/* ── Save button ── */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-8">
-          <div>
-            {samePattern !== null && (
-              <p className="text-xs" style={{ color: C.mid }}>
-                {samePattern
-                  ? "✓ Same Mon–Fri pattern — editing any period applies to all weekdays"
-                  : "Each day is configured individually"}
-              </p>
-            )}
-          </div>
-          <button
-            onClick={handleSave}
-            disabled={saving || samePattern === null}
-            className="flex items-center gap-2 rounded-xl text-sm font-semibold text-white w-full sm:w-auto justify-center"
-            style={{
-              padding: "10px 24px",
-              background:
-                samePattern === null
-                  ? "rgba(106,137,167,0.35)"
-                  : saving
-                    ? "rgba(106,137,167,0.5)"
-                    : C.primary,
-              border: "none",
-              cursor:
-                saving || samePattern === null ? "not-allowed" : "pointer",
-               fontFamily: "'Inter', sans-serif",
-            }}
-          >
-            {saving ? (
-              <Loader2 size={15} className="animate-spin" />
-            ) : (
-              <Save size={15} />
-            )}
-            {saving ? "Saving…" : "Save Timetable"}
-          </button>
-        </div>
+    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-8">
+      <div>
+        {samePattern !== null && (
+          <p className="text-xs" style={{ color: C.mid }}>
+            {samePattern
+              ? "✓ Same Mon–Fri pattern — editing any period applies to all weekdays"
+              : "Each day is configured individually"}
+          </p>
+        )}
+      </div>
+
+      <div className="flex items-center gap-2 flex-wrap">
+
+        <button
+          onClick={downloadTemplate}
+          className="flex items-center gap-2 rounded-xl text-sm font-semibold"
+          style={{
+            padding: "10px 18px",
+            background: "#fff",
+            border: `1.5px solid ${C.border}`,
+            color: C.primary,
+            cursor: "pointer",
+            fontFamily: "'Inter', sans-serif",
+          }}
+        >
+          <Download size={15} />
+          Template
+        </button>
+
+        <label
+          className="flex items-center gap-2 rounded-xl text-sm font-semibold"
+          style={{
+            padding: "10px 18px",
+            background: "#fff",
+            border: `1.5px solid ${C.border}`,
+            color: C.primary,
+            cursor: "pointer",
+            fontFamily: "'Inter', sans-serif",
+          }}
+        >
+          <Upload size={15} />
+
+          {bulkUploading
+            ? "Uploading..."
+            : "Bulk Upload"}
+
+          <input
+            type="file"
+            accept=".xlsx,.xls"
+            hidden
+            onChange={handleBulkUpload}
+          />
+        </label>
+
+        <button
+          onClick={handleSave}
+          disabled={saving || samePattern === null}
+          className="flex items-center gap-2 rounded-xl text-sm font-semibold text-white"
+          style={{
+            padding: "10px 24px",
+            background:
+              samePattern === null
+                ? "rgba(106,137,167,0.35)"
+                : saving
+                  ? "rgba(106,137,167,0.5)"
+                  : C.primary,
+            border: "none",
+            cursor:
+              saving || samePattern === null
+                ? "not-allowed"
+                : "pointer",
+            fontFamily: "'Inter', sans-serif",
+          }}
+        >
+          {saving ? (
+            <Loader2
+              size={15}
+              className="animate-spin"
+            />
+          ) : (
+            <Save size={15} />
+          )}
+
+          {saving
+            ? "Saving…"
+            : "Save Timetable"}
+        </button>
+
+      </div>
+    </div>
 
         {/* ═══════════════════════════════════════════════════════════════════
             EXTRA CLASSES SECTION
@@ -1955,7 +2326,7 @@ export default function TimetablePage() {
                 className="text-xs font-semibold uppercase mb-2"
                 style={{ color: C.mid, letterSpacing: "0.5px" }}
               >
-                Teacher
+                Teacher (Optional)
               </p>
               {allTeachers.length > 0 && (
                 <div
@@ -2033,6 +2404,50 @@ export default function TimetablePage() {
                     </p>
                   ) : (
                     <div className="flex flex-col gap-1.5 max-h-52 overflow-y-auto pr-0.5">
+                      <div
+  onClick={() =>
+    setCellForm((f) => ({
+      ...f,
+      teacherId: "",
+    }))
+  }
+  style={{
+    padding: "9px 12px",
+    borderRadius: 10,
+    cursor: "pointer",
+    border: `1.5px solid ${
+      cellForm.teacherId === ""
+        ? C.primary
+        : C.border
+    }`,
+    background:
+      cellForm.teacherId === ""
+        ? C.pale
+        : "#fff",
+    marginBottom: 6,
+  }}
+>
+  <p
+    style={{
+      fontSize: 13,
+      fontWeight: 600,
+      color: C.primary,
+      fontFamily: "'Inter', sans-serif",
+    }}
+  >
+    No Teacher
+  </p>
+
+  <p
+    style={{
+      fontSize: 11,
+      color: C.mid,
+      fontFamily: "'Inter', sans-serif",
+    }}
+  >
+    Save without assigning teacher
+  </p>
+</div>
                       {filtered.map((t) => {
                         const sel = cellForm.teacherId === t.id;
                         const initials = `${t.firstName?.[0] || ""}${t.lastName?.[0] || ""}`;
@@ -2160,12 +2575,12 @@ export default function TimetablePage() {
               )}
               <button
                 onClick={saveCell}
-                disabled={!cellForm.teacherId || !cellForm.subjectId}
+                disabled={!cellForm.subjectId}
                 className="flex items-center gap-2 text-sm font-semibold text-white rounded-xl"
                 style={{
                   padding: "8px 18px",
                   background:
-                    !cellForm.teacherId || !cellForm.subjectId
+                    !cellForm.subjectId
                       ? "rgba(106,137,167,0.4)"
                       : C.primary,
                   border: "none",

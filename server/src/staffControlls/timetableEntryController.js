@@ -1,7 +1,7 @@
 // server/src/staffControlls/timetableEntryController.js
-
-import cacheService from "../utils/cacheService.js";
+import XLSX from "xlsx";
 import { prisma } from "../config/db.js";
+import cacheService from "../utils/cacheService.js";
 // ═══════════════════════════════════════════════════════════════
 //  GET TIMETABLE ENTRIES
 //  GET /class-sections/:id/timetable?academicYearId=xxx
@@ -163,6 +163,7 @@ export const saveTimetableEntries = async (req, res) => {
     // Same teacher cannot be in two classes at same day + same period
     const conflicts = [];
     for (const entry of entries) {
+        if (!entry.teacherId) continue;
       const conflict = await prisma.timetableEntry.findFirst({
         where: {
           schoolId,
@@ -212,13 +213,14 @@ export const saveTimetableEntries = async (req, res) => {
           periodDefinitionId: e.periodDefinitionId, // ✅ NEW
           configId: e.configId, // ✅ pass configId from frontend
           subjectId: e.subjectId,
-          teacherId: e.teacherId,
+          teacherId: e.teacherId || null,
         })),
       });
 
       // Auto upsert TeacherAssignment
       const seen = new Set();
       for (const e of entries) {
+          if (!e.teacherId) continue;
         const k = `${e.teacherId}:${e.subjectId}`;
         if (seen.has(k)) continue;
         seen.add(k);
@@ -232,7 +234,7 @@ export const saveTimetableEntries = async (req, res) => {
           },
           update: { teacherId: e.teacherId },
           create: {
-            teacherId: e.teacherId,
+            teacherId: e.teacherId || null,
             classSectionId,
             subjectId: e.subjectId,
             academicYearId,
@@ -308,5 +310,193 @@ export const deleteTimetableEntry = async (req, res) => {
     return res.json({ message: "Entry removed" });
   } catch (err) {
     return res.status(500).json({ message: err.message });
+  }
+};
+
+export const bulkUploadTimetable = async (req, res) => {
+  try {
+
+    const schoolId = req.user.schoolId;
+
+    const { id: classSectionId } = req.params;
+
+    const { academicYearId } = req.body;
+
+    if (!req.file) {
+      return res.status(400).json({
+        message: "Excel file required",
+      });
+    }
+
+    const workbook = XLSX.read(
+      req.file.buffer,
+      { type: "buffer" }
+    );
+
+    const sheet =
+      workbook.Sheets[
+        workbook.SheetNames[0]
+      ];
+
+    const rows =
+      XLSX.utils.sheet_to_json(sheet, {
+        header: 1,
+        defval: "",
+      });
+
+    const config =
+      await prisma.timetableConfig.findFirst({
+        where: {
+          schoolId,
+          academicYearId,
+        },
+
+        include: {
+          periodDefinitions: {
+            where: {
+              slotType: "PERIOD",
+            },
+
+            orderBy: {
+              order: "asc",
+            },
+          },
+        },
+      });
+
+    if (!config) {
+      return res.status(404).json({
+        message:
+          "Timetable config not found",
+      });
+    }
+
+    const subjects =
+      await prisma.subject.findMany({
+        where: { schoolId },
+      });
+
+    const teachers =
+      await prisma.teacherProfile.findMany({
+        where: { schoolId },
+      });
+
+    const entries = [];
+
+    for (
+      let rowIndex = 1;
+      rowIndex < rows.length;
+      rowIndex++
+    ) {
+
+      const row = rows[rowIndex];
+
+      const day =
+        String(row[0] || "")
+          .trim()
+          .toUpperCase();
+
+      if (!day) continue;
+
+      for (
+        let col = 1;
+        col <=
+        config.periodDefinitions.length;
+        col++
+      ) {
+
+        const raw = row[col];
+
+        if (!raw) continue;
+
+        const lines =
+          String(raw)
+            .split("\n")
+            .map((x) => x.trim())
+            .filter(Boolean);
+
+        const subjectName =
+          lines[0];
+
+        const teacherName =
+          lines[1] || null;
+
+        const subject =
+          subjects.find(
+            (s) =>
+              s.name.toLowerCase() ===
+              subjectName.toLowerCase()
+          );
+
+        if (!subject) continue;
+
+        let teacher = null;
+
+        if (teacherName) {
+
+          teacher = teachers.find(
+            (t) =>
+              `${t.firstName} ${t.lastName}`
+                .toLowerCase()
+                .trim() ===
+              teacherName
+                .toLowerCase()
+                .trim()
+          );
+        }
+
+        const period =
+          config.periodDefinitions[
+            col - 1
+          ];
+
+        entries.push({
+          schoolId,
+          academicYearId,
+          classSectionId,
+          configId: config.id,
+          periodDefinitionId:
+            period.id,
+          day,
+          subjectId: subject.id,
+          teacherId:
+            teacher?.id || null,
+        });
+      }
+    }
+
+    await prisma.$transaction(
+      async (tx) => {
+
+        await tx.timetableEntry.deleteMany({
+          where: {
+            schoolId,
+            academicYearId,
+            classSectionId,
+          },
+        });
+
+        await tx.timetableEntry.createMany({
+          data: entries,
+        });
+      }
+    );
+
+    await cacheService.invalidateSchool(
+      schoolId
+    );
+
+    return res.json({
+      success: true,
+      count: entries.length,
+      message:
+        "Timetable uploaded successfully",
+    });
+
+  } catch (err) {
+
+    return res.status(500).json({
+      message: err.message,
+    });
   }
 };

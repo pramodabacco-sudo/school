@@ -1,5 +1,7 @@
 // server/src/staffRoutes/classSectionRoutes.js
 import express from "express";
+import uploadModule from "../middlewares/upload.js";
+const upload = uploadModule.default || uploadModule;
 import authMiddleware from "../middlewares/authMiddleware.js";
 import {
   getClassSections,
@@ -21,6 +23,7 @@ import {
   getTimetableEntries,
   saveTimetableEntries,
   deleteTimetableEntry,
+  bulkUploadTimetable,
 } from "../staffControlls/timetableEntryController.js";
 import {
   getExtraClasses,
@@ -124,6 +127,12 @@ router.post("/:id/generate-roll-numbers", authMiddleware, generateRollNumbers);
 // ── TIMETABLE ENTRIES
 router.get("/:id/timetable", authMiddleware, getTimetableEntries);
 router.post("/:id/timetable", authMiddleware, saveTimetableEntries);
+router.post(
+  "/:id/timetable/bulk-upload",
+  authMiddleware,
+  upload.single("file"),
+  bulkUploadTimetable,
+);
 router.delete(
   "/:id/timetable/entry/:entryId",
   authMiddleware,
