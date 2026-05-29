@@ -246,14 +246,14 @@ export default function ParentMarks() {
     const showReport = !loadingReport && !!reportData;
     const activeChild = children.find((c) => c.studentId === selectedChild);
 
-    const handleDownload = useCallback(() => {
+    const handleDownload = useCallback(async () => {
         if (!reportData) return;
         setPdfLoading(true);
         const enriched = {
             ...reportData,
             enrollment: { ...reportData.enrollment, schoolName: enrollment?.schoolName ?? "School" },
         };
-        try { downloadReportPDF(enriched); }
+        try { await downloadReportPDF(enriched); }
         finally { setTimeout(() => setPdfLoading(false), 600); }
     }, [reportData, enrollment]);
 
