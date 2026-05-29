@@ -1,7 +1,7 @@
 // src/superAdmin/pages/Subscription/Payment.jsx
 // ✅ Fully responsive: mobile (bottom-sheet), tablet (single col scroll), desktop (two-col)
 // ✅ Auto-fetches last payment → pre-fills form + student/teacher counts
-// ✅ Editable counters with +/− controls
+// ✅ All API calls go to /api/subscription/* (upgrade flow → stores in Subscription table)
 
 import { useState, useRef, useEffect } from "react";
 import {
@@ -126,7 +126,7 @@ export default function PaymentModal({ isOpen, onClose, selectedPlanId, isUpgrad
     fullName: "", schoolName: "", email: "", phone: "", address: "",
   });
 
-  // ── Auto-fetch on open ──────────────────────────────────────────────────────
+  // ── Auto-fetch on open — uses upgrade-specific endpoint ────────────────────
   useEffect(() => {
     if (!isOpen) return;
     setErrors({});
@@ -137,7 +137,9 @@ export default function PaymentModal({ isOpen, onClose, selectedPlanId, isUpgrad
       try {
         const token = getToken();
         if (!token) return;
-        const res = await fetch(`${API_URL}/api/payment/latest`, {
+
+        // ✅ Uses upgrade controller's pre-fill endpoint (reads from Payment, superAdminId scoped)
+        const res = await fetch(`${API_URL}/api/subscription/latest-details`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) return;
@@ -202,43 +204,61 @@ export default function PaymentModal({ isOpen, onClose, selectedPlanId, isUpgrad
     const errs = validate();
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     setLoading(true);
+
     try {
-      const res = await fetch(`${API_URL}/api/payment/create-order`, {
+      const token = getToken();
+
+      // ✅ Step 1: Create order via upgrade endpoint (requires auth)
+      const res = await fetch(`${API_URL}/api/subscription/create-order`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
-          ...form, planId: selectedPlan.id, planName: selectedPlan.name,
-          userCount, studentCount, teacherCount, amount: totalPrice,
+          ...form,
+          planId:       selectedPlan.id,
+          planName:     selectedPlan.name,
+          userCount,
+          studentCount,
+          teacherCount,
+          amount:       totalPrice,
         }),
       });
+
       const data = await res.json();
       if (!res.ok || !data.orderId) {
         alert(`❌ Order creation failed: ${data.error || "Unknown error"}`);
         setLoading(false);
         return;
       }
+
+      // ✅ Step 2: Open Razorpay
       const options = {
-        key: import.meta.env.VITE_RAZORPAY_KEY,
-        amount: data.amount, currency: "INR",
-        name: "School CRM", description: `${selectedPlan.name} Plan`,
-        order_id: data.orderId,
+        key:         import.meta.env.VITE_RAZORPAY_KEY,
+        amount:      data.amount,
+        currency:    "INR",
+        name:        "School CRM",
+        description: `${selectedPlan.name} Plan`,
+        order_id:    data.orderId,
+
         handler: async (response) => {
           try {
-            const token = getToken();
-            const vRes = await fetch(`${API_URL}/api/payment/verify-payment`, {
+            // ✅ Step 3: Verify via upgrade endpoint → creates Subscription record
+            const vRes = await fetch(`${API_URL}/api/subscription/verify-payment`, {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
-                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                Authorization: `Bearer ${token}`,
               },
               body: JSON.stringify({
                 razorpay_order_id:   response.razorpay_order_id,
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_signature:  response.razorpay_signature,
                 paymentId:           data.paymentId,
-                phone:               form.phone,
               }),
             });
+
             const vData = await vRes.json();
             if (vData.status === "verified") {
               onClose();
@@ -253,50 +273,47 @@ export default function PaymentModal({ isOpen, onClose, selectedPlanId, isUpgrad
             setLoading(false);
           }
         },
+
         modal: { ondismiss: () => setLoading(false) },
+
         prefill: { name: form.fullName, email: form.email, contact: form.phone },
-        theme: { color: selectedPlan.color },
+        theme:   { color: selectedPlan.color },
       };
+
       const rzp = new window.Razorpay(options);
+
       rzp.on("payment.failed", async (response) => {
         try {
-          await fetch(`${API_URL}/api/payment/verify-payment`, {
+          // Mark as FAILED in payment table
+          await fetch(`${API_URL}/api/subscription/verify-payment`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
             body: JSON.stringify({
-              paymentId: data.paymentId,
+              paymentId:           data.paymentId,
               razorpay_order_id:   response.error.metadata?.order_id,
               razorpay_payment_id: response.error.metadata?.payment_id,
               failed: true,
             }),
           });
-        } catch (e) { console.error(e); }
-        finally { setLoading(false); }
+        } catch (e) {
+          console.error(e);
+        } finally {
+          setLoading(false);
+        }
         alert(`❌ Payment Failed: ${response.error.description}`);
       });
+
       rzp.open();
+
     } catch (e) {
       console.error(e);
       alert("❌ Something went wrong. Please try again.");
       setLoading(false);
     }
   };
-
-  // ── Shared button label ──────────────────────────────────────────────────────
-  const PayBtn = ({ className = "" }) => (
-    <button
-      onClick={handlePayment}
-      disabled={loading || prefilling}
-      className={`w-full h-[52px] rounded-2xl bg-gradient-to-br from-[#384959] to-[#5a7a96] text-white text-[15px] font-semibold flex items-center justify-center gap-2 pm-font-dm shadow-[0_4px_16px_rgba(56,73,89,0.25)] transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed ${className}`}
-    >
-      {loading
-        ? <><div className="pm-spinner" /> Processing...</>
-        : prefilling
-        ? <><RefreshCw size={15} className="animate-spin" /> Loading…</>
-        : <>`Pay ₹${totalPrice.toLocaleString()}` <ChevronRight size={16} /></>
-      }
-    </button>
-  );
 
   return (
     <>
@@ -516,7 +533,7 @@ export default function PaymentModal({ isOpen, onClose, selectedPlanId, isUpgrad
               Min {MIN_STUDENTS} students &amp; {MIN_TEACHERS} teachers
             </p>
 
-            {/* Price breakdown — always at bottom of left panel */}
+            {/* Price breakdown */}
             <div className="bg-white/[0.07] border border-white/10 rounded-2xl px-5 py-4 flex flex-col gap-2.5 mt-auto">
               <div className="flex justify-between items-center">
                 <span className="text-[13px] text-blue-200/70">Subtotal ({userCount} users)</span>
@@ -557,7 +574,7 @@ export default function PaymentModal({ isOpen, onClose, selectedPlanId, isUpgrad
               </button>
             </div>
 
-            {/* Form fields — NO flex-1 so there's no artificial gap */}
+            {/* Form fields */}
             {prefilling ? (
               <div className="flex flex-col gap-4">
                 {[1,2,3,4,5].map(n => <div key={n} className="pm-skel" style={{ height: 44 }} />)}
@@ -581,7 +598,7 @@ export default function PaymentModal({ isOpen, onClose, selectedPlanId, isUpgrad
               </div>
             )}
 
-            {/* Pay button — sits right after form, not pinned to bottom */}
+            {/* Pay button */}
             <div className="mt-8 pt-6 border-t border-gray-100">
               <button
                 onClick={handlePayment}

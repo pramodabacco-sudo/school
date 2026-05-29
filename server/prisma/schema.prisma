@@ -3018,6 +3018,23 @@ model Subscription {
   maxTeachers     Int?
   maxSchoolAdmins Int?
 
+  // 👥 Purchased User Counts (snapshot from Payment)
+  userCount    Int?
+  studentCount Int?
+  teacherCount Int?
+
+  // 👤 Buyer Details (snapshot from Payment)
+  fullName   String?
+  schoolName String?
+  email      String?
+  phone      String?
+  address    String?
+
+  // 💰 Payment snapshot
+  amount    Float?
+  planName  String?
+  planPrice Float?
+
   // 📈 Current Usage
   usedSchools  Int @default(0)
   usedStudents Int @default(0)
@@ -3036,6 +3053,7 @@ model Subscription {
 enum SubscriptionStatus {
   ACTIVE
   EXPIRED
+  SCHEDULED
   CANCELLED
 }
 

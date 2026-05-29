@@ -14,6 +14,7 @@ import parent from "./src/parent.js";
 import gpsRoutes from "./src/gps-ingestion/gps.routes.js";
 import trackingRoutes from "./src/gpsTracking/tracking.routes.js";
 import paymentRoutes from "./src/payment/payment.routes.js";
+
 import whatsappRoutes from "./src/whatsapp/whatsapp.routes.js";
 import "./src/whatsapp/birthdayCron.js";
 import "./src/whatsapp/meetingReminderCron.js";

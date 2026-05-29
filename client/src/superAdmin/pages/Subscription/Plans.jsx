@@ -358,19 +358,19 @@ export default function UpgradePage() {
         </div>
 
         {/* ── Feature Comparison Table ──────────────────────────────────────── */}
-        <div className="rounded-2xl overflow-hidden shadow-lg bg-white border border-blue-100">
+        {/* <div className="rounded-2xl overflow-hidden shadow-lg bg-white border border-blue-100">
           <div className="px-6 py-5 border-b border-blue-100">
             <h2 className="text-lg font-black text-gray-800">Feature Comparison</h2>
             <p className="text-xs mt-0.5 text-[#6A89A7]">Detailed breakdown of what's included in each plan</p>
           </div>
 
-          {/* Table header */}
+        
           <div className="grid grid-cols-4 px-6 py-3 text-xs font-bold uppercase tracking-wider bg-blue-50 text-[#88BDF2]">
             <div>Feature</div>
             {plans.map((p) => <div key={p.id} className="text-center">{p.name}</div>)}
           </div>
 
-          {/* Rows */}
+         
           {visibleFeatures.map((feature, i) => (
             <div
               key={feature}
@@ -398,7 +398,7 @@ export default function UpgradePage() {
             </div>
           ))}
 
-          {/* Show more toggle */}
+         
           <button
             onClick={() => setShowAllFeatures(!showAllFeatures)}
             className="w-full py-4 flex items-center justify-center gap-2 text-sm font-bold text-[#6A89A7] bg-blue-50 hover:bg-blue-100 transition-colors"
@@ -407,7 +407,7 @@ export default function UpgradePage() {
               ? <><ChevronUp size={16} /> Show Less</>
               : <><ChevronDown size={16} /> Show All {allFeatureKeys.length} Features</>}
           </button>
-        </div>
+        </div> */}
 
       </div>
 
