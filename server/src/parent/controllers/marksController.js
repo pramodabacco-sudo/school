@@ -1,12 +1,13 @@
 // server/src/parent/controllers/marksController.js
-// ═══════════════════════════════════════════════════════════════
-//  Parent — Marks & Report Card Controller + Redis caching
-// ═══════════════════════════════════════════════════════════════
+// FIX: resolveLogoUrl is now async and generates a signed R2 URL
+//      from the raw key stored in school.logoUrl (or superAdmin.profileImage).
+//      Cache TTL kept short (240s) so signed URLs don't expire while cached.
 
 import { prisma } from "../../config/db.js";
 import cache from "../../utils/cacheService.js";
+import { generateSignedUrl } from "../../lib/r2.js";
 
-// ─── Grade scale ────────────────────────────────────────────────
+// ─── Grade scale ─────────────────────────────────────────────────
 const GRADE_SCALE = [
   { min: 90, max: 100, grade: "A+", label: "Outstanding"   },
   { min: 80, max:  89, grade: "A",  label: "Excellent"     },
@@ -31,17 +32,20 @@ function computeTotals(marksRows) {
   for (const m of marksRows) {
     if (!m.isAbsent && m.marksObtained !== null) {
       totalObtained += m.marksObtained;
-      if (m.schedule.passingMarks !== null && m.marksObtained < m.schedule.passingMarks) {
+      if (
+        m.schedule.passingMarks !== null &&
+        m.marksObtained < m.schedule.passingMarks
+      ) {
         hasFail = true;
       }
     }
     totalMax += m.schedule.maxMarks;
   }
 
-  const percentage = totalMax > 0
-    ? parseFloat(((totalObtained / totalMax) * 100).toFixed(2))
-    : 0;
-
+  const percentage =
+    totalMax > 0
+      ? parseFloat(((totalObtained / totalMax) * 100).toFixed(2))
+      : 0;
   const gradeInfo = hasFail
     ? { grade: "F", label: "Fail" }
     : calcGrade(percentage);
@@ -56,6 +60,54 @@ async function verifyParentOwnsStudent(parentId, studentId) {
   return !!link;
 }
 
+// ── Shared school select ─────────────────────────────────────────
+const SCHOOL_SELECT = {
+  select: {
+    id:      true,
+    name:    true,
+    address: true,
+    city:    true,
+    state:   true,
+    phone:   true,
+    email:   true,
+    logoUrl: true,
+    type:    true,
+    university: {
+      select: {
+        superAdmins: {
+          select: { profileImage: true },
+          take: 1,
+        },
+      },
+    },
+  },
+};
+
+// ── Async: returns a signed URL (or null) ────────────────────────
+// School logo is saved as a raw R2 key in school.logoUrl.
+// superAdmin.profileImage is checked first as a fallback.
+async function resolveLogoUrl(school) {
+  const rawKey =
+    school?.university?.superAdmins?.[0]?.profileImage ??
+    school?.logoUrl ??
+    null;
+
+  if (!rawKey) return null;
+
+  // Already a full URL (e.g. external CDN) — return as-is
+  if (rawKey.startsWith("http://") || rawKey.startsWith("https://")) {
+    return rawKey;
+  }
+
+  // Raw R2 key — generate a short-lived signed URL (4 min, matches cache TTL)
+  try {
+    return await generateSignedUrl(rawKey, 240);
+  } catch (err) {
+    console.error("[resolveLogoUrl] signed URL generation failed:", err.message);
+    return null;
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════
 //  GET /parent/marks/exam-groups?studentId=<uuid>
 // ═══════════════════════════════════════════════════════════════
@@ -64,26 +116,34 @@ export const getExamGroups = async (req, res) => {
     const parentId  = req.user?.id;
     const studentId = req.query.studentId;
 
-    if (!parentId)  return res.status(401).json({ success: false, message: "Unauthorized" });
-    if (!studentId) return res.status(400).json({ success: false, message: "studentId is required" });
+    if (!parentId)
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    if (!studentId)
+      return res
+        .status(400)
+        .json({ success: false, message: "studentId is required" });
 
     const owns = await verifyParentOwnsStudent(parentId, studentId);
     if (!owns)
       return res.status(403).json({ success: false, message: "Access denied" });
 
-    // ── Cache check ──────────────────────────────────────────
     const cacheKey = `parent:marks:exam-groups:${studentId}`;
-    const cached = await cache.get(cacheKey);
+    const cached   = await cache.get(cacheKey);
     if (cached) return res.json(JSON.parse(cached));
 
     const enrollment = await prisma.studentEnrollment.findFirst({
-      where: { studentId, status: "ACTIVE" },
+      where:   { studentId, status: "ACTIVE" },
       orderBy: { createdAt: "desc" },
-      include: { academicYear: true, classSection: true },
+      include: {
+        academicYear: true,
+        classSection: { include: { school: SCHOOL_SELECT } },
+      },
     });
 
     if (!enrollment)
-      return res.status(404).json({ success: false, message: "No active enrollment found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "No active enrollment found" });
 
     const groups = await prisma.assessmentGroup.findMany({
       where: {
@@ -95,6 +155,8 @@ export const getExamGroups = async (req, res) => {
       include: { term: { select: { id: true, name: true, order: true } } },
     });
 
+    const school = enrollment.classSection.school;
+
     const response = {
       success: true,
       data: {
@@ -104,6 +166,13 @@ export const getExamGroups = async (req, res) => {
           classSectionId:   enrollment.classSectionId,
           className:        enrollment.classSection.name,
           admissionNumber:  enrollment.admissionNumber,
+          schoolName:       school?.name    ?? null,
+          schoolAddress:    school?.address ?? null,
+          schoolCity:       school?.city    ?? null,
+          schoolState:      school?.state   ?? null,
+          schoolPhone:      school?.phone   ?? null,
+          schoolEmail:      school?.email   ?? null,
+          schoolLogoUrl:    await resolveLogoUrl(school),   // ✅ async signed URL
         },
         examGroups: groups.map((g) => ({
           id:          g.id,
@@ -118,9 +187,9 @@ export const getExamGroups = async (req, res) => {
       },
     };
 
-    await cache.set(cacheKey, response);
+    // Cache for 4 minutes — matches the signed URL TTL (240 s)
+    await cache.set(cacheKey, response, 240);
     return res.json(response);
-
   } catch (err) {
     console.error("[parent/getExamGroups]", err);
     return res.status(500).json({ success: false, message: "Server error" });
@@ -132,48 +201,65 @@ export const getExamGroups = async (req, res) => {
 // ═══════════════════════════════════════════════════════════════
 export const getReportCard = async (req, res) => {
   try {
-    const parentId           = req.user?.id;
-    const studentId          = req.query.studentId;
+    const parentId              = req.user?.id;
+    const studentId             = req.query.studentId;
     const { assessmentGroupId } = req.params;
 
-    if (!parentId)  return res.status(401).json({ success: false, message: "Unauthorized" });
-    if (!studentId) return res.status(400).json({ success: false, message: "studentId is required" });
+    if (!parentId)
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    if (!studentId)
+      return res
+        .status(400)
+        .json({ success: false, message: "studentId is required" });
 
     const owns = await verifyParentOwnsStudent(parentId, studentId);
     if (!owns)
       return res.status(403).json({ success: false, message: "Access denied" });
 
-    // ── Cache check ──────────────────────────────────────────
     const cacheKey = `parent:marks:report-card:${studentId}:${assessmentGroupId}`;
-    const cached = await cache.get(cacheKey);
+    const cached   = await cache.get(cacheKey);
     if (cached) return res.json(JSON.parse(cached));
 
     const enrollment = await prisma.studentEnrollment.findFirst({
-      where: { studentId, status: "ACTIVE" },
+      where:   { studentId, status: "ACTIVE" },
       orderBy: { createdAt: "desc" },
       include: {
         academicYear: true,
-        classSection: { include: { stream: true, course: true } },
+        classSection: {
+          include: {
+            stream:  true,
+            course:  true,
+            school:  SCHOOL_SELECT,
+          },
+        },
       },
     });
 
     if (!enrollment)
-      return res.status(404).json({ success: false, message: "No active enrollment found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "No active enrollment found" });
 
     const assessmentGroup = await prisma.assessmentGroup.findUnique({
-      where: { id: assessmentGroupId },
+      where:   { id: assessmentGroupId },
       include: { term: true },
     });
 
     if (!assessmentGroup)
-      return res.status(404).json({ success: false, message: "Exam not found" });
-
+      return res
+        .status(404)
+        .json({ success: false, message: "Exam not found" });
     if (!assessmentGroup.isPublished)
-      return res.status(403).json({ success: false, message: "Results have not been published yet" });
+      return res
+        .status(403)
+        .json({ success: false, message: "Results have not been published yet" });
 
     const [personalInfo, student, marks] = await Promise.all([
       prisma.studentPersonalInfo.findUnique({ where: { studentId } }),
-      prisma.student.findUnique({ where: { id: studentId }, select: { name: true, email: true } }),
+      prisma.student.findUnique({
+        where:  { id: studentId },
+        select: { name: true, email: true },
+      }),
       prisma.marks.findMany({
         where: {
           studentId,
@@ -189,19 +275,23 @@ export const getReportCard = async (req, res) => {
     ]);
 
     if (marks.length === 0)
-      return res.status(404).json({ success: false, message: "No marks found for this exam" });
+      return res
+        .status(404)
+        .json({ success: false, message: "No marks found for this exam" });
 
     const subjectResults = marks.map((m) => {
       const obtained = m.isAbsent ? null : (m.marksObtained ?? null);
       const maxMarks = m.schedule.maxMarks;
       const passing  = m.schedule.passingMarks ?? null;
-      const pct = obtained !== null && maxMarks > 0
-        ? parseFloat(((obtained / maxMarks) * 100).toFixed(2))
-        : null;
+      const pct =
+        obtained !== null && maxMarks > 0
+          ? parseFloat(((obtained / maxMarks) * 100).toFixed(2))
+          : null;
 
       let resultStatus = "absent";
       if (!m.isAbsent && obtained !== null) {
-        resultStatus = passing !== null ? (obtained >= passing ? "pass" : "fail") : "pass";
+        resultStatus =
+          passing !== null ? (obtained >= passing ? "pass" : "fail") : "pass";
       }
 
       return {
@@ -221,19 +311,26 @@ export const getReportCard = async (req, res) => {
       };
     });
 
-    const { totalObtained, totalMax, percentage, gradeInfo, hasFail } = computeTotals(marks);
+    const { totalObtained, totalMax, percentage, gradeInfo, hasFail } =
+      computeTotals(marks);
 
-    // ── Class rank ────────────────────────────────────────────
+    // ── Class rank ──────────────────────────────────────────────
     const allClassMarks = await prisma.marks.findMany({
       where: {
-        schedule: { assessmentGroupId, classSectionId: enrollment.classSectionId },
+        schedule: {
+          assessmentGroupId,
+          classSectionId: enrollment.classSectionId,
+        },
       },
-      include: { schedule: { select: { maxMarks: true, passingMarks: true } } },
+      include: {
+        schedule: { select: { maxMarks: true, passingMarks: true } },
+      },
     });
 
     const studentTotalsMap = {};
     for (const m of allClassMarks) {
-      if (!studentTotalsMap[m.studentId]) studentTotalsMap[m.studentId] = { rows: [] };
+      if (!studentTotalsMap[m.studentId])
+        studentTotalsMap[m.studentId] = { rows: [] };
       studentTotalsMap[m.studentId].rows.push(m);
     }
 
@@ -242,7 +339,9 @@ export const getReportCard = async (req, res) => {
         const t = computeTotals(rows);
         return { studentId: sid, total: t.totalObtained, pct: t.percentage };
       })
-      .sort((a, b) => b.total !== a.total ? b.total - a.total : b.pct - a.pct);
+      .sort((a, b) =>
+        b.total !== a.total ? b.total - a.total : b.pct - a.pct
+      );
 
     let rank = 1;
     for (let i = 0; i < studentSummaries.length; i++) {
@@ -257,6 +356,8 @@ export const getReportCard = async (req, res) => {
     const resultSummary = await prisma.resultSummary.findFirst({
       where: { studentId, assessmentGroupId, academicYearId: enrollment.academicYearId },
     });
+
+    const school = enrollment.classSection.school;
 
     const response = {
       success: true,
@@ -273,12 +374,19 @@ export const getReportCard = async (req, res) => {
           dateOfBirth:     personalInfo?.dateOfBirth,
         },
         enrollment: {
-          className:   enrollment.classSection.name,
-          grade:       enrollment.classSection.grade,
-          section:     enrollment.classSection.section,
-          stream:      enrollment.classSection.stream?.name ?? null,
-          course:      enrollment.classSection.course?.name ?? null,
+          className:    enrollment.classSection.name,
+          grade:        enrollment.classSection.grade,
+          section:      enrollment.classSection.section,
+          stream:       enrollment.classSection.stream?.name ?? null,
+          course:       enrollment.classSection.course?.name ?? null,
           academicYear: enrollment.academicYear.name,
+          schoolName:    school?.name    ?? null,
+          schoolAddress: school?.address ?? null,
+          schoolCity:    school?.city    ?? null,
+          schoolState:   school?.state   ?? null,
+          schoolPhone:   school?.phone   ?? null,
+          schoolEmail:   school?.email   ?? null,
+          schoolLogoUrl: await resolveLogoUrl(school),    // ✅ async signed URL
         },
         exam: {
           id:        assessmentGroup.id,
@@ -294,8 +402,8 @@ export const getReportCard = async (req, res) => {
           totalObtained,
           totalMax,
           percentage,
-          grade:                hasFail ? "F"    : gradeInfo.grade,
-          gradeLabel:           hasFail ? "Fail" : gradeInfo.label,
+          grade:               hasFail ? "F"    : gradeInfo.grade,
+          gradeLabel:          hasFail ? "Fail" : gradeInfo.label,
           hasFail,
           rank,
           totalStudentsInClass: studentSummaries.length,
@@ -304,9 +412,9 @@ export const getReportCard = async (req, res) => {
       },
     };
 
-    await cache.set(cacheKey, response);
+    // Cache for 4 minutes
+    await cache.set(cacheKey, response, 240);
     return res.json(response);
-
   } catch (err) {
     console.error("[parent/getReportCard]", err);
     return res.status(500).json({ success: false, message: "Server error" });
@@ -322,32 +430,40 @@ export const getTermSummary = async (req, res) => {
     const studentId = req.query.studentId;
     const { termId } = req.params;
 
-    if (!parentId)  return res.status(401).json({ success: false, message: "Unauthorized" });
-    if (!studentId) return res.status(400).json({ success: false, message: "studentId is required" });
+    if (!parentId)
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    if (!studentId)
+      return res
+        .status(400)
+        .json({ success: false, message: "studentId is required" });
 
     const owns = await verifyParentOwnsStudent(parentId, studentId);
     if (!owns)
       return res.status(403).json({ success: false, message: "Access denied" });
 
-    // ── Cache check ──────────────────────────────────────────
     const cacheKey = `parent:marks:term-summary:${studentId}:${termId}`;
-    const cached = await cache.get(cacheKey);
+    const cached   = await cache.get(cacheKey);
     if (cached) return res.json(JSON.parse(cached));
 
     const enrollment = await prisma.studentEnrollment.findFirst({
-      where: { studentId, status: "ACTIVE" },
+      where:   { studentId, status: "ACTIVE" },
       orderBy: { createdAt: "desc" },
-      include: { academicYear: true, classSection: true },
+      include: {
+        academicYear: true,
+        classSection: { include: { school: SCHOOL_SELECT } },
+      },
     });
 
     if (!enrollment)
-      return res.status(404).json({ success: false, message: "No active enrollment found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "No active enrollment found" });
 
     const term = await prisma.assessmentTerm.findUnique({
       where: { id: termId },
       include: {
         assessmentGroups: {
-          where: { isPublished: true },
+          where:   { isPublished: true },
           include: {
             schedules: { where: { classSectionId: enrollment.classSectionId } },
           },
@@ -356,21 +472,29 @@ export const getTermSummary = async (req, res) => {
     });
 
     if (!term)
-      return res.status(404).json({ success: false, message: "Term not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Term not found" });
 
     const groupSummaries = [];
     for (const group of term.assessmentGroups) {
       const marks = await prisma.marks.findMany({
         where: {
           studentId,
-          schedule: { assessmentGroupId: group.id, classSectionId: enrollment.classSectionId },
+          schedule: {
+            assessmentGroupId: group.id,
+            classSectionId:    enrollment.classSectionId,
+          },
         },
-        include: { schedule: { select: { maxMarks: true, passingMarks: true } } },
+        include: {
+          schedule: { select: { maxMarks: true, passingMarks: true } },
+        },
       });
 
       if (marks.length === 0) continue;
 
-      const { totalObtained, totalMax, percentage, gradeInfo, hasFail } = computeTotals(marks);
+      const { totalObtained, totalMax, percentage, gradeInfo, hasFail } =
+        computeTotals(marks);
 
       groupSummaries.push({
         examId:        group.id,
@@ -384,7 +508,10 @@ export const getTermSummary = async (req, res) => {
       });
     }
 
-    const totalWeight = groupSummaries.reduce((s, g) => s + (g.weightage ?? 1), 0);
+    const totalWeight = groupSummaries.reduce(
+      (s, g) => s + (g.weightage ?? 1),
+      0
+    );
     let overallPct = 0;
     if (totalWeight > 0) {
       overallPct = groupSummaries.reduce(
@@ -396,6 +523,8 @@ export const getTermSummary = async (req, res) => {
     const overallGrade = calcGrade(overallPct);
     const termHasFail  = groupSummaries.some((g) => g.hasFail);
 
+    const school = enrollment.classSection.school;
+
     const response = {
       success: true,
       data: {
@@ -404,6 +533,13 @@ export const getTermSummary = async (req, res) => {
           className:       enrollment.classSection.name,
           academicYear:    enrollment.academicYear.name,
           admissionNumber: enrollment.admissionNumber,
+          schoolName:      school?.name    ?? null,
+          schoolAddress:   school?.address ?? null,
+          schoolCity:      school?.city    ?? null,
+          schoolState:     school?.state   ?? null,
+          schoolPhone:     school?.phone   ?? null,
+          schoolEmail:     school?.email   ?? null,
+          schoolLogoUrl:   await resolveLogoUrl(school),  // ✅ async signed URL
         },
         examGroups: groupSummaries,
         overall: {
@@ -415,9 +551,9 @@ export const getTermSummary = async (req, res) => {
       },
     };
 
-    await cache.set(cacheKey, response);
+    // Cache for 4 minutes
+    await cache.set(cacheKey, response, 240);
     return res.json(response);
-
   } catch (err) {
     console.error("[parent/getTermSummary]", err);
     return res.status(500).json({ success: false, message: "Server error" });

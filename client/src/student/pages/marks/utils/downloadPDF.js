@@ -1,6 +1,10 @@
 // client/src/student/pages/marks/utils/downloadPDF.js
 // Single-page A4 portrait — tight, formal, school mark sheet.
-// Every section is sized proportionally so nothing is empty.
+//
+// FIX: Logo (and student photo) are converted to base64 data-URLs before
+//      being injected into the hidden iframe.  Browsers block cross-origin
+//      image loads inside doc.write() iframes, so a raw https:// signed URL
+//      never renders.  Converting to data: avoids that entirely.
 
 import { GRADE_SCALE } from "../tokens.js";
 
@@ -10,32 +14,91 @@ function rl(status) {
   return "AB";
 }
 
-export function downloadReportPDF(reportData) {
+// ── Convert any URL (https or data:) to a base64 data-URL ────────
+// Returns null on failure so the caller can show a placeholder.
+async function toDataUrl(url) {
+  if (!url) return null;
+  if (url.startsWith("data:")) return url; // already base64
+
+  try {
+    const res = await fetch(url, { mode: "cors", cache: "no-store" });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror  = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+// ── Build a one-line address string from parts ───────────────────
+function buildAddress(enrollment) {
+  const parts = [
+    enrollment?.schoolAddress,
+    enrollment?.schoolCity,
+    enrollment?.schoolState,
+  ].filter(Boolean);
+  return parts.join(", ");
+}
+
+// ── Build a contact line: phone · email ──────────────────────────
+function buildContact(enrollment) {
+  const parts = [
+    enrollment?.schoolPhone  ? `Ph: ${enrollment.schoolPhone}`    : null,
+    enrollment?.schoolEmail  ? `Email: ${enrollment.schoolEmail}` : null,
+  ].filter(Boolean);
+  return parts.join("  ·  ");
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Main export — now async so callers must await it
+// ═══════════════════════════════════════════════════════════════
+export async function downloadReportPDF(reportData) {
   if (!reportData) return;
 
   const { student, enrollment, exam, subjectResults, summary } = reportData;
 
-  const schoolName   = (enrollment?.schoolName   ?? "SCHOOL NAME").toUpperCase();
-  const schoolAddr   = enrollment?.schoolAddress ?? "";
-  const className    = enrollment?.className     ?? "—";
-  const academicYear = enrollment?.academicYear  ?? "—";
-  const examName     = exam?.name               ?? "Examination";
-  const termName     = exam?.term?.name         ?? "";
-  const studentName  = (student?.name           ?? "—").toUpperCase();
+  // ── School ───────────────────────────────────────────────────
+  const schoolName    = (enrollment?.schoolName   ?? "SCHOOL NAME").toUpperCase();
+  const schoolAddr    = buildAddress(enrollment);
+  const schoolContact = buildContact(enrollment);
+
+  // ── Convert logo & student photo to base64 ───────────────────
+  // This is the key fix: signed R2 URLs won't load inside a doc.write() iframe
+  // unless they're converted to data: URLs first.
+  const [logoDataUrl, studentPhotoDataUrl] = await Promise.all([
+    toDataUrl(enrollment?.schoolLogoUrl ?? null),
+    toDataUrl(student?.profileImage     ?? null),
+  ]);
+
+  // ── Exam / student meta ──────────────────────────────────────
+  const className    = enrollment?.className    ?? "—";
+  const academicYear = enrollment?.academicYear ?? "—";
+  const examName     = exam?.name              ?? "Examination";
+  const termName     = exam?.term?.name        ?? "";
+  const studentName  = (student?.name          ?? "—").toUpperCase();
   const admNo        = student?.admissionNumber ?? "—";
   const rollNo       = student?.rollNumber      ?? "—";
   const grade        = enrollment?.grade        ?? "";
   const section      = enrollment?.section      ?? "";
   const dob          = student?.dateOfBirth
-    ? new Date(student.dateOfBirth).toLocaleDateString("en-IN", { day:"2-digit", month:"2-digit", year:"numeric" })
+    ? new Date(student.dateOfBirth).toLocaleDateString("en-IN", {
+        day: "2-digit", month: "2-digit", year: "numeric",
+      })
     : "—";
   const gender       = student?.gender ?? "—";
-  const today        = new Date().toLocaleDateString("en-IN", { day:"2-digit", month:"long", year:"numeric" });
+  const today        = new Date().toLocaleDateString("en-IN", {
+    day: "2-digit", month: "long", year: "numeric",
+  });
   const examTitle    = [termName, examName].filter(Boolean).join(" — ").toUpperCase();
   const overallResult = summary?.hasFail ? "FAIL" : "PASS";
 
-  // ── Subject rows ──────────────────────────────────────────────
-  const subjects = subjectResults ?? [];
+  // ── Subject rows ─────────────────────────────────────────────
+  const subjects    = subjectResults ?? [];
   const subjectRows = subjects.map((s, i) => {
     const absent  = s.isAbsent;
     const minMark = s.passingMarks != null ? Math.floor(s.maxMarks * 0.33) : "—";
@@ -58,13 +121,29 @@ export function downloadReportPDF(reportData) {
       </tr>`;
   }).join("");
 
-  // ── Grade scale rows ──────────────────────────────────────────
+  // ── Grade scale rows ─────────────────────────────────────────
   const gradeRows = GRADE_SCALE.map(g => `
     <tr>
       <td class="tc fw" style="font-family:'Times New Roman',serif;">${g.grade}</td>
       <td class="tc">${g.min}–${g.max}%</td>
       <td class="tl">${g.label}</td>
     </tr>`).join("");
+
+  // ── Logo HTML (data-URL or placeholder) ─────────────────────
+  const logoHtml = logoDataUrl
+    ? `<img src="${logoDataUrl}" alt="Logo"
+         style="height:56px;width:56px;object-fit:contain;border-radius:4px;" />`
+    : `<div style="width:56px;height:56px;border:0.8px dashed #bbb;display:flex;
+         align-items:center;justify-content:center;font-size:5.5pt;color:#bbb;
+         font-style:italic;text-align:center;line-height:1.3;">School<br>Logo</div>`;
+
+  // ── Student photo HTML (data-URL or placeholder) ────────────
+  const studentPhotoHtml = studentPhotoDataUrl
+    ? `<img src="${studentPhotoDataUrl}" alt="Student"
+         style="width:48px;height:58px;object-fit:cover;border-radius:2px;border:0.8px solid #ccc;" />`
+    : `<div style="width:48px;height:58px;border:0.8px dashed #bbb;display:flex;
+         align-items:center;justify-content:center;font-size:5.5pt;color:#bbb;
+         font-style:italic;text-align:center;line-height:1.3;">Student<br>Photo</div>`;
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -103,34 +182,47 @@ export function downloadReportPDF(reportData) {
     pointer-events:none;
     z-index:0;
   }
-
-  /* ── All inner content sits above the decorative border ── */
   .page > * { position:relative; z-index:1; }
 
   /* ══════════════════════════════════════
-     SCHOOL HEADER
+     SCHOOL HEADER  (logo | text)
   ══════════════════════════════════════ */
   .hdr{
-    text-align:center;
-    padding:6px 12px 5px;
+    display:grid;
+    grid-template-columns:64px 1fr;
+    align-items:center;
+    gap:8px;
+    padding:6px 10px 5px;
     border-bottom:2px solid #000;
   }
+  .hdr-logo{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .hdr-body{ text-align:center; }
   .hdr-name{
-    font-size:15pt;
+    font-size:14pt;
     font-weight:900;
-    letter-spacing:2px;
+    letter-spacing:1.5px;
     text-transform:uppercase;
     line-height:1.1;
   }
   .hdr-addr{
     font-size:6.5pt;
     color:#444;
+    margin-top:2px;
+    line-height:1.4;
+  }
+  .hdr-contact{
+    font-size:6pt;
+    color:#555;
     margin-top:1px;
   }
   .hdr-rule{
     border:none;
     border-top:0.8px solid #999;
-    margin:4px 30mm 3px;
+    margin:3px 20mm 2px;
   }
   .hdr-doc{
     font-size:10pt;
@@ -147,29 +239,30 @@ export function downloadReportPDF(reportData) {
   }
 
   /* ══════════════════════════════════════
-     STUDENT INFO BAR
+     STUDENT INFO
   ══════════════════════════════════════ */
-  .info-bar{
-    display:grid;
-    grid-template-columns:1fr 1fr 1fr 1fr 60px;
+  .info-table{
+    width:100%;
+    border-collapse:collapse;
     border-bottom:1.5px solid #000;
   }
-  .info-bar > div{
-    padding:3px 6px;
+  .info-table td{
+    border:none;
     border-right:1px solid #aaa;
-  }
-  .info-bar > div:last-child{ border-right:none; }
-  /* second row */
-  .info-bar2{
-    display:grid;
-    grid-template-columns:1fr 1fr 1fr 1fr;
-    border-bottom:1.5px solid #000;
-  }
-  .info-bar2 > div{
     padding:3px 6px;
-    border-right:1px solid #aaa;
+    vertical-align:top;
   }
-  .info-bar2 > div:last-child{ border-right:none; }
+  .info-table td:last-child{ border-right:none; }
+  .info-table .photo-cell{
+    width:64px;
+    border-left:1px solid #aaa;
+    border-right:none;
+    text-align:center;
+    vertical-align:middle;
+  }
+  .info-table tr.info-divider td{
+    border-top:1px solid #aaa;
+  }
   .lbl{
     font-size:5.8pt;
     font-weight:700;
@@ -182,26 +275,6 @@ export function downloadReportPDF(reportData) {
     font-weight:700;
     margin-top:1px;
     line-height:1.2;
-  }
-  /* photo cell spans 2 rows */
-  .photo-cell{
-    border-left:1px solid #aaa;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    grid-row:span 2;
-    padding:4px;
-  }
-  .photo-box{
-    width:44px;
-    height:52px;
-    border:0.8px dashed #bbb;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    font-size:5.5pt;
-    color:#bbb;
-    font-style:italic;
   }
 
   /* ══════════════════════════════════════
@@ -244,7 +317,6 @@ export function downloadReportPDF(reportData) {
   .marks-table{ border:1.5px solid #000; }
   .marks-table thead th{ border-bottom:1.5px solid #000; }
 
-  /* Grand total row */
   .tot-row td{
     border-top:2px solid #000!important;
     background:#ececec;
@@ -284,7 +356,6 @@ export function downloadReportPDF(reportData) {
 
   /* ══════════════════════════════════════
      BOTTOM 3-PANEL ROW
-     Grade scale | Remarks | Signatures
   ══════════════════════════════════════ */
   .bottom-row{
     display:grid;
@@ -302,13 +373,9 @@ export function downloadReportPDF(reportData) {
     border-bottom:1px solid #999;
     padding:2.5px 0;
   }
-
-  /* Grade scale panel */
   .grade-panel{ border-right:1px solid #999; }
   .grade-inner{ padding:5px 6px; }
   .grade-mini td{ border-color:#ccc; padding:2.5px 5px; font-size:7pt; }
-
-  /* Remarks panel */
   .rem-panel{
     border-right:1px solid #999;
     display:flex;
@@ -329,19 +396,8 @@ export function downloadReportPDF(reportData) {
     padding:4px 0;
   }
   .rem-line{ border-bottom:0.7px solid #ccc; height:1px; }
-  .rem-sig{
-    border-top:0.8px solid #000;
-    padding-top:3px;
-    margin-top:8px;
-  }
-  .rem-sig-lbl{
-    font-size:6pt;
-    font-weight:700;
-    text-transform:uppercase;
-    letter-spacing:0.5px;
-  }
-
-  /* Signature panel */
+  .rem-sig{ border-top:0.8px solid #000; padding-top:3px; margin-top:8px; }
+  .rem-sig-lbl{ font-size:6pt; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; }
   .sig-panel{
     padding:6px 8px;
     display:flex;
@@ -351,12 +407,7 @@ export function downloadReportPDF(reportData) {
   .sig-block{ text-align:center; }
   .sig-space{ height:28px; }
   .sig-draw{ border-top:0.8px solid #000; margin:0 4px 2px; }
-  .sig-lbl{
-    font-size:6pt;
-    font-weight:700;
-    text-transform:uppercase;
-    letter-spacing:0.5px;
-  }
+  .sig-lbl{ font-size:6pt; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; }
   .stamp-wrap{ text-align:center; }
   .stamp-box{
     border:0.8px dashed #aaa;
@@ -368,20 +419,14 @@ export function downloadReportPDF(reportData) {
     color:#aaa;
     font-style:italic;
   }
-  .stamp-lbl{
-    font-size:5.5pt;
-    font-weight:700;
-    text-transform:uppercase;
-    letter-spacing:0.5px;
-    margin-top:2px;
-  }
+  .stamp-lbl{ font-size:5.5pt; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-top:2px; }
 
   /* ══════════════════════════════════════
      FOOTER
   ══════════════════════════════════════ */
   .doc-footer{
     border-top:1.5px solid #000;
-    padding:3px 8px 3px;
+    padding:3px 8px;
     display:flex;
     justify-content:space-between;
     align-items:center;
@@ -401,59 +446,61 @@ export function downloadReportPDF(reportData) {
 
   <!-- ══════════════════ HEADER ══════════════════ -->
   <div class="hdr">
-    <div class="hdr-name">${schoolName}</div>
-    ${schoolAddr ? `<div class="hdr-addr">${schoolAddr}</div>` : ""}
-    <hr class="hdr-rule"/>
-    <div class="hdr-doc">Student Mark Sheet</div>
-    <div class="hdr-exam">${examTitle}&nbsp;&nbsp;·&nbsp;&nbsp;Academic Year: ${academicYear}</div>
-  </div>
-
-  <!-- ══════════════════ STUDENT INFO ROW 1 ══════════════════ -->
-  <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr 60px; border-bottom:1px solid #aaa;">
-    <div style="padding:3px 6px; border-right:1px solid #aaa;">
-      <div class="lbl">Student Name</div>
-      <div class="val" style="font-size:8.5pt;letter-spacing:0.3px;">${studentName}</div>
-    </div>
-    <div style="padding:3px 6px; border-right:1px solid #aaa;">
-      <div class="lbl">Roll No.</div>
-      <div class="val">${rollNo}</div>
-    </div>
-    <div style="padding:3px 6px; border-right:1px solid #aaa;">
-      <div class="lbl">Admission No.</div>
-      <div class="val">${admNo}</div>
-    </div>
-    <div style="padding:3px 6px; border-right:1px solid #aaa;">
-      <div class="lbl">Class &amp; Section</div>
-      <div class="val">${grade ? grade : ""}${section ? " – " + section : ""} ${className}</div>
-    </div>
-    <!-- photo box spans 2 rows via rowspan trick using a nested table -->
-    <div style="border-left:1px solid #aaa; padding:4px; display:flex; align-items:center; justify-content:center; grid-row:span 2;" rowspan="2">
-      <div class="photo-box">Photo</div>
+    <div class="hdr-logo">${logoHtml}</div>
+    <div class="hdr-body">
+      <div class="hdr-name">${schoolName}</div>
+      ${schoolAddr    ? `<div class="hdr-addr">${schoolAddr}</div>`       : ""}
+      ${schoolContact ? `<div class="hdr-contact">${schoolContact}</div>` : ""}
+      <hr class="hdr-rule"/>
+      <div class="hdr-doc">Student Mark Sheet</div>
+      <div class="hdr-exam">${examTitle}&nbsp;&nbsp;·&nbsp;&nbsp;Academic Year: ${academicYear}</div>
     </div>
   </div>
 
-  <!-- ══════════════════ STUDENT INFO ROW 2 ══════════════════ -->
-  <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr 60px; border-bottom:1.5px solid #000;">
-    <div style="padding:3px 6px; border-right:1px solid #aaa;">
-      <div class="lbl">Date of Birth</div>
-      <div class="val">${dob}</div>
-    </div>
-    <div style="padding:3px 6px; border-right:1px solid #aaa;">
-      <div class="lbl">Gender</div>
-      <div class="val">${gender}</div>
-    </div>
-    <div style="padding:3px 6px; border-right:1px solid #aaa;">
-      <div class="lbl">Academic Year</div>
-      <div class="val">${academicYear}</div>
-    </div>
-    <div style="padding:3px 6px; border-right:1px solid #aaa;">
-      <div class="lbl">Exam</div>
-      <div class="val">${examName}</div>
-    </div>
-    <div style="border-left:1px solid #aaa; padding:4px; display:flex; align-items:center; justify-content:center;">
-      <div class="photo-box" style="border:none; color:#fff;">—</div>
-    </div>
-  </div>
+  <!-- ══════════════════ STUDENT INFO ══════════════════ -->
+  <table class="info-table">
+    <tbody>
+      <tr>
+        <td style="width:28%;">
+          <div class="lbl">Student Name</div>
+          <div class="val" style="font-size:8.5pt;letter-spacing:0.3px;">${studentName}</div>
+        </td>
+        <td style="width:15%;">
+          <div class="lbl">Roll No.</div>
+          <div class="val">${rollNo}</div>
+        </td>
+        <td style="width:19%;">
+          <div class="lbl">Admission No.</div>
+          <div class="val">${admNo}</div>
+        </td>
+        <td style="width:22%;">
+          <div class="lbl">Class &amp; Section</div>
+          <div class="val">${grade ? grade : ""}${section ? " – " + section : ""} ${className}</div>
+        </td>
+        <td class="photo-cell" rowspan="2">
+          ${studentPhotoHtml}
+        </td>
+      </tr>
+      <tr class="info-divider">
+        <td>
+          <div class="lbl">Date of Birth</div>
+          <div class="val">${dob}</div>
+        </td>
+        <td>
+          <div class="lbl">Gender</div>
+          <div class="val">${gender}</div>
+        </td>
+        <td>
+          <div class="lbl">Academic Year</div>
+          <div class="val">${academicYear}</div>
+        </td>
+        <td>
+          <div class="lbl">Exam</div>
+          <div class="val">${examName}</div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
 
   <!-- ══════════════════ MARKS TABLE ══════════════════ -->
   <div class="sec-head">Subject-wise Marks Statement</div>
@@ -555,21 +602,18 @@ export function downloadReportPDF(reportData) {
     <!-- Signatures -->
     <div class="sig-panel">
       <div class="panel-title" style="margin:-6px -8px 0; padding:2.5px 0;">Signatures</div>
-
       <div style="flex:1; display:flex; flex-direction:column; justify-content:space-evenly; padding-top:6px;">
         <div class="sig-block">
           <div class="sig-space"></div>
           <div class="sig-draw"></div>
           <div class="sig-lbl">Principal</div>
         </div>
-
         <div class="sig-block">
           <div class="sig-space"></div>
           <div class="sig-draw"></div>
           <div class="sig-lbl">Parent / Guardian</div>
         </div>
       </div>
-
       <div class="stamp-wrap">
         <div class="stamp-box">School Stamp</div>
         <div class="stamp-lbl">Office Seal</div>
@@ -587,11 +631,9 @@ export function downloadReportPDF(reportData) {
 </div><!-- /.page -->
 
 <script>
-  // Auto-scale to guarantee single page fit
   (function() {
     var page = document.querySelector('.page');
     if (!page) return;
-    // A4 usable height in px at 96dpi: (297-16)mm * 3.7795 ≈ 1062px
     var maxPx = (297 - 16) * 3.7795;
     var h = page.scrollHeight;
     if (h > maxPx) {
@@ -605,6 +647,7 @@ export function downloadReportPDF(reportData) {
 </html>`;
 
   // ── Print via hidden iframe ───────────────────────────────────
+  // Images are already embedded as data: URLs so no network load needed.
   const iframe = document.createElement("iframe");
   iframe.style.cssText =
     "position:fixed;top:-9999px;left:-9999px;width:210mm;height:297mm;border:none;visibility:hidden;";
@@ -621,7 +664,7 @@ export function downloadReportPDF(reportData) {
       setTimeout(() => {
         if (document.body.contains(iframe)) document.body.removeChild(iframe);
       }, 3000);
-    }, 700);
+    }, 400); // shorter delay is fine — no images to wait for
   } catch {
     const win = window.open("", "_blank", "width=820,height=1060");
     if (win) {
