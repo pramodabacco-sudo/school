@@ -310,9 +310,13 @@ function buildInvoiceHTML({
                   </td>
                   <td width="50%" style="padding-left:16px; border-left:2px solid #f0f5fb;">
                     <div style="font-size:10px; font-weight:600; color:#88BDF2; letter-spacing:1.2px; text-transform:uppercase; margin-bottom:10px;">From</div>
-                    <div style="font-size:15px; font-weight:600; color:#384959; margin-bottom:4px;">School CRM</div>
-                    <div style="font-size:13px; color:#6A89A7; margin-bottom:2px;">eduabaccotech@gmail.com</div>
-                    <div style="font-size:13px; color:#6A89A7;">India</div>
+                    <div style="font-size:15px; font-weight:600; color:#384959; margin-bottom:4px;">Education CRM</div>
+                    <div style="font-size:13px; color:#6A89A7; margin-bottom:2px;">support@eduabaccotech.com</div>
+                    <div style="font-size:13px; color:#6A89A7;">
+                      No 12,13 & 12/A, Kirthan Arcade, 3rd Floor,
+                      Aditya Nagar, Sandeep Unnikrishnan Road,
+                      Bangalore 560097
+                    </div>
                   </td>
                 </tr>
               </table>
@@ -333,7 +337,7 @@ function buildInvoiceHTML({
                 <tr>
                   <td style="padding:16px 14px 6px;">
                     <div style="font-size:14px; font-weight:600; color:#384959;">${plan.label} Plan — Students</div>
-                    <div style="font-size:12px; color:#88BDF2; margin-top:3px;">School CRM · Per student per year</div>
+                    <div style="font-size:12px; color:#88BDF2; margin-top:3px;">Education CRM · Per student per year</div>
                   </td>
                   <td style="padding:16px 8px 6px; text-align:center; font-size:14px; color:#384959; font-weight:500;">${students}</td>
                   <td style="padding:16px 8px 6px; text-align:center; font-size:14px; color:#384959;">₹${pricePerUser.toLocaleString("en-IN")}</td>
@@ -343,7 +347,7 @@ function buildInvoiceHTML({
                 <tr style="background:#fafcfe;">
                   <td style="padding:6px 14px 16px;">
                     <div style="font-size:14px; font-weight:600; color:#384959;">${plan.label} Plan — Teachers</div>
-                    <div style="font-size:12px; color:#88BDF2; margin-top:3px;">School CRM · Per teacher per year</div>
+                    <div style="font-size:12px; color:#88BDF2; margin-top:3px;">Education CRM · Per teacher per year</div>
                   </td>
                   <td style="padding:6px 8px 16px; text-align:center; font-size:14px; color:#384959; font-weight:500;">${teachers}</td>
                   <td style="padding:6px 8px 16px; text-align:center; font-size:14px; color:#384959;">₹${pricePerUser.toLocaleString("en-IN")}</td>
@@ -385,13 +389,13 @@ function buildInvoiceHTML({
                         <td style="padding-top:10px; text-align:right;">
                           <div style="font-size:20px; font-weight:700; color:#384959;">₹${total.toLocaleString("en-IN")}</div>
                      <div style="
-  font-size:10px;
-  color:#88BDF2;
-  text-align:right;
-  margin-top:2px;
-">
-  INR incl. GST
-</div>
+                        font-size:10px;
+                        color:#88BDF2;
+                        text-align:right;
+                        margin-top:2px;
+                            ">
+                       INR incl. GST
+                      </div>
                         </td>
                       </tr>
                     </table>
@@ -418,7 +422,7 @@ function buildInvoiceHTML({
               </div>
               <div style="color:rgba(255,255,255,0.5); font-size:11px; line-height:1.6;">
                 This is a system-generated invoice. For support write to
-                <a href="mailto:eduabaccotech@gmail.com" style="color:#88BDF2;">eduabaccotech@gmail.com</a>
+                <a href="mailto:support@eduabaccotech.com" style="color:#88BDF2;">support@eduabaccotech.com</a>
               </div>
             </td>
           </tr>
@@ -643,9 +647,9 @@ const logoSrc = `data:image/png;base64,${logoBase64}`;
 const pdfPath = await generateInvoicePDF(invoiceHtml, invoiceNumber);  // ✅ big invoice → PDF
 
 await transporter.sendMail({
-  from: `"School CRM" <${process.env.EMAIL_USER}>`,
+  from: `"Education CRM" <${process.env.EMAIL_USER}>`,
   to: email,
-  subject: `Your Invoice ${invoiceNumber} — School CRM`,
+  subject: `Your Invoice ${invoiceNumber} — Education CRM`,
   html: buildPDFHTML({ invoiceNumber, fullName, planName, amount }),
   attachments: [
     // Logo as inline CID attachment
