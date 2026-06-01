@@ -1,21 +1,27 @@
+import React from "react";
 import { BookMarked } from "lucide-react";
+import { C } from "./C"; // Import theme tokens
 
 const EmptyState = () => {
   return (
-    <div className="flex flex-col items-center justify-center py-24 text-center">
-      <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-sky-200 bg-sky-50">
-        <BookMarked
-          size={28}
-          className="text-sky-500"
-        />
+    <div className="flex flex-col items-center justify-center py-20 px-4 text-center hl-fade">
+      <div 
+        className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border"
+        style={{ 
+          borderColor: C.border, 
+          background: `linear-gradient(135deg, ${C.white}, ${C.bg})`,
+          boxShadow: `0 4px 12px ${C.slate}15`
+        }}
+      >
+        <BookMarked size={22} style={{ color: C.slate }} />
       </div>
 
-      <h3 className="text-lg font-bold text-slate-800">
+      <h3 className="text-base font-extrabold" style={{ color: C.text }}>
         No tutorial teachers yet
       </h3>
 
-      <p className="mt-2 text-sm text-slate-500">
-        Add tutorial providers for recommendations
+      <p className="mt-1.5 max-w-xs text-xs font-medium" style={{ color: C.textLight }}>
+        Add tutorial providers to set up availability rankings and recommendations.
       </p>
     </div>
   );

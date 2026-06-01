@@ -5,67 +5,138 @@ import { prisma } from "../config/db.js";
 // GET ALL
 // ======================================================
 
-export const getTutorialTeachers =
-  async (req, res) => {
-    try {
+// export const getTutorialTeachers =
+//   async (req, res) => {
+//     try {
 
-      const schoolId =
-        req.user.schoolId;
+//       const schoolId =
+//         req.user.schoolId;
 
-      const tutorials =
-        await prisma.teacherTutorialProfile.findMany({
-          where: {
-            schoolId,
-          isActive: true,
-deletedAt: null,
-          },
+//       const tutorials =
+//         await prisma.teacherTutorialProfile.findMany({
+//           where: {
+//             schoolId,
+//           isActive: true,
+// deletedAt: null,
+//           },
 
-          include: {
-            teacher: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                phone: true,
-                designation: true,
-                qualification: true,
-                experienceYears: true,
-                profileImage: true,
-                status: true,
-              },
+//           include: {
+//             teacher: {
+//               select: {
+//                 id: true,
+//                 firstName: true,
+//                 lastName: true,
+//                 phone: true,
+//                 designation: true,
+//                 qualification: true,
+//                 experienceYears: true,
+//                 profileImage: true,
+//                 status: true,
+//               },
+//             },
+//           },
+
+//           orderBy: [
+//             {
+//               rankingScore: "desc",
+//             },
+
+//             {
+//               adminPriority: "desc",
+//             },
+//           ],
+//         });
+
+//       return res.json({
+//         success: true,
+//         data: tutorials,
+//       });
+
+//     } catch (error) {
+
+//       console.error(
+//         "[getTutorialTeachers]",
+//         error
+//       );
+
+//       return res.status(500).json({
+//         success: false,
+//         message:
+//           "Failed to fetch tutorial teachers",
+//       });
+//     }
+//   };
+export const getTutorialTeachers = async (req, res) => {
+  try {
+    const schoolId = req.user.schoolId;
+
+    // Pagination params
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+
+    const skip = (page - 1) * limit;
+
+    const where = {
+      schoolId,
+      isActive: true,
+      deletedAt: null,
+    };
+
+    const [tutorials, total] = await Promise.all([
+      prisma.teacherTutorialProfile.findMany({
+        where,
+
+        skip,
+        take: limit,
+
+        include: {
+          teacher: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              phone: true,
+              designation: true,
+              qualification: true,
+              experienceYears: true,
+              profileImage: true,
+              status: true,
             },
           },
+        },
 
-          orderBy: [
-            {
-              rankingScore: "desc",
-            },
+        orderBy: [
+          { rankingScore: "desc" },
+          { adminPriority: "desc" },
+        ],
+      }),
 
-            {
-              adminPriority: "desc",
-            },
-          ],
-        });
+      prisma.teacherTutorialProfile.count({
+        where,
+      }),
+    ]);
 
-      return res.json({
-        success: true,
-        data: tutorials,
-      });
+    return res.json({
+      success: true,
+      data: tutorials,
 
-    } catch (error) {
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
 
-      console.error(
-        "[getTutorialTeachers]",
-        error
-      );
+  } catch (error) {
+    console.error("[getTutorialTeachers]", error);
 
-      return res.status(500).json({
-        success: false,
-        message:
-          "Failed to fetch tutorial teachers",
-      });
-    }
-  };
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch tutorial teachers",
+    });
+  }
+};
 
 // ======================================================
 // GET SINGLE

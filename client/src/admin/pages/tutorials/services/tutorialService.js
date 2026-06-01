@@ -8,27 +8,58 @@ const authHeaders = () => ({
 });
 
 // ✅ GET ALL
-export const getTutorialTeachers =
-  async () => {
-    const res = await fetch(
-      `${API_URL}/api/admin/tutorials`,
-      {
-        method: "GET",
-        headers: authHeaders(),
-      }
-    );
+// export const getTutorialTeachers =
+//   async () => {
+//     const res = await fetch(
+//       `${API_URL}/api/admin/tutorials`,
+//       {
+//         method: "GET",
+//         headers: authHeaders(),
+//       }
+//     );
 
-    const data = await res.json();
+//     const data = await res.json();
 
-    if (!res.ok) {
-      throw new Error(
-        data.message ||
-          "Failed to fetch tutorial teachers"
-      );
+//     if (!res.ok) {
+//       throw new Error(
+//         data.message ||
+//           "Failed to fetch tutorial teachers"
+//       );
+//     }
+
+//     return data.data || [];
+//   };
+export const getTutorialTeachers = async (
+  page = 1,
+  limit = 20
+) => {
+  const res = await fetch(
+    `${API_URL}/api/admin/tutorials?page=${page}&limit=${limit}`,
+    {
+      method: "GET",
+      headers: authHeaders(),
     }
+  );
 
-    return data.data || [];
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(
+      data.message ||
+      "Failed to fetch tutorial teachers"
+    );
+  }
+
+  return {
+    teachers: data.data || [],
+    pagination: data.pagination || {
+      page: 1,
+      limit: 20,
+      total: 0,
+      totalPages: 1,
+    },
   };
+};
 
 // ✅ GET SINGLE
 export const getTutorialTeacherById =
