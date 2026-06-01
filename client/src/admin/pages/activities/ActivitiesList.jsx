@@ -454,7 +454,7 @@ export default function ActivitiesList() {
                     </div>
                     <div style={{ display: "flex", gap: 6 }}>
                       <button onClick={() => setModal({ type: tab === "activities" ? "activity" : "event", data: item })} style={{ width: 28, height: 28, borderRadius: 8, border: `1px solid ${C.borderLight}`, background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", color: C.textLight, cursor: "pointer" }}><Edit2 size={13} /></button>
-                      <button style={{ width: 28, height: 28, borderRadius: 8, border: `1px solid ${C.danger}30`, background: `${C.danger}08`, display: "flex", alignItems: "center", justifyContent: "center", color: C.danger, cursor: "pointer" }}><Archive size={13} /></button>
+                      {/* <button style={{ width: 28, height: 28, borderRadius: 8, border: `1px solid ${C.danger}30`, background: `${C.danger}08`, display: "flex", alignItems: "center", justifyContent: "center", color: C.danger, cursor: "pointer" }}><Archive size={13} /></button> */}
                     </div>
                   </div>
                   <h3 style={{ margin: 0, fontSize: isMobile ? 14 : 16, fontWeight: 800, color: C.text, lineHeight: 1.3 }}>{item.name}</h3>

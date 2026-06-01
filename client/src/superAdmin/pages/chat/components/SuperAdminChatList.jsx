@@ -60,6 +60,9 @@ const SuperAdminChatList = ({
   const [showUserList, setShowUserList] = useState(false);
   const [users, setUsers] = useState([]);
   const [activeTab, setActiveTab] = useState("ADMIN");
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+const [chatToDelete, setChatToDelete] = useState(null);
+const [openMenuChatId, setOpenMenuChatId] = useState(null);
 
   // FETCH CHATS
   const fetchChats = async () => {
@@ -140,6 +143,28 @@ const SuperAdminChatList = ({
       console.error(err);
     }
   };
+
+  const deleteChat = async (chatId) => {
+  try {
+    const res = await fetch(`${API_URL}/api/chat/chat/${chatId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    const data = await res.json();
+    if (!data.success) { alert(data.message || "Failed to delete chat"); return; }
+
+    setChatList((prev) => prev.filter((chat) => chat.id !== chatId));
+    const remainingChats = chatList.filter((c) => c.id !== chatId);
+    if (selectedChat?.id === chatId) {
+      onSelectChat(remainingChats.length > 0 ? remainingChats[0] : null);
+    }
+    setShowDeleteModal(false);
+    setChatToDelete(null);
+  } catch (err) {
+    console.error(err);
+    alert("Failed to delete chat");
+  }
+};
 
   useEffect(() => {
 
@@ -250,23 +275,19 @@ const SuperAdminChatList = ({
                   colorIndex={i % 5}
                 />
 
-                <div className="flex-1 min-w-0">
+    <div className="flex-1 min-w-0">
+      <div className="flex justify-between items-center">
+        <span className="text-sm font-semibold text-slate-700 truncate">
+          {u.name}
+        </span>
+      </div>
 
-                  <div className="flex justify-between items-center">
+      <RoleBadge role={activeTab} />
 
-                    <span className="text-sm font-semibold text-slate-700 truncate">
-                      {u.name}
-                    </span>
-
-                  </div>
-
-                  <RoleBadge role={activeTab} />
-
-                  <div className="text-xs text-gray-500 truncate mt-0.5">
-                    {u.email}
-                  </div>
-
-                </div>
+      <div className="text-xs text-gray-500 truncate mt-0.5">
+        {u.email}
+      </div>
+    </div>
 
               </div>
 
@@ -349,12 +370,43 @@ const SuperAdminChatList = ({
                 </div>
               );
             })
-
           )}
-
         </div>
-
       </div>
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-xl w-[360px] max-w-[90%] overflow-hidden">
+            <div className="bg-red-500 px-5 py-4 flex items-center gap-3">
+              <div className="bg-white/20 rounded-full p-1.5">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6M14 11v6" /><path d="M9 6V4h6v2" />
+                </svg>
+              </div>
+              <h3 className="text-white font-semibold text-base">Delete Conversation</h3>
+            </div>
+            <div className="px-5 py-4">
+              <p className="text-sm text-gray-600 leading-relaxed">
+                You're about to permanently delete your conversation with{" "}
+                <span className="font-semibold text-slate-700">{chatToDelete?.otherUser?.name}</span>. This cannot be undone.
+              </p>
+            </div>
+            <div className="px-5 pb-5 flex justify-end gap-2.5">
+              <button
+                onClick={() => { setShowDeleteModal(false); setChatToDelete(null); }}
+                className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => deleteChat(chatToDelete.id)}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
