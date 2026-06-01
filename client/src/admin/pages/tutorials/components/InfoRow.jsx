@@ -1,21 +1,22 @@
-const InfoRow = ({
-  icon: Icon,
-  label,
-  value,
-}) => {
+import React from "react";
+import { C } from "./C";
+
+const InfoRow = ({ icon: Icon, label, value }) => {
   return (
-    <div className="flex items-start gap-3">
-      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-500">
-        <Icon size={15} />
+    <div className="flex items-center gap-3 py-1">
+      <div 
+        className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border text-slate-500"
+        style={{ backgroundColor: C.bg, borderColor: C.borderLight }}
+      >
+        <Icon size={13} style={{ color: C.text }} />
       </div>
 
-      <div>
-        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: C.textLight }}>
           {label}
         </p>
-
-        <p className="mt-1 text-sm font-semibold text-slate-700">
-          {value || "-"}
+        <p className="mt-0.5 truncate text-xs font-semibold" style={{ color: C.text }}>
+          {value || "—"}
         </p>
       </div>
     </div>
