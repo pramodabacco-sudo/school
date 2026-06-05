@@ -10,7 +10,7 @@ import { getToken } from "../../../auth/storage";
 const premiumPlan = {
   id: "premium",
   name: "Premium",
-  price: 300,
+  price: 150,
   tagline: "Best for large institutions & franchises",
   icon: Crown,
   badge: "Full Access",
