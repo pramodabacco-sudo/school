@@ -1,3 +1,4 @@
+//client\src\finance\pages\Studentfinance\Studentfinance.jsx
 import React, { useState, useEffect } from "react";
 import {
     Search, IndianRupee, CalendarDays,
@@ -450,6 +451,7 @@ export default function StudentFeesPage() {
     const [waStudent, setWaStudent] = useState(null);
     const [schoolInfo, setSchoolInfo] = useState({ name: "", address: "", city: "", phone: "" });
     const [receiptStudent, setReceiptStudent] = useState(null);
+    const [feeCategory, setFeeCategory] = useState("ALL");
 
 
     useEffect(() => {
@@ -966,7 +968,28 @@ const handleSendReceipt = async (student) => {
                                         <option key={c} value={c}>{c === "All" ? "All Classes" : c}</option>
                                     ))}
                                 </select>
-
+                                <select
+                                    value={feeCategory}
+                                    onChange={(e) => setFeeCategory(e.target.value)}
+                                    style={{
+                                        fontSize: 12,
+                                        fontWeight: 600,
+                                        color: "#1C3044",
+                                        background: "#fff",
+                                        border: "1.5px solid rgba(255,255,255,.35)",
+                                        borderRadius: 8,
+                                        padding: "7px 28px 7px 10px",
+                                        fontFamily: "'DM Sans',sans-serif",
+                                        outline: "none",
+                                        cursor: "pointer",
+                                        appearance: "none",
+                                        minWidth: 130
+                                    }}
+                                >
+                                    <option value="ALL">All Fees</option>
+                                    <option value="SCHOOL">School Fee</option>
+                                    <option value="TUITION">Tuition Fee</option>
+                                </select>
                                 <div className="sf2-search-wrap flex-1" style={{ minWidth: 0 }}>
                                     <Search size={13} className="sf2-search-ico" />
                                     <input
@@ -985,88 +1008,302 @@ const handleSendReceipt = async (student) => {
                                 <table className="sf2-tbl" style={{ minWidth: 700 }}>
                                     <thead>
                                         <tr>
-                                            {["#", "Name", "Email", "Class", "Total Fees", "Paid", "Remaining", "Status", "Actions"].map(h => (
-                                                <th key={h}>{h}</th>
-                                            ))}
+                                            <th>#</th>
+                                            <th>Name</th>
+                                            <th>Email</th>
+                                            <th>Class</th>
+
+                                            <th>
+                                                {feeCategory === "SCHOOL"
+                                                    ? "School Fee"
+                                                    : feeCategory === "TUITION"
+                                                        ? "Tuition Fee"
+                                                        : "Total Fees"}
+                                            </th>
+
+                                            <th>
+                                                {feeCategory === "SCHOOL"
+                                                    ? "Paid School Fee"
+                                                    : feeCategory === "TUITION"
+                                                        ? "Paid Tuition Fee"
+                                                        : "Paid"}
+                                            </th>
+
+                                            <th>
+                                                {feeCategory === "SCHOOL"
+                                                    ? "School Due"
+                                                    : feeCategory === "TUITION"
+                                                        ? "Tuition Due"
+                                                        : "Remaining"}
+                                            </th>
+
+                                            <th>Status</th>
+                                            <th>Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {filtered.length === 0 ? (
                                             <tr>
-                                                <td colSpan={9} style={{ textAlign: "center", padding: "36px 0", color: "#4A6B80", fontSize: 14 }}>
+                                                <td
+                                                    colSpan={9}
+                                                    style={{
+                                                        textAlign: "center",
+                                                        padding: "36px 0",
+                                                        color: "#4A6B80",
+                                                        fontSize: 14
+                                                    }}
+                                                >
                                                     No students found
                                                 </td>
                                             </tr>
-                                        ) : filtered.map((student, idx) => {
-                                            const totalFee = Number(student.fees || 0);
-                                            const paidAmt  = Number(student.paidAmount || 0);
-                                            const remaining = Math.max(0, totalFee - paidAmt);
+                                        ) : (
+                                            filtered.map((student, idx) => {
+                                                const totalFee = Number(student.fees || 0);
+                                                const paidAmt = Number(student.paidAmount || 0);
+                                                const remaining = Math.max(0, totalFee - paidAmt);
 
-                                            return (
-                                                <tr key={student.id}>
-                                                    <td style={{ color: "#8fa3b1", fontSize: 12 }}>{idx + 1}</td>
-                                                    <td style={{ fontWeight: 600 }}>{student.name}</td>
-                                                    <td style={{ color: "#4A6B80", fontSize: 13 }}>{student.email}</td>
-                                                    <td><span className="sf2-badge sf2-badge-blue">{student.course || "—"}</span></td>
-                                                    <td style={{ fontWeight: 700, color: "#27435B" }}>₹{totalFee.toLocaleString("en-IN")}</td>
-                                                    <td style={{ fontWeight: 600, color: "#1a6e3e" }}>
-                                                        {paidAmt > 0 ? `₹${paidAmt.toLocaleString("en-IN")}` : <span style={{ color: "#A0B8C8" }}>—</span>}
-                                                    </td>
-                                                    <td>
-                                                        <span style={{ fontWeight: 700, color: remaining > 0 ? "#a33030" : "#1a6e3e" }}>
-                                                            ₹{remaining.toLocaleString("en-IN")}
-                                                        </span>
-                                                    </td>
-                                                    <td>
-                                                        {paidAmt >= totalFee && totalFee > 0 ? (
-                                                            <span className="sf2-badge sf2-badge-green">
-                                                                <CheckCircle size={12} /> Paid
+                                                const breakdown = JSON.parse(
+                                                    student.feeBreakdown || "{}"
+                                                );
+
+                                                const schoolFee = Number(
+                                                    breakdown.collegeFee || 0
+                                                );
+
+                                                const tuitionFee = Number(
+                                                    breakdown.tuitionFee || 0
+                                                );
+
+                                                const schoolPaid = Number(
+                                                    student.schoolFeePaid || 0
+                                                );
+
+                                                const tuitionPaid = Number(
+                                                    student.tuitionFeePaid || 0
+                                                );
+
+                                                const schoolRemaining = Math.max(
+                                                    0,
+                                                    schoolFee - schoolPaid
+                                                );
+
+                                                const tuitionRemaining = Math.max(
+                                                    0,
+                                                    tuitionFee - tuitionPaid
+                                                );
+
+                                                const displayFee =
+                                                    feeCategory === "SCHOOL"
+                                                        ? schoolFee
+                                                        : feeCategory === "TUITION"
+                                                        ? tuitionFee
+                                                        : totalFee;
+
+                                                const displayPaid =
+                                                    feeCategory === "SCHOOL"
+                                                        ? schoolPaid
+                                                        : feeCategory === "TUITION"
+                                                        ? tuitionPaid
+                                                        : paidAmt;
+
+                                                const displayRemaining =
+                                                    feeCategory === "SCHOOL"
+                                                        ? schoolRemaining
+                                                        : feeCategory === "TUITION"
+                                                        ? tuitionRemaining
+                                                        : remaining;
+
+                                                const isPaid =
+                                                    feeCategory === "SCHOOL"
+                                                        ? schoolFee > 0 &&
+                                                        schoolRemaining <= 0
+                                                        : feeCategory === "TUITION"
+                                                        ? tuitionFee > 0 &&
+                                                        tuitionRemaining <= 0
+                                                        : totalFee > 0 &&
+                                                        paidAmt >= totalFee;
+
+                                                return (
+                                                    <tr key={student.id}>
+                                                        <td
+                                                            style={{
+                                                                color: "#8fa3b1",
+                                                                fontSize: 12
+                                                            }}
+                                                        >
+                                                            {idx + 1}
+                                                        </td>
+
+                                                        <td
+                                                            style={{
+                                                                fontWeight: 600
+                                                            }}
+                                                        >
+                                                            {student.name}
+                                                        </td>
+
+                                                        <td
+                                                            style={{
+                                                                color: "#4A6B80",
+                                                                fontSize: 13
+                                                            }}
+                                                        >
+                                                            {student.email}
+                                                        </td>
+
+                                                        <td>
+                                                            <span className="sf2-badge sf2-badge-blue">
+                                                                {student.course || "—"}
                                                             </span>
-                                                        ) : (
-                                                            <button className="sf2-pay-btn" onClick={() => setPayStudent(student)}>
-                                                                Pay
-                                                            </button>
-                                                        )}
-                                                    </td>
-                                                    <td>
-                                                        <div style={{ display: "flex", gap: 6 }}>
-                                                            <button className="sf2-act sf2-act-edit" title="Edit" onClick={() => handleEdit(student)}>
-                                                                <Pencil size={13} />
-                                                            </button>
-                                                            <button className="sf2-act sf2-act-del" title="Delete" onClick={() => handleDelete(student.id)}>
-                                                                <Trash2 size={13} />
-                                                            </button>
-                                                            <button className="sf2-act sf2-act-inv" title="Invoice" onClick={() => setInvoiceStudent(student)}>
-                                                                <FileText size={13} />
-                                                            </button>
-                                                            {isPremium && (
-                                                                <button
-                                                                    className="sf2-act sf2-act-wa"
-                                                                    title="Send Fees Reminder to Parent"
-                                                                    onClick={() => setWaStudent(student)}
-                                                                >
-                                                                    <FaWhatsapp size={13} />
-                                                                </button>
-                                                            )}
-                                                            {isPremium && (
-                                                                <button
-                                                                    className="sf2-act sf2-act-inv"
-                                                                    title="Send Receipt PDF"
-                                                                    onClick={() => setReceiptStudent(student)}
+                                                        </td>
+
+                                                        <td
+                                                            style={{
+                                                                fontWeight: 700,
+                                                                color: "#27435B"
+                                                            }}
+                                                        >
+                                                            ₹{displayFee.toLocaleString("en-IN")}
+                                                        </td>
+
+                                                        <td
+                                                            style={{
+                                                                fontWeight: 600,
+                                                                color: "#1a6e3e"
+                                                            }}
+                                                        >
+                                                            {displayPaid > 0 ? (
+                                                                `₹${displayPaid.toLocaleString(
+                                                                    "en-IN"
+                                                                )}`
+                                                            ) : (
+                                                                <span
                                                                     style={{
-                                                                        background: "#eef2ff",
-                                                                        color: "#4f46e5",
-                                                                        border: "1px solid #c7d2fe"
+                                                                        color: "#A0B8C8"
                                                                     }}
                                                                 >
-                                                                    <FaWhatsapp size={13} />
+                                                                    —
+                                                                </span>
+                                                            )}
+                                                        </td>
+
+                                                        <td>
+                                                            <span
+                                                                style={{
+                                                                    fontWeight: 700,
+                                                                    color:
+                                                                        displayRemaining > 0
+                                                                            ? "#a33030"
+                                                                            : "#1a6e3e"
+                                                                }}
+                                                            >
+                                                                ₹
+                                                                {displayRemaining.toLocaleString(
+                                                                    "en-IN"
+                                                                )}
+                                                            </span>
+                                                        </td>
+
+                                                        <td>
+                                                            {isPaid ? (
+                                                                <span className="sf2-badge sf2-badge-green">
+                                                                    <CheckCircle size={12} />
+                                                                    Paid
+                                                                </span>
+                                                            ) : (
+                                                                <button
+                                                                    className="sf2-pay-btn"
+                                                                    onClick={() =>
+                                                                        setPayStudent(student)
+                                                                    }
+                                                                >
+                                                                    Pay
                                                                 </button>
                                                             )}
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
+                                                        </td>
+
+                                                        <td>
+                                                            <div
+                                                                style={{
+                                                                    display: "flex",
+                                                                    gap: 6
+                                                                }}
+                                                            >
+                                                                <button
+                                                                    className="sf2-act sf2-act-edit"
+                                                                    title="Edit"
+                                                                    onClick={() =>
+                                                                        handleEdit(student)
+                                                                    }
+                                                                >
+                                                                    <Pencil size={13} />
+                                                                </button>
+
+                                                                <button
+                                                                    className="sf2-act sf2-act-del"
+                                                                    title="Delete"
+                                                                    onClick={() =>
+                                                                        handleDelete(
+                                                                            student.id
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <Trash2 size={13} />
+                                                                </button>
+
+                                                                <button
+                                                                    className="sf2-act sf2-act-inv"
+                                                                    title="Invoice"
+                                                                    onClick={() =>
+                                                                        setInvoiceStudent(
+                                                                            student
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <FileText size={13} />
+                                                                </button>
+
+                                                                {isPremium && (
+                                                                    <button
+                                                                        className="sf2-act sf2-act-wa"
+                                                                        title="Send Fees Reminder"
+                                                                        onClick={() =>
+                                                                            setWaStudent(
+                                                                                student
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        <FaWhatsapp size={13} />
+                                                                    </button>
+                                                                )}
+
+                                                                {isPremium && (
+                                                                    <button
+                                                                        className="sf2-act sf2-act-inv"
+                                                                        title="Send Receipt PDF"
+                                                                        onClick={() =>
+                                                                            setReceiptStudent(
+                                                                                student
+                                                                            )
+                                                                        }
+                                                                        style={{
+                                                                            background:
+                                                                                "#eef2ff",
+                                                                            color:
+                                                                                "#4f46e5",
+                                                                            border:
+                                                                                "1px solid #c7d2fe"
+                                                                        }}
+                                                                    >
+                                                                        <FaWhatsapp size={13} />
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })
+                                        )}
                                     </tbody>
                                 </table>
                             </div>
