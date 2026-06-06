@@ -12,7 +12,6 @@ export const getExpenses = async (req, res) => {
       where: { schoolId },
       include: {
         expenses: {
-          // ✅ FIX: exclude soft-deleted expenses
           where: {
             expense: {
               deletedAt: null,
@@ -28,18 +27,18 @@ export const getExpenses = async (req, res) => {
 
     const formatted = categories.map((cat) => {
       const items = cat.expenses.map((m) => ({
-        id: m.expense.id,
-        label: m.expense.label,
-        amount: m.expense.amount,
-        icon: m.expense.icon || "Package",
+        id:        m.expense.id,
+        label:     m.expense.label,
+        amount:    m.expense.amount,
+        icon:      m.expense.icon || "Package",
+        createdAt: m.expense.createdAt, // ✅ included so date filtering works in Excel download
       }));
-
       const total = items.reduce((sum, i) => sum + i.amount, 0);
 
       return {
-        key: cat.id,
+        key:   cat.id,
         label: cat.name,
-        icon: cat.icon || "Package",
+        icon:  cat.icon  || "Package",
         color: cat.color || "#3c5d74",
         total,
         items,
@@ -53,79 +52,6 @@ export const getExpenses = async (req, res) => {
   }
 };
 
-// export const addExpense = async (req, res) => {
-//   try {
-//     const schoolId = req.user?.schoolId;
-
-//     if (!schoolId) {
-//       return res.status(400).json({ message: "SchoolId missing" });
-//     }
-
-//     const { label, amount, icon, sectionKey, isNewSection, newSectionLabel } = req.body;
-
-//     // ✅ Validate required fields early
-//     if (!label || !amount) {
-//       return res.status(400).json({ message: "Label and amount are required" });
-//     }
-
-//     let categoryId = sectionKey;
-
-//     if (isNewSection) {
-//       if (!newSectionLabel) {
-//         return res.status(400).json({ message: "New section name is required" });
-//       }
-//       const newCategory = await prisma.expenseCategory.create({
-//         data: {
-//           name: newSectionLabel,
-//           icon: icon || "Package",
-//           color: "#3c5d74",
-//           schoolId,
-//         },
-//       });
-//       categoryId = newCategory.id;
-//     }
-
-//     if (!categoryId) {
-//       return res.status(400).json({ message: "Category is required" });
-//     }
-
-//     // // ✅ FIX: include schoolId — it's required on the Expense model
-//     // const expense = await prisma.expense.create({
-//     //   data: {
-//     //     label,
-//     //     amount: Number(amount),
-//     //     icon: icon || "Package",
-//     //     schoolId, // ← THIS WAS MISSING — caused silent DB failure
-//     //     school: {
-//     //       connect: { id: schoolId },
-//     //     },
-//     //   },
-//     // });
-//   const expense = await prisma.expense.create({
-//     data: {
-//       label,
-//       amount: Number(amount),
-//       icon: icon || "Package",
-//       school: {
-//         connect: { id: schoolId },
-//       },
-//     },
-//   });
-//     await prisma.expenseCategoryMap.create({
-//       data: {
-//         expenseId: expense.id,
-//         categoryId,
-//       },
-//     });
-
-//     res.json({ success: true });
-//   } catch (error) {
-//     console.error("Add expense error:", error);
-//     res.status(500).json({ message: "Error adding expense", detail: error.message });
-//   }
-// };
-
-// ✅ DELETE EXPENSE — keep map row but soft-delete expense
 export const addExpense = async (req, res) => {
   try {
     const schoolId = req.user?.schoolId;
@@ -148,9 +74,9 @@ export const addExpense = async (req, res) => {
       }
       const newCategory = await prisma.expenseCategory.create({
         data: {
-          name: newSectionLabel,
-          icon: icon || "Package",
-          color: "#3c5d74",
+          name:    newSectionLabel,
+          icon:    icon || "Package",
+          color:   "#3c5d74",
           schoolId,
         },
       });
@@ -161,12 +87,11 @@ export const addExpense = async (req, res) => {
       return res.status(400).json({ message: "Category is required" });
     }
 
-    // ✅ FIX: use relation connect, not both schoolId + school together
     const expense = await prisma.expense.create({
       data: {
         label,
         amount: Number(amount),
-        icon: icon || "Package",
+        icon:   icon || "Package",
         school: {
           connect: { id: schoolId },
         },
@@ -175,7 +100,7 @@ export const addExpense = async (req, res) => {
 
     await prisma.expenseCategoryMap.create({
       data: {
-        expenseId: expense.id,
+        expenseId:  expense.id,
         categoryId,
       },
     });
@@ -183,19 +108,16 @@ export const addExpense = async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error("Add expense error:", error);
-    // ✅ Return the actual error so you can debug
     res.status(500).json({ message: "Error adding expense", detail: error.message });
   }
 };
 
-
+// ✅ Soft-delete — keeps map row, filters via deletedAt in getExpenses
 export const deleteExpense = async (req, res) => {
   try {
-    const { id } = req.params;
-    const schoolId = req.user?.schoolId;
+    const { id }     = req.params;
+    const schoolId   = req.user?.schoolId;
 
-    // ✅ FIX: DON'T delete the map row before soft-deleting.
-    // Soft-delete the expense; getExpenses already filters deletedAt: null
     const expense = await prisma.expense.findUnique({ where: { id } });
 
     if (!expense) {
@@ -208,7 +130,7 @@ export const deleteExpense = async (req, res) => {
 
     await prisma.expense.update({
       where: { id },
-      data: { deletedAt: new Date() },
+      data:  { deletedAt: new Date() },
     });
 
     res.json({ success: true });
@@ -218,12 +140,11 @@ export const deleteExpense = async (req, res) => {
   }
 };
 
-// ✅ UPDATE EXPENSE
 export const updateExpense = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id }             = req.params;
     const { label, amount, icon } = req.body;
-    const schoolId = req.user?.schoolId;
+    const schoolId           = req.user?.schoolId;
 
     const expense = await prisma.expense.findUnique({ where: { id } });
 
@@ -237,11 +158,7 @@ export const updateExpense = async (req, res) => {
 
     const updated = await prisma.expense.update({
       where: { id },
-      data: {
-        label,
-        amount: Number(amount),
-        icon,
-      },
+      data:  { label, amount: Number(amount), icon },
     });
 
     res.json(updated);
@@ -253,7 +170,7 @@ export const updateExpense = async (req, res) => {
 
 export const updateCategory = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id }   = req.params;
     const { name } = req.body;
     const schoolId = req.user?.schoolId;
 
@@ -269,7 +186,7 @@ export const updateCategory = async (req, res) => {
 
     const updated = await prisma.expenseCategory.update({
       where: { id },
-      data: { name },
+      data:  { name },
     });
 
     res.json(updated);
