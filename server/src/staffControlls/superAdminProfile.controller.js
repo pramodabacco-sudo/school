@@ -178,14 +178,16 @@ export const updateSchoolLogo = async (req, res) => {
 
     const schoolId = access.schoolId;
 
-    const extMap = {
-      "image/jpeg": "jpg",
-      "image/png": "png",
-      "image/webp": "webp",
-      "image/gif": "gif",
-      "image/heic": "heic",
-      "image/heif": "heif",
-    };
+  const extMap = {
+    "image/jpeg": "jpg",
+    "image/jpg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/gif": "gif",
+    "image/heic": "heic",
+    "image/heif": "heif",
+    "image/avif": "avif",
+  };
 
     if (!file.mimetype.startsWith("image/")) {
       return res.status(400).json({
@@ -193,7 +195,10 @@ export const updateSchoolLogo = async (req, res) => {
       });
     }
 
-    const fileExt = extMap[file.mimetype] || "jpg";
+    const fileExt =
+    extMap[file.mimetype] ||
+    file.originalname.split(".").pop()?.toLowerCase() ||
+    "jpg";
 
     const fileKey = `schools/${schoolId}/logo-${Date.now()}.${fileExt}`;
 
