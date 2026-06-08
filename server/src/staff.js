@@ -43,6 +43,9 @@ import chatRoutes from "../src/chatbox/chat.routes.js";
 import staffNotificationRoutes from "./staffRoutes/staffNotificationRoutes.js";
 import reEvaluationRoutes from "./staffRoutes/reEvaluationRoutes.js";
 import reEvaluationRequestRoutes from "./staffRoutes/reEvaluationRequestRoutes.js";
+import superAdminActivityRoute from "./staffRoutes/superAdminActivityRoute.js";
+import superAdminFinanceRoutes from "./staffRoutes/superAdminFinance.routes.js";
+
 import logoRoutes from "./utils/logoRoutes.js";
 import { requireAuth } from "./middlewares/auth.middleware.js";
 import deleteAccountRoutes from "./superAdmin/routes/DeleteAccount.routes.js";
@@ -142,6 +145,14 @@ staff.use( "/api/re-evaluation",reEvaluationRoutes);
 staff.use(
   "/api/re-evaluation",
   reEvaluationRequestRoutes
+);
+staff.use(
+  "/api/superadmin-finance",
+  superAdminFinanceRoutes
+);
+staff.use(
+  "/api/superadmin/activities",
+  superAdminActivityRoute
 );
 staff.use("/api/admin/tutorials", tutorialRoutes);
 staff.use("/api/chat", chatRoutes);
