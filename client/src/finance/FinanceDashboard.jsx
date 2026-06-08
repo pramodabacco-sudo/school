@@ -561,14 +561,7 @@ export default function FinanceDashboard() {
               ))}
             </div>
 
-            {expenseSections.map((sec, i) => (
-              <SectionCard
-                key={sec.key || i}
-                title={sec.label} total={sec.total} items={sec.items || []}
-                color={sec.color || COLORS[i % COLORS.length]}
-                iconName={sec.icon || "Package"}
-              />
-            ))}
+            
           </div>
         </div>
 
