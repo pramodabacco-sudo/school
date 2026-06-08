@@ -5,7 +5,7 @@ import { getToken } from "../../auth/storage";
 import {
   LayoutDashboard, Building2, UserCog, Users, ShieldCheck,
   CreditCard, BarChart3, X, GraduationCap, Wallet,
-  MessageCircle,
+  MessageCircle,FileText,
 } from "lucide-react";
 
 
@@ -21,6 +21,7 @@ export default function Sidebar({ isOpen, onClose, user }) {
       { icon: UserCog,         label: "School Admins",      to: "/superadmin/schools-admins" },
       { icon: Wallet,          label: "Finance Account",    to: "/superadmin/finance" },
       { icon: Users,           label: "Users Management",   to: "/superadmin/users-management" },
+      {icon: FileText,         label: "Finance Reports",    to: "/superadmin/finance-reports",},
 
       // ✅ Gold + Premium only
       ...(userPlan === "Gold" || userPlan === "Premium"
