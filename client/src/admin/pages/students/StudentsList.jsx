@@ -27,7 +27,7 @@ import {
 import { getToken } from "../../../auth/storage";
 import AddStudent from "./AddStudents";
 import BulkImportStudents from "./BulkImportStudents";
-import ExportStudentsModal from "./ExportStudentsModal";
+import Exportstudentsmodal from "./Exportstudentsmodal.jsx";
 import SignedProfileImage from "./components/SignedProfileImage";
 import { useInstitutionConfig } from "../classes/hooks/useInstitutionConfig";
 
@@ -2285,7 +2285,7 @@ function StudentsList() {
 
         {/* Export Modal */}
         {openExport && (
-          <ExportStudentsModal
+          <Exportstudentsmodal
             onClose={() => setOpenExport(false)}
             classSections={classSections}
             selectedSection={selectedSection}
