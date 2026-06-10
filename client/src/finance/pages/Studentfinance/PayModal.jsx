@@ -1,7 +1,6 @@
 // PayModal.jsx  — Category-aware Fee Payment Modal
-// Supports: Full Fee | School Fee | Tuition Fee
+// Supports ALL fee types: School Fee | Tuition Fee | Exam Fee | Transport Fee | Books Fee | Lab Fee | Custom Fees
 // Modes: Full Payment | EMI | Custom Amount
-// Updates: paidAmount + schoolFeePaid / tuitionFeePaid as needed
 // Responsive: mobile-first
 
 import { CreditCard, X, CheckCircle, Clock, ChevronDown } from "lucide-react";
@@ -17,11 +16,22 @@ const parseBreakdown = (raw) => {
 // ─── payment mode options ─────────────────────────────────────────────────────
 const MODES = ["UPI", "Net Banking", "Cash", "Card", "Cheque"];
 
+// ─── Map of breakdown key → label + paid field on student record ──────────────
+// paid field: the DB field that tracks how much of this category is paid.
+// For categories that don't have their own paid field, we fall back to
+// proportional tracking within paidAmount.
+const FEE_DEFS = [
+  { key: "collegeFee",   label: "School Fee",    flatKey: "collegeFee",   paidField: "schoolFeePaid"   },
+  { key: "tuitionFee",   label: "Tuition Fee",   flatKey: "tuitionFee",   paidField: "tuitionFeePaid"  },
+  { key: "examFee",      label: "Exam Fee",      flatKey: "examFee",      paidField: "examFeePaid"     },
+  { key: "transportFee", label: "Transport Fee", flatKey: "transportFee", paidField: "transportFeePaid"},
+  { key: "booksFee",     label: "Books Fee",     flatKey: "booksFee",     paidField: "booksFeePaid"    },
+  { key: "labFee",       label: "Lab Fee",       flatKey: "labFee",       paidField: "labFeePaid"      },
+];
+
 // ─── styles injected once ─────────────────────────────────────────────────────
 const STYLES = `
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
-
-.pm-*{box-sizing:border-box}
 
 /* overlay */
 .pm-overlay{
@@ -257,264 +267,243 @@ const STYLES = `
 // ─────────────────────────────────────────────────────────────────────────────
 export function PayModal({ student, onClose, onPaymentDone }) {
 
-  // ── Derive per-category totals from student record ──────────────────────────
+  const totalFees = Number(student.fees || 0);
+
+  // ── Parse breakdown (try feeBreakdown, fallback to flat fields on student) ──
   const bd = parseBreakdown(student.feeBreakdown);
 
-  const totalFees   = Number(student.fees || 0);
-  const schoolFee   = Number(bd.collegeFee  || 0);
-  const tuitionFee  = Number(bd.tuitionFee  || 0);
+  // ── Build fee category list: all types with amount > 0 ───────────────────────
+  // For each standard type, read from breakdown if available, else flat field.
+  const feeCategories = [];
 
-  // ── Live paid amounts (updated optimistically on each payment) ───────────────
-  const [livePaid,        setLivePaid]        = useState(Number(student.paidAmount    || 0));
-  const [liveSchoolPaid,  setLiveSchoolPaid]  = useState(Number(student.schoolFeePaid || 0));
-  const [liveTuitionPaid, setLiveTuitionPaid] = useState(Number(student.tuitionFeePaid|| 0));
+  // Add FULL always
+  feeCategories.push({
+    id:         "FULL",
+    label:      "Full Fee",
+    total:      totalFees,
+    paidField:  "paidAmount",
+  });
 
-  // ── Selected fee category ────────────────────────────────────────────────────
-  const [category, setCategory] = useState("FULL"); // FULL | SCHOOL | TUITION
+  // Standard fee types
+  for (const def of FEE_DEFS) {
+    // Amount: prefer breakdown value, fall back to flat field on student record
+    const bdEntry = bd[def.key];
+    const amount = bdEntry
+      ? Number(typeof bdEntry === "object" ? (bdEntry.total ?? bdEntry.amount ?? 0) : bdEntry)
+      : Number(student[def.flatKey] || 0);
 
-  // ── Per-category computed values ─────────────────────────────────────────────
-  const catTotal     = category === "SCHOOL"  ? schoolFee
-                     : category === "TUITION" ? tuitionFee
-                     : totalFees;
-  const catPaid      = category === "SCHOOL"  ? liveSchoolPaid
-                     : category === "TUITION" ? liveTuitionPaid
-                     : livePaid;
+    if (amount > 0) {
+      feeCategories.push({
+        id:        def.key,
+        label:     def.label,
+        total:     amount,
+        paidField: def.paidField,
+      });
+    }
+  }
+
+  // Custom fees from breakdown
+  const customFees = Array.isArray(bd.customFees) ? bd.customFees : [];
+  customFees.forEach((cf, i) => {
+    const amount = Number(cf.total ?? cf.amount ?? 0);
+    if (amount > 0) {
+      feeCategories.push({
+        id:        `custom_${i}`,
+        label:     cf.label || `Custom Fee ${i + 1}`,
+        total:     amount,
+        paidField: null,   // no dedicated DB field; tracked via paidAmount proportionally
+        isCustom:  true,
+        customIdx: i,
+      });
+    }
+  });
+
+  // ── Live paid amounts ─────────────────────────────────────────────────────────
+  // We keep a map of paidField → live value so all categories stay in sync.
+  const initPaidMap = () => {
+    const m = { paidAmount: Number(student.paidAmount || 0) };
+    for (const def of FEE_DEFS) {
+      m[def.paidField] = Number(student[def.paidField] || 0);
+    }
+    return m;
+  };
+  const [paidMap, setPaidMap] = useState(initPaidMap);
+
+  // ── Selected category (default: FULL) ────────────────────────────────────────
+  const [categoryId, setCategoryId] = useState("FULL");
+  const activeCat = feeCategories.find(c => c.id === categoryId) || feeCategories[0];
+
+  const catTotal     = activeCat.total;
+  const catPaid      = activeCat.paidField ? (paidMap[activeCat.paidField] ?? 0) : 0;
   const catRemaining = Math.max(0, catTotal - catPaid);
   const progressPct  = catTotal > 0 ? Math.min(100, Math.round((catPaid / catTotal) * 100)) : 0;
 
-  // ── Payment method state ─────────────────────────────────────────────────────
-  const [useEmi,      setUseEmi]      = useState(null);    // null=choose | false=full | true=emi
-  const [fullMode,    setFullMode]    = useState("UPI");
-  const [fullDone,    setFullDone]    = useState(false);
-  const [customAmt,   setCustomAmt]   = useState("");
+  // ── Payment method state ──────────────────────────────────────────────────────
+  const [useEmi,    setUseEmi]    = useState(null);
+  const [fullMode,  setFullMode]  = useState("UPI");
+  const [fullDone,  setFullDone]  = useState(false);
+  const [customAmt, setCustomAmt] = useState("");
 
-  const [emiCount,    setEmiCount]    = useState(3);
-  const [emiList,     setEmiList]     = useState([]);
-  const [confirmId,   setConfirmId]   = useState(null);
-  const [modeInput,   setModeInput]   = useState("UPI");
+  const [emiCount,   setEmiCount]   = useState(3);
+  const [emiList,    setEmiList]    = useState([]);
+  const [confirmId,  setConfirmId]  = useState(null);
+  const [modeInput,  setModeInput]  = useState("UPI");
 
-  const [loading,     setLoading]     = useState(false);
-  const [error,       setError]       = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error,   setError]   = useState("");
 
-  // ── Reset payment state when category changes ─────────────────────────────────
+  // ── Reset when category changes ───────────────────────────────────────────────
   useEffect(() => {
     setUseEmi(null);
     setFullDone(false);
     setCustomAmt("");
     setConfirmId(null);
     setError("");
-  }, [category]);
+  }, [categoryId]);
 
-  // ── Build EMI list whenever emiCount / category changes ──────────────────────
+  // ── Build EMI list ────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!useEmi) return;
-
     const base      = Math.floor(catRemaining / emiCount);
     const remainder = catRemaining - base * emiCount;
-
-    // How much of category is already paid before we open EMI?
     let alreadyLeft = catPaid;
 
     const list = Array.from({ length: emiCount }, (_, i) => {
       const amount = i === emiCount - 1 ? base + remainder : base;
       let status = "pending", date = null, mode = null;
-
       if (alreadyLeft >= amount) {
         status = "paid"; alreadyLeft -= amount;
         date = "Paid Earlier"; mode = "Saved";
       }
-
       return { id: i + 1, label: `Instalment ${i + 1}`, amount, date, mode, status };
     });
 
     setEmiList(list);
     setConfirmId(null);
-  }, [emiCount, useEmi, category]);
+  }, [emiCount, useEmi, categoryId]);
 
-  // ── EMI totals ────────────────────────────────────────────────────────────────
   const emiPaid    = emiList.filter(e => e.status === "paid"   ).reduce((a, e) => a + e.amount, 0);
   const emiPending = emiList.filter(e => e.status === "pending").reduce((a, e) => a + e.amount, 0);
 
-  // ── Display paid / pending (tracks optimistic updates) ───────────────────────
-  const displayPaid    = useEmi ? catPaid + emiPaid          : (fullDone ? catTotal  : catPaid);
-  const displayPending = useEmi ? emiPending                 : (fullDone ? 0          : catRemaining);
-
-  // ─── Auth helper ──────────────────────────────────────────────────────────────
+  // ── Auth ──────────────────────────────────────────────────────────────────────
   const getToken = () => {
     try { return JSON.parse(localStorage.getItem("auth"))?.token; } catch { return null; }
   };
 
-  // ─── Build the right payload fields for each category ────────────────────────
-  const buildPayload = (newCatPaid, newTotalPaid, isFullyCategoryPaid) => {
-    const base = { ...student, paymentMode: fullMode, paymentDate: new Date().toISOString() };
+  // ── Build payload ─────────────────────────────────────────────────────────────
+  // For each category we update:
+  //   1. Its own paidField (if it has one)
+  //   2. paidAmount (always — overall total paid)
+  //   3. paymentStatus
+  // For FULL category: also distribute to sub-category paid fields proportionally.
+  const buildPayload = (addedAmt) => {
+    const newTotalPaid = Math.min(totalFees, paidMap.paidAmount + addedAmt);
+    const isFullyPaid  = newTotalPaid >= totalFees;
 
-    if (category === "SCHOOL") {
-      return {
-        ...base,
-        schoolFeePaid: newCatPaid,
-        paidAmount:    newTotalPaid,
-        paymentStatus: newTotalPaid >= totalFees ? "PAID" : "PARTIAL",
-      };
-    }
-    if (category === "TUITION") {
-      return {
-        ...base,
-        tuitionFeePaid: newCatPaid,
-        paidAmount:     newTotalPaid,
-        paymentStatus:  newTotalPaid >= totalFees ? "PAID" : "PARTIAL",
-      };
-    }
-    // FULL — when paying full fees, distribute to school+tuition proportionally
-    // so that filtering by School Fee / Tuition Fee also shows them as paid.
-    const isFullyPaid = newTotalPaid >= totalFees;
-    const extraFields = {};
-    if (isFullyPaid) {
-      // Mark both sub-categories fully paid
-      if (schoolFee > 0)  extraFields.schoolFeePaid  = schoolFee;
-      if (tuitionFee > 0) extraFields.tuitionFeePaid = tuitionFee;
-    } else {
-      // Partial full payment: distribute proportionally across sub-fees
-      // Priority: fill schoolFee first, then tuitionFee
-      if (schoolFee > 0 || tuitionFee > 0) {
-        const newSchoolPaid  = Math.min(schoolFee,  newTotalPaid);
-        const newTuitionPaid = Math.min(tuitionFee, Math.max(0, newTotalPaid - newSchoolPaid));
-        extraFields.schoolFeePaid  = newSchoolPaid;
-        extraFields.tuitionFeePaid = newTuitionPaid;
-      }
-    }
-    return {
-      ...base,
-      ...extraFields,
-      paidAmount:    newTotalPaid,
+    const patch = {
+      paymentMode: fullMode,
+      paymentDate: new Date().toISOString(),
+      paidAmount:  newTotalPaid,
       paymentStatus: isFullyPaid ? "PAID" : "PARTIAL",
     };
+
+    if (activeCat.id === "FULL") {
+      // Distribute proportionally across all sub-fee categories
+      let remaining = newTotalPaid;
+      for (const def of FEE_DEFS) {
+        const bdEntry = bd[def.key];
+        const feeAmt = bdEntry
+          ? Number(typeof bdEntry === "object" ? (bdEntry.total ?? bdEntry.amount ?? 0) : bdEntry)
+          : Number(student[def.flatKey] || 0);
+        if (feeAmt > 0) {
+          const paid = Math.min(feeAmt, remaining);
+          patch[def.paidField] = paid;
+          remaining = Math.max(0, remaining - paid);
+        }
+      }
+    } else if (activeCat.paidField && activeCat.paidField !== "paidAmount") {
+      const newCatPaid = Math.min(catTotal, catPaid + addedAmt);
+      patch[activeCat.paidField] = newCatPaid;
+    }
+
+    return patch;
   };
 
-  // ─── PUT helper ───────────────────────────────────────────────────────────────
+  // ── PUT helper ────────────────────────────────────────────────────────────────
   const apiUpdate = async (payload) => {
     const res = await fetch(`${API_URL}/api/finance/updateStudentFinance/${student.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ ...student, ...payload }),
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   };
 
-  // ─── FULL PAY ─────────────────────────────────────────────────────────────────
+  // ── Apply optimistic paid map update ─────────────────────────────────────────
+  const applyPatch = (addedAmt) => {
+    const payload = buildPayload(addedAmt);
+    setPaidMap(prev => {
+      const next = { ...prev };
+      for (const [k, v] of Object.entries(payload)) {
+        if (k in next) next[k] = v;
+        // handle custom / non-standard paidFields
+        else next[k] = v;
+      }
+      next.paidAmount = payload.paidAmount;
+      return next;
+    });
+    onPaymentDone(
+      student.id,
+      payload.paidAmount,
+      payload.paymentStatus
+    );
+  };
+
+  // ── Full pay ──────────────────────────────────────────────────────────────────
   const handleFullPay = async () => {
     setLoading(true); setError("");
     try {
-      const addedAmt     = catRemaining;                         // paying off all remaining of this category
-      const newCatPaid   = catPaid   + addedAmt;
-      const newTotalPaid = livePaid  + addedAmt;
-
-      await apiUpdate(buildPayload(newCatPaid, newTotalPaid, true));
-
-      // optimistic updates
-      if (category === "SCHOOL")       setLiveSchoolPaid(newCatPaid);
-      else if (category === "TUITION") setLiveTuitionPaid(newCatPaid);
-      else {
-        // FULL: also update sub-category paid amounts
-        if (newTotalPaid >= totalFees) {
-          if (schoolFee > 0)  setLiveSchoolPaid(schoolFee);
-          if (tuitionFee > 0) setLiveTuitionPaid(tuitionFee);
-        } else {
-          const newSchoolPaid  = Math.min(schoolFee,  newTotalPaid);
-          const newTuitionPaid = Math.min(tuitionFee, Math.max(0, newTotalPaid - newSchoolPaid));
-          setLiveSchoolPaid(newSchoolPaid);
-          setLiveTuitionPaid(newTuitionPaid);
-        }
-      }
-      setLivePaid(newTotalPaid);
-
+      const addedAmt = catRemaining;
+      await apiUpdate(buildPayload(addedAmt));
+      applyPatch(addedAmt);
       setFullDone(true);
-      onPaymentDone(student.id, newTotalPaid, newTotalPaid >= totalFees ? "PAID" : "PARTIAL");
     } catch (e) { setError(e.message || "Payment failed. Try again."); }
     finally { setLoading(false); }
   };
 
-  // ─── CUSTOM PAY ──────────────────────────────────────────────────────────────
+  // ── Custom pay ────────────────────────────────────────────────────────────────
   const handleCustomPay = async () => {
     const amount = Number(customAmt);
-    if (!amount || amount <= 0)         { setError("Enter a valid amount."); return; }
-    if (amount > catRemaining)          { setError(`Amount cannot exceed remaining ₹${catRemaining.toLocaleString("en-IN")}.`); return; }
-
+    if (!amount || amount <= 0)  { setError("Enter a valid amount."); return; }
+    if (amount > catRemaining)   { setError(`Amount cannot exceed remaining ₹${catRemaining.toLocaleString("en-IN")}.`); return; }
     setLoading(true); setError("");
     try {
-      const newCatPaid   = catPaid  + amount;
-      const newTotalPaid = livePaid + amount;
-
-      await apiUpdate(buildPayload(newCatPaid, newTotalPaid, newCatPaid >= catTotal));
-
-      if (category === "SCHOOL")       setLiveSchoolPaid(newCatPaid);
-      else if (category === "TUITION") setLiveTuitionPaid(newCatPaid);
-      else {
-        // FULL: distribute to sub-categories
-        if (newTotalPaid >= totalFees) {
-          if (schoolFee > 0)  setLiveSchoolPaid(schoolFee);
-          if (tuitionFee > 0) setLiveTuitionPaid(tuitionFee);
-        } else {
-          const newSchoolPaid  = Math.min(schoolFee,  newTotalPaid);
-          const newTuitionPaid = Math.min(tuitionFee, Math.max(0, newTotalPaid - newSchoolPaid));
-          setLiveSchoolPaid(newSchoolPaid);
-          setLiveTuitionPaid(newTuitionPaid);
-        }
-      }
-      setLivePaid(newTotalPaid);
-
+      await apiUpdate(buildPayload(amount));
+      applyPatch(amount);
       setCustomAmt(""); setFullDone(true);
-      onPaymentDone(student.id, newTotalPaid, newTotalPaid >= totalFees ? "PAID" : "PARTIAL");
     } catch (e) { setError(e.message || "Payment failed. Try again."); }
     finally { setLoading(false); }
   };
 
-  // ─── EMI INSTALMENT PAY ───────────────────────────────────────────────────────
+  // ── EMI instalment pay ────────────────────────────────────────────────────────
   const handleConfirmEmi = async (emi) => {
     setLoading(true); setError("");
     const today = new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
-
-    const updatedList = emiList.map(e =>
-      e.id === emi.id ? { ...e, status: "paid", date: today, mode: modeInput } : e
-    );
-    const addedAmt     = emi.amount;
-    const newCatPaid   = catPaid  + addedAmt;
-    const newTotalPaid = livePaid + addedAmt;
-    const allDone      = updatedList.every(e => e.status === "paid");
-
     try {
-      const payload = {
-        ...buildPayload(newCatPaid, newTotalPaid, allDone),
-        paymentMode: modeInput,
-      };
+      const addedAmt = emi.amount;
+      const payload  = { ...buildPayload(addedAmt), paymentMode: modeInput };
       await apiUpdate(payload);
+      applyPatch(addedAmt);
 
-      if (category === "SCHOOL")       setLiveSchoolPaid(newCatPaid);
-      else if (category === "TUITION") setLiveTuitionPaid(newCatPaid);
-      else {
-        // FULL: distribute to sub-categories
-        if (newTotalPaid >= totalFees) {
-          if (schoolFee > 0)  setLiveSchoolPaid(schoolFee);
-          if (tuitionFee > 0) setLiveTuitionPaid(tuitionFee);
-        } else {
-          const newSchoolPaid  = Math.min(schoolFee,  newTotalPaid);
-          const newTuitionPaid = Math.min(tuitionFee, Math.max(0, newTotalPaid - newSchoolPaid));
-          setLiveSchoolPaid(newSchoolPaid);
-          setLiveTuitionPaid(newTuitionPaid);
-        }
-      }
-      setLivePaid(newTotalPaid);
-
+      const updatedList = emiList.map(e =>
+        e.id === emi.id ? { ...e, status: "paid", date: today, mode: modeInput } : e
+      );
       setEmiList(updatedList);
       setConfirmId(null);
-      onPaymentDone(student.id, newTotalPaid, newTotalPaid >= totalFees ? "PAID" : "PARTIAL");
     } catch (e) { setError(e.message || "Payment failed. Try again."); }
     finally { setLoading(false); }
   };
-
-  // ─── Category label helpers ───────────────────────────────────────────────────
-  const catLabel = category === "SCHOOL" ? "School Fee" : category === "TUITION" ? "Tuition Fee" : "Full Fee";
-  const remainLabel = `₹${catRemaining.toLocaleString("en-IN")} ${catLabel} remaining`;
 
   // ─────────────────────────────────────────────────────────────────────────────
   return (
@@ -543,12 +532,14 @@ export function PayModal({ student, onClose, onPaymentDone }) {
             <div className="pm-cat-wrap">
               <select
                 className="pm-cat-select"
-                value={category}
-                onChange={e => setCategory(e.target.value)}
+                value={categoryId}
+                onChange={e => setCategoryId(e.target.value)}
               >
-                <option value="FULL">Full Fee  (₹{totalFees.toLocaleString("en-IN")})</option>
-                {schoolFee  > 0 && <option value="SCHOOL">School Fee  (₹{schoolFee.toLocaleString("en-IN")})</option>}
-                {tuitionFee > 0 && <option value="TUITION">Tuition Fee  (₹{tuitionFee.toLocaleString("en-IN")})</option>}
+                {feeCategories.map(cat => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.label}  (₹{cat.total.toLocaleString("en-IN")})
+                  </option>
+                ))}
               </select>
               <ChevronDown size={14} className="pm-cat-chevron" />
             </div>
@@ -557,12 +548,14 @@ export function PayModal({ student, onClose, onPaymentDone }) {
           {/* ── Summary cards ── */}
           <div className="pm-cards">
             <div className="pm-card">
-              <div className="pm-card-lbl">{catLabel}</div>
+              <div className="pm-card-lbl">{activeCat.label}</div>
               <div className="pm-card-val">₹{catTotal.toLocaleString("en-IN")}</div>
             </div>
             <div className="pm-card">
               <div className="pm-card-lbl">Amount Paid</div>
-              <div className="pm-card-val green">₹{(useEmi ? catPaid + emiPaid : (fullDone ? catTotal : catPaid)).toLocaleString("en-IN")}</div>
+              <div className="pm-card-val green">
+                ₹{(useEmi ? catPaid + emiPaid : (fullDone ? catTotal : catPaid)).toLocaleString("en-IN")}
+              </div>
             </div>
             <div className="pm-card">
               <div className="pm-card-lbl">Pending</div>
@@ -575,7 +568,7 @@ export function PayModal({ student, onClose, onPaymentDone }) {
           {/* ── Progress bar ── */}
           <div>
             <div className="pm-prog-row">
-              <span>Payment progress — {catLabel}</span>
+              <span>Payment progress — {activeCat.label}</span>
               <span>{progressPct}% paid</span>
             </div>
             <div className="pm-prog-track">
@@ -583,7 +576,7 @@ export function PayModal({ student, onClose, onPaymentDone }) {
             </div>
             <div className="pm-prog-hints">
               <span>₹0</span>
-              <span>{catRemaining === 0 ? "✓ Fully Paid" : remainLabel}</span>
+              <span>{catRemaining === 0 ? "✓ Fully Paid" : `₹${catRemaining.toLocaleString("en-IN")} remaining`}</span>
               <span>₹{catTotal.toLocaleString("en-IN")}</span>
             </div>
           </div>
@@ -592,7 +585,7 @@ export function PayModal({ student, onClose, onPaymentDone }) {
           {catRemaining === 0 && !fullDone && (
             <div className="pm-paid-banner">
               <CheckCircle size={26} color="#1a6e3e" />
-              <div className="pm-paid-title">{catLabel} fully paid!</div>
+              <div className="pm-paid-title">{activeCat.label} fully paid!</div>
             </div>
           )}
 
@@ -600,7 +593,7 @@ export function PayModal({ student, onClose, onPaymentDone }) {
           {useEmi === null && !fullDone && catRemaining > 0 && (
             <div className="pm-methods">
               <div className="pm-methods-title">
-                How would you like to pay <strong style={{ color: "#27435B" }}>₹{catRemaining.toLocaleString("en-IN")}</strong> for <strong style={{ color: "#27435B" }}>{catLabel}</strong>?
+                How would you like to pay <strong style={{ color: "#27435B" }}>₹{catRemaining.toLocaleString("en-IN")}</strong> for <strong style={{ color: "#27435B" }}>{activeCat.label}</strong>?
               </div>
               <div className="pm-method-grid">
                 {[
@@ -624,7 +617,7 @@ export function PayModal({ student, onClose, onPaymentDone }) {
                 <button onClick={() => setUseEmi(null)}>← Back</button>
               </div>
               <div className="pm-panel-inner">
-                <div className="pm-panel-sec-lbl">Full Payment · {catLabel}</div>
+                <div className="pm-panel-sec-lbl">Full Payment · {activeCat.label}</div>
 
                 <div className="pm-fullpay-row">
                   <div>
@@ -639,7 +632,6 @@ export function PayModal({ student, onClose, onPaymentDone }) {
                   </div>
                 </div>
 
-                {/* Custom amount */}
                 <div style={{ marginBottom: 4 }}>
                   <span className="pm-custom-lbl">Or enter a custom amount</span>
                   <input
@@ -657,7 +649,7 @@ export function PayModal({ student, onClose, onPaymentDone }) {
                   onClick={() => customAmt ? handleCustomPay() : handleFullPay()}
                 >
                   {loading ? "Processing…" : customAmt
-                    ? `Confirm ₹${Number(customAmt).toLocaleString("en-IN")} · ${catLabel}`
+                    ? `Confirm ₹${Number(customAmt).toLocaleString("en-IN")} · ${activeCat.label}`
                     : `Confirm Full Payment — ₹${catRemaining.toLocaleString("en-IN")}`}
                 </button>
 
@@ -675,7 +667,7 @@ export function PayModal({ student, onClose, onPaymentDone }) {
                 <div className="pm-success-sub">
                   {customAmt
                     ? `₹${Number(customAmt).toLocaleString("en-IN")} paid`
-                    : `₹${catRemaining.toLocaleString("en-IN")} paid`} via {fullMode} · {catLabel}
+                    : `₹${catRemaining.toLocaleString("en-IN")} paid`} via {fullMode} · {activeCat.label}
                 </div>
               </div>
             </div>
@@ -694,10 +686,8 @@ export function PayModal({ student, onClose, onPaymentDone }) {
                 </div>
               </div>
 
-              {/* Category note */}
               <div style={{ fontSize: 11.5, color: "#4A6B80", background: "#f0f7fc", borderRadius: 8, padding: "8px 12px", border: "1px solid #d0e2ee" }}>
-                <strong style={{ color: "#27435B" }}>EMI for: {catLabel}</strong> — ₹{catRemaining.toLocaleString("en-IN")} split into {emiCount} instalments.
-                Payments will update <em>{category === "SCHOOL" ? "schoolFeePaid" : category === "TUITION" ? "tuitionFeePaid" : "paidAmount"}</em>.
+                <strong style={{ color: "#27435B" }}>EMI for: {activeCat.label}</strong> — ₹{catRemaining.toLocaleString("en-IN")} split into {emiCount} instalments.
               </div>
 
               <div className="pm-emi-table-wrap" style={{ overflowX: "auto" }}>
@@ -765,7 +755,7 @@ export function PayModal({ student, onClose, onPaymentDone }) {
             <button className="pm-close-btn" onClick={onClose}>Close</button>
           </div>
 
-        </div>{/* end body */}
+        </div>
       </div>
     </div>
   );
