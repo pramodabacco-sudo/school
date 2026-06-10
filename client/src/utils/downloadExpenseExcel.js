@@ -83,6 +83,29 @@ function flattenAndFilter(expenseSections, from, to) {
   return rows.filter((r) => r.createdAt && r.createdAt >= from && r.createdAt <= to);
 }
 
+// ── border helpers ────────────────────────────────────────────────────────────
+
+function thinBorder() {
+  const c = { argb: DESIGN.colors.border };
+  return {
+    top:    { style: "thin", color: c },
+    bottom: { style: "thin", color: c },
+    left:   { style: "thin", color: c },
+    right:  { style: "thin", color: c },
+  };
+}
+
+function boldBorder() {
+  const c  = { argb: DESIGN.colors.secondary };
+  const bc = { argb: DESIGN.colors.border };
+  return {
+    top:    { style: "medium", color: c },
+    bottom: { style: "double", color: c },
+    left:   { style: "thin",   color: bc },
+    right:  { style: "thin",   color: bc },
+  };
+}
+
 // ── PUBLIC EXPORT ─────────────────────────────────────────────────────────────
 
 export function downloadExpenseExcel(expenseSections, options = {}) {
@@ -93,22 +116,18 @@ export function downloadExpenseExcel(expenseSections, options = {}) {
     schoolName = "School",
   } = options;
 
-function boldBorder() {
-  const c = { argb: DESIGN.colors.secondary };
-  return { top: { style: "medium", color: c }, bottom: { style: "double", color: c },
-           left: { style: "thin", color: { argb: DESIGN.colors.border } },
-           right: { style: "thin", color: { argb: DESIGN.colors.border } } };
-}
+  const dateRange = getDateRange(preset, customFrom, customTo);
+  const rows      = flattenAndFilter(expenseSections, dateRange.from, dateRange.to);
 
   const run = (ExcelJS) => _generate(ExcelJS, rows, expenseSections, dateRange, schoolName);
 
   if (window.ExcelJS) {
     run(window.ExcelJS);
   } else {
-    const script    = document.createElement("script");
-    script.src      = "https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js";
-    script.onload   = () => run(window.ExcelJS);
-    script.onerror  = () => console.error("ExcelJS failed to load");
+    const script  = document.createElement("script");
+    script.src    = "https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js";
+    script.onload = () => run(window.ExcelJS);
+    script.onerror = () => console.error("ExcelJS failed to load");
     document.head.appendChild(script);
   }
 }
@@ -119,45 +138,25 @@ async function _generate(ExcelJS, rows, allSections, dateRange, schoolName) {
   const workbook   = new ExcelJS.Workbook();
   workbook.creator = schoolName;
 
-function writeDataRows(ws, startRow, rows, colCount) {
-  rows.forEach((row, idx) => {
-    const rn  = startRow + idx;
-    const wr  = ws.getRow(rn); wr.height = 22;
-    const bg  = idx % 2 === 0 ? DESIGN.colors.white : DESIGN.colors.zebra;
+  buildDetailSheet(workbook, rows, dateRange, schoolName);
+  buildCategorySheet(workbook, rows, allSections, dateRange);
+  buildDailySheet(workbook, rows, dateRange);
 
-    row.forEach((val, ci) => {
-      const cell    = wr.getCell(ci + 1);
-      cell.value     = val;
-      cell.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: bg } };
-      cell.font      = { name: DESIGN.fontName, size: 10 };
-      cell.border    = thinBorder();
-      cell.alignment = { vertical: "middle", horizontal: ci === 0 ? "center" : ci === colCount - 1 ? "right" : "left" };
-    });
-
-    // Colour the amount column (last)
-    wr.getCell(colCount).font = { name: DESIGN.fontName, size: 10, bold: true, color: { argb: DESIGN.colors.red } };
-  });
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob   = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  const url    = URL.createObjectURL(blob);
+  const a      = document.createElement("a");
+  a.href       = url;
+  a.download   = `${schoolName.replace(/\s+/g, "_")}_Expenses_${dateRange.label.replace(/[^a-zA-Z0-9]/g, "_")}.xlsx`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
-function writeTotalRow(ws, rowNum, colCount, labelCol, label, total) {
-  const r = ws.getRow(rowNum); r.height = 28;
-  for (let i = 1; i <= colCount; i++) {
-    const cell = r.getCell(i);
-    cell.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: DESIGN.colors.totalBg } };
-    cell.font      = { name: DESIGN.fontName, size: 10, bold: true, color: { argb: DESIGN.colors.primary } };
-    cell.border    = boldBorder();
-    cell.alignment = { vertical: "middle", horizontal: i <= labelCol ? "left" : "right" };
-  }
-  r.getCell(1).value       = label;
-  r.getCell(colCount).value = total;
-  r.getCell(colCount).font  = { name: DESIGN.fontName, size: 11, bold: true, color: { argb: DESIGN.colors.red } };
-}
-
-function _buildDetailSheet(workbook, rows, dateRange, schoolName, thinBorder) {
-  const ws = workbook.addWorksheet("Expense Records", { views: [{ showGridLines: true }] });
+// ── Sheet: Expense Records ────────────────────────────────────────────────────
 
 function buildDetailSheet(workbook, rows, dateRange, schoolName) {
   const ws = workbook.addWorksheet("Expense Records", { views: [{ showGridLines: true }] });
+
   ws.columns = [
     { width: 5,  style: { alignment: { horizontal: "center" } } },
     { width: 26 },
@@ -193,12 +192,12 @@ function buildDetailSheet(workbook, rows, dateRange, schoolName) {
   const headers = ["#", "Category", "Expense Item", "Amount (₹)", "Date Added"];
   const r4 = ws.getRow(4); r4.height = 28;
   headers.forEach((h, i) => {
-    const cell = r4.getCell(i + 1);
+    const cell     = r4.getCell(i + 1);
     cell.value     = h;
     cell.font      = { name: DESIGN.fontName, size: 10, bold: true, color: { argb: DESIGN.colors.white } };
     cell.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: DESIGN.colors.secondary } };
     cell.alignment = { vertical: "middle", horizontal: i === 0 ? "center" : i >= 3 ? "right" : "left" };
-    cell.border    = thinBorder;
+    cell.border    = thinBorder();
   });
 
   if (rows.length === 0) {
@@ -229,43 +228,37 @@ function buildDetailSheet(workbook, rows, dateRange, schoolName) {
       : "—";
 
     for (let i = 1; i <= 5; i++) {
-      const cell = wsRow.getCell(i);
+      const cell     = wsRow.getCell(i);
       cell.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: bg } };
       cell.font      = { name: DESIGN.fontName, size: 10, bold: i === 3 };
-      cell.border    = thinBorder;
+      cell.border    = thinBorder();
       cell.alignment = { vertical: "middle", horizontal: i === 1 ? "center" : i === 4 ? "right" : "left" };
     }
     wsRow.getCell(4).font = { name: DESIGN.fontName, size: 10, bold: true, color: { argb: DESIGN.colors.red } };
   });
 
-  // Footer
-  const footer  = ws.getRow(rows.length + 5);
-  footer.height = 26;
-  const total   = rows.reduce((a, r) => a + r.amount, 0);
+  // Footer total row
+  const footerRow  = ws.getRow(rows.length + 5);
+  footerRow.height = 26;
+  const total      = rows.reduce((a, r) => a + r.amount, 0);
 
-  footer.getCell(1).value = "TOTAL";
-  footer.getCell(2).value = `${rows.length} items`;
-  footer.getCell(4).value = total;
+  footerRow.getCell(1).value = "TOTAL";
+  footerRow.getCell(2).value = `${rows.length} items`;
+  footerRow.getCell(4).value = total;
 
-  const boldBorder = {
-    top:    { style: "medium", color: { argb: DESIGN.colors.secondary } },
-    bottom: { style: "double", color: { argb: DESIGN.colors.secondary } },
-    left:   { style: "thin",   color: { argb: DESIGN.colors.border } },
-    right:  { style: "thin",   color: { argb: DESIGN.colors.border } },
-  };
   for (let i = 1; i <= 5; i++) {
-    const cell = fr.getCell(i);
+    const cell     = footerRow.getCell(i);
     cell.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: DESIGN.colors.totalBg } };
     cell.font      = { name: DESIGN.fontName, size: 10, bold: true, color: { argb: DESIGN.colors.primary } };
-    cell.border    = boldBorder;
+    cell.border    = boldBorder();
     cell.alignment = { vertical: "middle", horizontal: i <= 2 ? "left" : "right" };
   }
-  footer.getCell(4).font = { name: DESIGN.fontName, size: 11, bold: true, color: { argb: DESIGN.colors.red } };
+  footerRow.getCell(4).font = { name: DESIGN.fontName, size: 11, bold: true, color: { argb: DESIGN.colors.red } };
 }
 
-// ── Sheet: Category Summary (existing) ───────────────────────────────────────
+// ── Sheet: Category Summary ───────────────────────────────────────────────────
 
-function _buildCategorySheet(workbook, rows, allSections, dateRange, thinBorder) {
+function buildCategorySheet(workbook, rows, allSections, dateRange) {
   const ws = workbook.addWorksheet("Category Summary", { views: [{ showGridLines: true }] });
 
   ws.columns = [
@@ -288,12 +281,12 @@ function _buildCategorySheet(workbook, rows, allSections, dateRange, thinBorder)
   // Sub-header
   const r2 = ws.getRow(2); r2.height = 24;
   ["Category", "Items", "Total Amount (₹)", "% of Total"].forEach((h, i) => {
-    const cell = r2.getCell(i + 1);
+    const cell     = r2.getCell(i + 1);
     cell.value     = h;
     cell.font      = { name: DESIGN.fontName, size: 10, bold: true, color: { argb: DESIGN.colors.white } };
     cell.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: DESIGN.colors.secondary } };
     cell.alignment = { vertical: "middle", horizontal: i === 0 ? "left" : "right" };
-    cell.border    = thinBorder;
+    cell.border    = thinBorder();
   });
 
   const grandTotal = rows.reduce((a, r) => a + r.amount, 0);
@@ -305,11 +298,11 @@ function _buildCategorySheet(workbook, rows, allSections, dateRange, thinBorder)
   }
 
   allSections.forEach(({ label }, idx) => {
-    const count = catMap[label]?.count || 0;
-    const total = catMap[label]?.total || 0;
-    const row   = ws.getRow(idx + 3);
-    row.height  = 22;
-    const bg    = idx % 2 === 0 ? DESIGN.colors.white : DESIGN.colors.zebra;
+    const count   = catMap[label]?.count || 0;
+    const total   = catMap[label]?.total || 0;
+    const row     = ws.getRow(idx + 3);
+    row.height    = 22;
+    const bg      = idx % 2 === 0 ? DESIGN.colors.white : DESIGN.colors.zebra;
 
     row.getCell(1).value = label;
     row.getCell(2).value = count;
@@ -317,61 +310,150 @@ function _buildCategorySheet(workbook, rows, allSections, dateRange, thinBorder)
     row.getCell(4).value = grandTotal > 0 ? ((total / grandTotal) * 100).toFixed(1) + "%" : "0%";
 
     for (let i = 1; i <= 4; i++) {
-      const cell = row.getCell(i);
+      const cell     = row.getCell(i);
       cell.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: bg } };
-      cell.font      = { name: DESIGN.fontName, size: 10, ...(i === 2 && total > 0 ? { bold: true, color: { argb: DESIGN.colors.red } } : {}) };
+      cell.font      = { name: DESIGN.fontName, size: 10 };
       cell.border    = thinBorder();
       cell.alignment = { vertical: "middle", horizontal: i === 0 ? "left" : "right" };
-    });
-  });
-
-  writeTotalRow(ws, catRows.length + 3, 4, 1, "GRAND TOTAL", grandTotal);
-  ws.getRow(catRows.length + 3).getCell(2).value = rows.length;
-  ws.getRow(catRows.length + 3).getCell(4).value = "100%";
-}
-
-// ── Daily report ──────────────────────────────────────────────────────────────
-
-/**
- * Groups rows by calendar day.
- * Returns Map<"YYYY-MM-DD" → { label: string, rows: [...] }> sorted ascending.
- */
-function groupByDay(rows) {
-  const map = new Map();
-  for (const r of rows) {
-    if (!r.createdAt) continue;
-    const key = r.createdAt.toISOString().slice(0, 10);
-    if (!map.has(key)) {
-      map.set(key, {
-        key,
-        label: isoDate(r.createdAt),
-        rows: [],
-      });
     }
     if (total > 0)
       row.getCell(3).font = { name: DESIGN.fontName, size: 10, bold: true, color: { argb: DESIGN.colors.red } };
   });
 
-  // Grand total row
-  const footer  = ws.getRow(allSections.length + 3);
-  footer.height = 28;
+  // Grand total footer
+  const footerRowNum = allSections.length + 3;
+  const footer       = ws.getRow(footerRowNum);
+  footer.height      = 28;
+
   footer.getCell(1).value = "GRAND TOTAL";
   footer.getCell(2).value = rows.length;
   footer.getCell(3).value = grandTotal;
   footer.getCell(4).value = "100%";
 
-  const boldBorder = {
-    top:    { style: "medium", color: { argb: DESIGN.colors.secondary } },
-    bottom: { style: "double", color: { argb: DESIGN.colors.secondary } },
-    left:   { style: "thin",   color: { argb: DESIGN.colors.border } },
-    right:  { style: "thin",   color: { argb: DESIGN.colors.border } },
-  };
   for (let i = 1; i <= 4; i++) {
-    const cell = footer.getCell(i);
+    const cell     = footer.getCell(i);
     cell.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: DESIGN.colors.totalBg } };
     cell.font      = { name: DESIGN.fontName, size: 11, bold: true, color: { argb: DESIGN.colors.primary } };
-    cell.border    = boldBorder;
+    cell.border    = boldBorder();
     cell.alignment = { vertical: "middle", horizontal: i === 1 ? "left" : "right" };
   }
   footer.getCell(3).font = { name: DESIGN.fontName, size: 11, bold: true, color: { argb: DESIGN.colors.red } };
+}
+
+// ── Sheet: Daily Breakdown ────────────────────────────────────────────────────
+
+function groupByDay(rows) {
+  const map = new Map();
+  for (const r of rows) {
+    if (!r.createdAt) continue;
+    const key = r.createdAt.toISOString().slice(0, 10);
+    if (!map.has(key)) map.set(key, { key, label: isoDate(r.createdAt), rows: [] });
+    map.get(key).rows.push(r);
+  }
+  return new Map([...map.entries()].sort());
+}
+
+function buildDailySheet(workbook, rows, dateRange) {
+  const ws = workbook.addWorksheet("Daily Breakdown", { views: [{ showGridLines: true }] });
+
+  ws.columns = [
+    { width: 26 },
+    { width: 30 },
+    { width: 20, style: { numFmt: '"₹"#,##0.00', alignment: { horizontal: "right" } } },
+  ];
+
+  // Title
+  ws.mergeCells("A1:C1");
+  const r1 = ws.getRow(1); r1.height = 34;
+  r1.getCell(1).value = `DAILY EXPENSE BREAKDOWN — ${dateRange.label.toUpperCase()}`;
+  Object.assign(r1.getCell(1), {
+    font:      { name: DESIGN.fontName, size: 12, bold: true, color: { argb: DESIGN.colors.white } },
+    fill:      { type: "pattern", pattern: "solid", fgColor: { argb: DESIGN.colors.primary } },
+    alignment: { vertical: "middle", horizontal: "center" },
+  });
+
+  const dayGroups = groupByDay(rows);
+  let currentRow  = 2;
+
+  if (dayGroups.size === 0) {
+    ws.mergeCells(`A${currentRow}:C${currentRow}`);
+    const warn     = ws.getRow(currentRow); warn.height = 30;
+    warn.getCell(1).value     = "⚠ No dated expense records found.";
+    warn.getCell(1).font      = { name: DESIGN.fontName, size: 10, italic: true, color: { argb: DESIGN.colors.red } };
+    warn.getCell(1).fill      = { type: "pattern", pattern: "solid", fgColor: { argb: DESIGN.colors.redBg } };
+    warn.getCell(1).alignment = { vertical: "middle", horizontal: "center" };
+    return;
+  }
+
+  for (const { label, rows: dayRows } of dayGroups.values()) {
+    // Day header
+    ws.mergeCells(`A${currentRow}:C${currentRow}`);
+    const dayHeader     = ws.getRow(currentRow); dayHeader.height = 26;
+    dayHeader.getCell(1).value     = `📅  ${label}  —  ${dayRows.length} item${dayRows.length !== 1 ? "s" : ""}`;
+    dayHeader.getCell(1).font      = { name: DESIGN.fontName, size: 10, bold: true, color: { argb: DESIGN.colors.white } };
+    dayHeader.getCell(1).fill      = { type: "pattern", pattern: "solid", fgColor: { argb: DESIGN.colors.dayHeader } };
+    dayHeader.getCell(1).alignment = { vertical: "middle", horizontal: "left", indent: 1 };
+    currentRow++;
+
+    // Column sub-headers
+    const subHeader = ws.getRow(currentRow); subHeader.height = 22;
+    ["Category", "Expense Item", "Amount (₹)"].forEach((h, i) => {
+      const cell     = subHeader.getCell(i + 1);
+      cell.value     = h;
+      cell.font      = { name: DESIGN.fontName, size: 9, bold: true, color: { argb: DESIGN.colors.primary } };
+      cell.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: DESIGN.colors.accent } };
+      cell.alignment = { vertical: "middle", horizontal: i === 2 ? "right" : "left" };
+      cell.border    = thinBorder();
+    });
+    currentRow++;
+
+    // Data rows
+    dayRows.forEach((row, idx) => {
+      const wsRow  = ws.getRow(currentRow); wsRow.height = 22;
+      const bg     = idx % 2 === 0 ? DESIGN.colors.white : DESIGN.colors.zebra;
+
+      wsRow.getCell(1).value = row.category;
+      wsRow.getCell(2).value = row.label;
+      wsRow.getCell(3).value = row.amount;
+
+      for (let i = 1; i <= 3; i++) {
+        const cell     = wsRow.getCell(i);
+        cell.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: bg } };
+        cell.font      = { name: DESIGN.fontName, size: 10 };
+        cell.border    = thinBorder();
+        cell.alignment = { vertical: "middle", horizontal: i === 3 ? "right" : "left" };
+      }
+      wsRow.getCell(3).font = { name: DESIGN.fontName, size: 10, bold: true, color: { argb: DESIGN.colors.red } };
+      currentRow++;
+    });
+
+    // Day subtotal
+    const dayTotal  = dayRows.reduce((a, r) => a + r.amount, 0);
+    const subtotal  = ws.getRow(currentRow); subtotal.height = 24;
+    subtotal.getCell(1).value = "Day Total";
+    subtotal.getCell(3).value = dayTotal;
+    for (let i = 1; i <= 3; i++) {
+      const cell     = subtotal.getCell(i);
+      cell.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: DESIGN.colors.totalBg } };
+      cell.font      = { name: DESIGN.fontName, size: 10, bold: true, color: { argb: DESIGN.colors.primary } };
+      cell.border    = boldBorder();
+      cell.alignment = { vertical: "middle", horizontal: i === 3 ? "right" : "left" };
+    }
+    subtotal.getCell(3).font = { name: DESIGN.fontName, size: 10, bold: true, color: { argb: DESIGN.colors.red } };
+    currentRow += 2; // spacer between days
+  }
+
+  // Grand total
+  const grandTotal    = rows.reduce((a, r) => a + r.amount, 0);
+  const grandRow      = ws.getRow(currentRow); grandRow.height = 28;
+  grandRow.getCell(1).value = "GRAND TOTAL";
+  grandRow.getCell(3).value = grandTotal;
+  for (let i = 1; i <= 3; i++) {
+    const cell     = grandRow.getCell(i);
+    cell.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: DESIGN.colors.totalBg } };
+    cell.font      = { name: DESIGN.fontName, size: 11, bold: true, color: { argb: DESIGN.colors.primary } };
+    cell.border    = boldBorder();
+    cell.alignment = { vertical: "middle", horizontal: i === 3 ? "right" : "left" };
+  }
+  grandRow.getCell(3).font = { name: DESIGN.fontName, size: 11, bold: true, color: { argb: DESIGN.colors.red } };
 }
