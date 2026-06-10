@@ -581,7 +581,7 @@ function FeesAndPayments() {
                     )}
 
                     {/* Pay button */}
-                    {due > 0 && (
+                    {/* {due > 0 && (
                       <button
                         onClick={() => setSelectedStudent(student)}
                         className="pay-btn"
@@ -599,7 +599,7 @@ function FeesAndPayments() {
                         <CreditCard size={15} />
                         Pay Now — ₹{due.toLocaleString("en-IN")}
                       </button>
-                    )}
+                    )}  */}
 
                     {isPaid && (
                       <div style={{
