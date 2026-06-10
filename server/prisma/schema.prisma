@@ -1664,9 +1664,14 @@ model StudentList {
   paymentMode   String?
   paymentDate   DateTime?
 
-  // NEW
-  schoolFeePaid  Decimal @default(0)
-  tuitionFeePaid Decimal @default(0)
+  // Per-category paid amounts
+  schoolFeePaid    Decimal @default(0)
+  tuitionFeePaid   Decimal @default(0)
+  examFeePaid      Decimal @default(0)
+  transportFeePaid Decimal @default(0)
+  booksFeePaid     Decimal @default(0)
+  labFeePaid       Decimal @default(0)
+  miscFeePaid      Decimal @default(0)
 
   createdAt DateTime @default(now())
 

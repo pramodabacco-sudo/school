@@ -9,15 +9,27 @@ import authMiddleware from "../../middlewares/authMiddleware.js";
 const router = express.Router();
 const prisma = new PrismaClient();
 
+// ── Check if new fee-category tables exist in DB ──────────────────────────────
+// After running `npx prisma migrate dev --name add_fee_categories`
+// set this to true (or it will auto-detect on first call).
+let FEE_CATEGORIES_MIGRATED = null; // null = not yet checked
+
+async function checkMigrated() {
+  if (FEE_CATEGORIES_MIGRATED !== null) return FEE_CATEGORIES_MIGRATED;
+  try {
+    await prisma.$queryRaw`SELECT 1 FROM "fee_categories" LIMIT 1`;
+    FEE_CATEGORIES_MIGRATED = true;
+  } catch {
+    FEE_CATEGORIES_MIGRATED = false;
+  }
+  return FEE_CATEGORIES_MIGRATED;
+}
+
 // ── ADD STUDENT FINANCE ───────────────────────────────────────────────────────
-// Before creating, checks if a record already exists for this studentId + schoolId.
-// If it does, updates the existing record instead of creating a duplicate.
 router.post("/addStudentFinance", authMiddleware, async (req, res) => {
   try {
     const schoolId = req.user?.schoolId;
-    if (!schoolId) {
-      return res.status(400).json({ message: "SchoolId missing in user" });
-    }
+    if (!schoolId) return res.status(400).json({ message: "SchoolId missing in user" });
 
     const {
       studentId, name, email, phone, course, fees,
@@ -38,65 +50,43 @@ router.post("/addStudentFinance", authMiddleware, async (req, res) => {
       feeBreakdownDetails: feeBreakdownDetails || {},
     });
 
-    // ── Upsert: check for existing record for this student ─────────────────
     const existing = studentId
-      ? await prisma.studentList.findFirst({
-          where: { studentId, schoolId, deletedAt: null },
-        })
+      ? await prisma.studentList.findFirst({ where: { studentId, schoolId, deletedAt: null } })
       : null;
 
     let student;
 
     if (existing) {
-      // ── UPDATE existing record ─────────────────────────────────────────
       student = await prisma.studentList.update({
         where: { id: existing.id },
-        data: {
-          name,
-          email,
-          phone,
-          course:       course || null,
-          fees:         fees ? parseFloat(fees) : null,
-          feeBreakdown,
-          feeDate:      feeDate ? new Date(feeDate) : new Date(),
-        },
+        data: { name, email, phone, course: course || null, fees: fees ? parseFloat(fees) : null, feeBreakdown, feeDate: feeDate ? new Date(feeDate) : new Date() },
       });
 
-      await saveSchoolBackup({
-        schoolId,
-        module:   "studentList",
-        recordId: String(student.id),
-        data:     student,
-        action:   "update",
-      });
+      // Only sync categories if migration has been run
+      if (await checkMigrated()) {
+        await syncFeeCategories(schoolId, student.id, { collegeFee, tuitionFee, examFee, transportFee, booksFee, labFee, miscFee, customFees });
+      }
 
-      // Return with a flag so the frontend knows an existing record was updated
+      await saveSchoolBackup({ schoolId, module: "studentList", recordId: String(student.id), data: student, action: "update" });
       return res.json({ ...student, _upserted: true });
     }
 
-    // ── CREATE new record ──────────────────────────────────────────────────
     student = await prisma.studentList.create({
       data: {
-        studentId,
-        name,
-        email,
-        phone,
-        course:      course || null,
-        fees:        fees ? parseFloat(fees) : null,
+        studentId, name, email, phone,
+        course: course || null,
+        fees: fees ? parseFloat(fees) : null,
         feeBreakdown,
-        feeDate:     feeDate ? new Date(feeDate) : new Date(),
+        feeDate: feeDate ? new Date(feeDate) : new Date(),
         schoolId,
       },
     });
 
-    await saveSchoolBackup({
-      schoolId,
-      module:   "studentList",
-      recordId: String(student.id),
-      data:     student,
-      action:   "create",
-    });
+    if (await checkMigrated()) {
+      await syncFeeCategories(schoolId, student.id, { collegeFee, tuitionFee, examFee, transportFee, booksFee, labFee, miscFee, customFees });
+    }
 
+    await saveSchoolBackup({ schoolId, module: "studentList", recordId: String(student.id), data: student, action: "create" });
     res.json(student);
   } catch (error) {
     console.error("Save Error:", error);
@@ -104,22 +94,179 @@ router.post("/addStudentFinance", authMiddleware, async (req, res) => {
   }
 });
 
+// ── Helper: upsert FeeCategory + StudentFeeCategory rows ──────────────────────
+// Only called after migration is confirmed
+async function syncFeeCategories(schoolId, studentListId, breakdown) {
+  const {
+    collegeFee = 0, tuitionFee = 0, examFee = 0,
+    transportFee = 0, booksFee = 0, labFee = 0, miscFee = 0,
+    customFees = [],
+  } = breakdown;
+
+  const STANDARD = [
+    { name: "School Fee",    amount: collegeFee,   order: 1 },
+    { name: "Tuition Fee",   amount: tuitionFee,   order: 2 },
+    { name: "Exam Fee",      amount: examFee,      order: 3 },
+    { name: "Transport Fee", amount: transportFee, order: 4 },
+    { name: "Books Fee",     amount: booksFee,     order: 5 },
+    { name: "Lab Fee",       amount: labFee,       order: 6 },
+    { name: "Miscellaneous", amount: miscFee,      order: 7 },
+  ];
+
+  const customEntries = (Array.isArray(customFees) ? customFees : [])
+    .filter(c => Number(c.amount || c.total || 0) > 0)
+    .map((c, i) => ({ name: c.label || `Custom Fee ${i + 1}`, amount: Number(c.amount || c.total || 0), order: 10 + i }));
+
+  const allEntries = [...STANDARD, ...customEntries].filter(e => Number(e.amount) > 0);
+
+  for (const entry of allEntries) {
+    const cat = await prisma.feeCategory.upsert({
+      where:  { name_schoolId: { name: entry.name, schoolId } },
+      create: { name: entry.name, order: entry.order, schoolId },
+      update: { order: entry.order, isActive: true },
+    });
+
+    const existing = await prisma.studentFeeCategory.findUnique({
+      where: { studentListId_categoryId: { studentListId, categoryId: cat.id } },
+    });
+
+    if (existing) {
+      await prisma.studentFeeCategory.update({
+        where: { id: existing.id },
+        data:  { totalAmount: entry.amount },
+      });
+    } else {
+      await prisma.studentFeeCategory.create({
+        data: { studentListId, categoryId: cat.id, totalAmount: entry.amount, paidAmount: 0, schoolId },
+      });
+    }
+  }
+}
+
 // ── GET STUDENT FINANCE LIST ──────────────────────────────────────────────────
 router.get("/getStudentFinance", authMiddleware, async (req, res) => {
   try {
     const schoolId = req.user?.schoolId;
-    if (!schoolId) {
-      return res.status(400).json({ message: "SchoolId missing in user" });
-    }
+    if (!schoolId) return res.status(400).json({ message: "SchoolId missing in user" });
+
+    const migrated = await checkMigrated();
 
     const students = await prisma.studentList.findMany({
-      where: { schoolId, deletedAt: null },
+      where:   { schoolId, deletedAt: null },
       orderBy: { createdAt: "desc" },
+      // Only include feeCategories if the migration has been run
+      ...(migrated && {
+        include: {
+          feeCategories: {
+            include:  { category: true },
+            orderBy:  { category: { order: "asc" } },
+          },
+        },
+      }),
     });
 
     res.json(students);
   } catch (error) {
     console.log(error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// ── GET STUDENT FEE CATEGORIES (for a single student) ────────────────────────
+router.get("/studentFeeCategories/:studentListId", authMiddleware, async (req, res) => {
+  try {
+    if (!(await checkMigrated())) return res.json([]);
+
+    const studentListId = parseInt(req.params.studentListId);
+    const categories = await prisma.studentFeeCategory.findMany({
+      where:   { studentListId },
+      include: { category: true, payments: { orderBy: { paidAt: "desc" } } },
+      orderBy: { category: { order: "asc" } },
+    });
+    res.json(categories);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// ── GET FEE CATEGORIES MASTER LIST ───────────────────────────────────────────
+router.get("/feeCategories", authMiddleware, async (req, res) => {
+  try {
+    if (!(await checkMigrated())) return res.json([]);
+
+    const schoolId  = req.user?.schoolId;
+    const categories = await prisma.feeCategory.findMany({
+      where:   { schoolId, isActive: true },
+      orderBy: { order: "asc" },
+    });
+    res.json(categories);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// ── RECORD CATEGORY PAYMENT ───────────────────────────────────────────────────
+router.post("/recordCategoryPayment", authMiddleware, async (req, res) => {
+  try {
+    if (!(await checkMigrated())) {
+      return res.status(400).json({ message: "Fee category tables not yet migrated. Run: npx prisma migrate dev --name add_fee_categories" });
+    }
+
+    const schoolId = req.user?.schoolId;
+    const { studentListId, categoryId, amount, paymentMode } = req.body;
+
+    if (!studentListId || !categoryId || !amount || amount <= 0) {
+      return res.status(400).json({ message: "studentListId, categoryId and amount are required" });
+    }
+
+    const sfc = await prisma.studentFeeCategory.findUnique({
+      where: { studentListId_categoryId: { studentListId: parseInt(studentListId), categoryId } },
+    });
+
+    if (!sfc) return res.status(404).json({ message: "Fee category record not found for this student" });
+
+    const pending = Number(sfc.totalAmount) - Number(sfc.paidAmount);
+    const payAmt  = Math.min(Number(amount), pending);
+
+    if (payAmt <= 0) return res.status(400).json({ message: "Fee already fully paid for this category" });
+
+    await prisma.$transaction([
+      prisma.studentFeeCategory.update({
+        where: { id: sfc.id },
+        data:  { paidAmount: { increment: payAmt } },
+      }),
+      prisma.studentFeeCategoryPayment.create({
+        data: {
+          studentFeeCategoryId: sfc.id,
+          amount:      payAmt,
+          paymentMode: paymentMode || "Cash",
+          createdBy:   req.user?.id || null,
+        },
+      }),
+    ]);
+
+    // Recalculate aggregate paidAmount on StudentList
+    const allCats = await prisma.studentFeeCategory.findMany({
+      where: { studentListId: parseInt(studentListId) },
+    });
+    const newTotalPaid = allCats.reduce((sum, c) => sum + Number(c.paidAmount), 0) + payAmt;
+
+    const studentListRecord = await prisma.studentList.findUnique({ where: { id: parseInt(studentListId) } });
+    const totalFees = Number(studentListRecord?.fees || 0);
+
+    await prisma.studentList.update({
+      where: { id: parseInt(studentListId) },
+      data: {
+        paidAmount:    newTotalPaid,
+        paymentMode:   paymentMode || "Cash",
+        paymentDate:   new Date(),
+        paymentStatus: newTotalPaid >= totalFees ? "PAID" : "PARTIAL",
+      },
+    });
+
+    res.json({ success: true, newTotalPaid });
+  } catch (error) {
+    console.error("recordCategoryPayment error:", error);
     res.status(500).json({ message: error.message });
   }
 });
@@ -131,11 +278,10 @@ router.put("/updateStudentFinance/:id", authMiddleware, async (req, res) => {
     const schoolId = req.user?.schoolId;
 
     const {
-      studentId,
-      name, email, phone, course, fees,
+      studentId, name, email, phone, course, fees,
       collegeFee, tuitionFee, examFee,
       transportFee, booksFee, labFee, miscFee, customFees,
-      paidAmount, schoolFeePaid, tuitionFeePaid,
+      paidAmount, schoolFeePaid, tuitionFeePaid, examFeePaid, transportFeePaid, booksFeePaid, labFeePaid, miscFeePaid,
       paymentStatus, paymentMode, paymentDate,
       feeDate, feeBreakdownDetails,
     } = req.body;
@@ -146,11 +292,8 @@ router.put("/updateStudentFinance/:id", authMiddleware, async (req, res) => {
     if (phone  !== undefined) updateData.phone  = phone;
     if (course !== undefined) updateData.course = course;
     if (fees   !== undefined) updateData.fees   = fees ? parseFloat(fees) : null;
-
-    // Fee date — store selected date (backdated entries supported)
     if (feeDate !== undefined) updateData.feeDate = new Date(feeDate);
 
-    // Fee breakdown — only write if breakdown fields were sent
     if (collegeFee !== undefined || tuitionFee !== undefined || customFees !== undefined) {
       updateData.feeBreakdown = JSON.stringify({
         collegeFee:          collegeFee   || 0,
@@ -163,29 +306,27 @@ router.put("/updateStudentFinance/:id", authMiddleware, async (req, res) => {
         customFees:          customFees   || [],
         feeBreakdownDetails: feeBreakdownDetails || {},
       });
+
+      if (await checkMigrated()) {
+        await syncFeeCategories(schoolId, id, { collegeFee, tuitionFee, examFee, transportFee, booksFee, labFee, miscFee, customFees });
+      }
     }
 
-    // Payment tracking fields
     if (paidAmount     !== undefined) updateData.paidAmount     = parseFloat(paidAmount)     || 0;
     if (schoolFeePaid  !== undefined) updateData.schoolFeePaid  = parseFloat(schoolFeePaid)  || 0;
-    if (tuitionFeePaid !== undefined) updateData.tuitionFeePaid = parseFloat(tuitionFeePaid) || 0;
+    if (tuitionFeePaid  !== undefined) updateData.tuitionFeePaid  = parseFloat(tuitionFeePaid)  || 0;
+    if (examFeePaid     !== undefined) updateData.examFeePaid     = parseFloat(examFeePaid)     || 0;
+    if (transportFeePaid !== undefined) updateData.transportFeePaid = parseFloat(transportFeePaid) || 0;
+    if (booksFeePaid    !== undefined) updateData.booksFeePaid    = parseFloat(booksFeePaid)    || 0;
+    if (labFeePaid      !== undefined) updateData.labFeePaid      = parseFloat(labFeePaid)      || 0;
+    if (miscFeePaid     !== undefined) updateData.miscFeePaid     = parseFloat(miscFeePaid)     || 0;
     if (paymentStatus  !== undefined) updateData.paymentStatus  = paymentStatus;
     if (paymentMode    !== undefined) updateData.paymentMode    = paymentMode;
     if (paymentDate    !== undefined) updateData.paymentDate    = new Date(paymentDate);
 
-    const updated = await prisma.studentList.update({
-      where: { id },
-      data:  updateData,
-    });
+    const updated = await prisma.studentList.update({ where: { id }, data: updateData });
 
-    await saveSchoolBackup({
-      schoolId,
-      module:   "studentList",
-      recordId: String(updated.id),
-      data:     updated,
-      action:   "update",
-    });
-
+    await saveSchoolBackup({ schoolId, module: "studentList", recordId: String(updated.id), data: updated, action: "update" });
     res.json(updated);
   } catch (error) {
     console.error("Update error:", error);
@@ -204,14 +345,7 @@ router.delete("/deleteStudentFinance/:id", authMiddleware, async (req, res) => {
       data:  { deletedAt: new Date() },
     });
 
-    await saveSchoolBackup({
-      schoolId,
-      module:   "studentList",
-      recordId: String(deleted.id),
-      data:     deleted,
-      action:   "delete",
-    });
-
+    await saveSchoolBackup({ schoolId, module: "studentList", recordId: String(deleted.id), data: deleted, action: "delete" });
     res.json({ message: "Deleted Successfully" });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -222,49 +356,26 @@ router.delete("/deleteStudentFinance/:id", authMiddleware, async (req, res) => {
 router.get("/studentsByClass", async (req, res) => {
   try {
     const { classSectionId } = req.query;
+    if (!classSectionId) return res.status(400).json({ message: "classSectionId required" });
 
-    const students = await prisma.studentEnrollment.findMany({
-      where: { classSectionId },
-      include: {
-        student: { include: { personalInfo: true } },
-        classSection: true,
-      },
+    const enrollments = await prisma.studentEnrollment.findMany({
+      where:   { classSectionId },
+      include: { student: { include: { personalInfo: true } } },
     });
+
+    const students = enrollments.map(e => ({
+      id:    e.student.id,
+      name:  e.student.personalInfo
+        ? `${e.student.personalInfo.firstName} ${e.student.personalInfo.lastName}`
+        : e.student.name,
+      email: e.student.email,
+      phone: e.student.personalInfo?.phone || "",
+    }));
 
     res.json(students);
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: error.message });
-  }
-});
-
-// ── SCHOOLS LIST ──────────────────────────────────────────────────────────────
-router.get("/schools", async (req, res) => {
-  const schools = await prisma.school.findMany({
-    select: { id: true, name: true },
-  });
-  res.json(schools);
-});
-
-// ── CLASS SECTIONS ────────────────────────────────────────────────────────────
-router.get("/classSections", async (req, res) => {
-  const { schoolId } = req.query;
-  const classes = await prisma.classSection.findMany({
-    where:  { schoolId },
-    select: { id: true, grade: true, section: true, name: true },
-  });
-  res.json(classes);
-});
-
-// ── ALL STUDENTS (no school filter — internal use) ────────────────────────────
-router.get("/students", async (req, res) => {
-  try {
-    const students = await prisma.studentList.findMany({
-      orderBy: { createdAt: "desc" },
-    });
-    res.json(students);
-  } catch (error) {
-    res.status(500).json({ message: "Server error" });
   }
 });
 
@@ -293,9 +404,16 @@ router.get("/myFees", async (req, res) => {
     const { email } = req.query;
     if (!email) return res.status(400).json({ message: "email is required" });
 
+    const migrated = await checkMigrated();
+
     const record = await prisma.studentList.findFirst({
       where:   { email },
       orderBy: { createdAt: "desc" },
+      ...(migrated && {
+        include: {
+          feeCategories: { include: { category: true }, orderBy: { category: { order: "asc" } } },
+        },
+      }),
     });
 
     if (!record) return res.status(404).json({ message: "No fee record found" });
@@ -310,15 +428,10 @@ router.get("/myFees", async (req, res) => {
 router.get("/classFee", async (req, res) => {
   try {
     const { classSectionId, academicYearId } = req.query;
-    if (!classSectionId) {
-      return res.status(400).json({ message: "classSectionId required" });
-    }
+    if (!classSectionId) return res.status(400).json({ message: "classSectionId required" });
 
     const fee = await prisma.classFee.findFirst({
-      where: {
-        classSectionId,
-        ...(academicYearId && { academicYearId }),
-      },
+      where: { classSectionId, ...(academicYearId && { academicYearId }) },
     });
 
     res.json(fee || null);
@@ -332,6 +445,7 @@ router.get("/classFee", async (req, res) => {
 router.get("/parentFees", authMiddleware, async (req, res) => {
   try {
     const parentId = req.user.id;
+    const migrated = await checkMigrated();
 
     const children = await prisma.studentParent.findMany({
       where:  { parentId },
@@ -342,6 +456,11 @@ router.get("/parentFees", authMiddleware, async (req, res) => {
 
     const fees = await prisma.studentList.findMany({
       where: { studentId: { in: studentIds }, deletedAt: null },
+      ...(migrated && {
+        include: {
+          feeCategories: { include: { category: true }, orderBy: { category: { order: "asc" } } },
+        },
+      }),
     });
 
     res.json(fees);
@@ -355,12 +474,11 @@ router.get("/parentFees", authMiddleware, async (req, res) => {
 router.post("/sendFeeReminder/:id", authMiddleware, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-
     const financeStudent = await prisma.studentList.findUnique({ where: { id } });
     if (!financeStudent) return res.status(404).json({ message: "Student not found" });
 
-    const totalFees     = Number(financeStudent.fees        || 0);
-    const paidAmount    = Number(financeStudent.paidAmount   || 0);
+    const totalFees     = Number(financeStudent.fees       || 0);
+    const paidAmount    = Number(financeStudent.paidAmount  || 0);
     const pendingAmount = totalFees - paidAmount;
     if (pendingAmount <= 0) return res.status(400).json({ message: "No pending fees" });
 
@@ -375,12 +493,7 @@ router.post("/sendFeeReminder/:id", authMiddleware, async (req, res) => {
     for (const link of realStudent.parentLinks) {
       const parentPhone = link.parent?.phone;
       if (!parentPhone) continue;
-      await sendFeePendingWhatsApp({
-        phone: parentPhone,
-        pendingAmount,
-        studentName: financeStudent.name,
-        schoolName:  school?.name || "School",
-      });
+      await sendFeePendingWhatsApp({ phone: parentPhone, pendingAmount, studentName: financeStudent.name, schoolName: school?.name || "School" });
     }
 
     res.json({ success: true, message: "Fee reminder sent successfully" });
@@ -394,7 +507,6 @@ router.post("/sendFeeReminder/:id", authMiddleware, async (req, res) => {
 router.post("/sendFeeReceipt/:id", authMiddleware, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-
     const financeStudent = await prisma.studentList.findUnique({ where: { id } });
     if (!financeStudent) return res.status(404).json({ message: "Student not found" });
 
@@ -410,12 +522,7 @@ router.post("/sendFeeReceipt/:id", authMiddleware, async (req, res) => {
     for (const link of realStudent.parentLinks) {
       const parentPhone = link.parent?.phone;
       if (!parentPhone) continue;
-      await sendFeeReceiptWhatsApp({
-        phone:       parentPhone,
-        studentName: financeStudent.name,
-        schoolName:  school?.name || "School",
-        pdfUrl,
-      });
+      await sendFeeReceiptWhatsApp({ phone: parentPhone, studentName: financeStudent.name, schoolName: school?.name || "School", pdfUrl });
     }
 
     res.json({ success: true, message: "Fee receipt sent successfully" });
@@ -459,7 +566,6 @@ router.post("/uploadFeeReceipt/:id", authMiddleware, async (req, res) => {
 router.post("/sendFeeVoiceReminder/:id", authMiddleware, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-
     const financeStudent = await prisma.studentList.findUnique({ where: { id } });
     if (!financeStudent) return res.status(404).json({ message: "Student not found" });
 
@@ -479,12 +585,7 @@ router.post("/sendFeeVoiceReminder/:id", authMiddleware, async (req, res) => {
     for (const link of realStudent.parentLinks) {
       const parentPhone = link.parent?.phone;
       if (!parentPhone) continue;
-      await sendFeeVoiceReminder({
-        phone:       parentPhone,
-        pendingAmount,
-        studentName: financeStudent.name,
-        schoolName:  school?.name || "School",
-      });
+      await sendFeeVoiceReminder({ phone: parentPhone, pendingAmount, studentName: financeStudent.name, schoolName: school?.name || "School" });
     }
 
     res.json({ success: true, message: "Voice reminder sent successfully" });
