@@ -1,7 +1,7 @@
 // admin/pages/students/BulkImportStudents.jsx
 // Drop an Excel/CSV → preview → bulk register students
 import React, { useState, useRef, useCallback, useEffect } from "react";
-import * as XLSX from "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm";
+import * as XLSX from "xlsx";
 import {
   Upload,
   Download,

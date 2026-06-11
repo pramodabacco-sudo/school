@@ -1,6 +1,6 @@
 // client/src/admin/pages/classes/components/BulkReadmissionUpload.jsx
 import { useState, useRef, useCallback } from "react";
-import * as XLSX from "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm";
+import * as XLSX from "xlsx";
 import {
   Upload,
   Download,

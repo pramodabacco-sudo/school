@@ -1,7 +1,7 @@
 // admin/pages/Staff/components/BulkImportStaff.jsx
 // Drop an Excel/CSV → preview → bulk register staff
 import React, { useState, useRef, useCallback } from "react";
-import * as XLSX from "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm";
+import * as XLSX from "xlsx";
 import {
   Upload,
   Download,
