@@ -65,6 +65,7 @@ export const getSchoolLogo = async (req, res) => {
     const signedUrl = await generateSignedUrl(university.logoUrl, 300);
     return res.json({ logoUrl: signedUrl });
 
+    
   } catch (err) {
     console.error("[getSchoolLogo]", err);
     res.status(500).json({ message: "Server error" });
