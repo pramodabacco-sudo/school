@@ -11,6 +11,7 @@ import { PayModal } from "../../../finance/pages/Studentfinance/PayModal";
 import { InvoiceModal } from "./FeesInvoce.jsx";
 import { downloadStudentFinanceExcel } from "../../../utils/downloadStudentFinanceExcel.js";
 import { FaWhatsapp } from "react-icons/fa";
+import { useSchoolLogo } from "../../../hooks/useSchoolLogo";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -268,6 +269,7 @@ export default function StudentFeesPage() {
     const [feeCategory, setFeeCategory] = useState("ALL");
     const [paymentFilter, setPaymentFilter] = useState("ALL");
     const [selectedDate, setSelectedDate] = useState("");
+    const schoolLogoUrl = useSchoolLogo();
 
 
     useEffect(() => {
@@ -1363,7 +1365,7 @@ export default function StudentFeesPage() {
 
             {/* ── MODALS ── */}
             <Addstudent open={openPopup} handleClose={() => setOpenPopup(false)} addStudentData={addStudentData} editData={editData} />
-            {invoiceStudent && <InvoiceModal student={invoiceStudent} onClose={() => setInvoiceStudent(null)} schoolName={schoolInfo.name} schoolAddress={`${schoolInfo.address || ""}${schoolInfo.city ? ", " + schoolInfo.city : ""}`} />}
+            {invoiceStudent && <InvoiceModal student={invoiceStudent} onClose={() => setInvoiceStudent(null)} schoolName={schoolInfo.name} schoolAddress={`${schoolInfo.address || ""}${schoolInfo.city ? ", " + schoolInfo.city : ""}`} schoolLogoUrl={schoolLogoUrl} />}
             {payStudent && <PayModal student={payStudent} onClose={() => setPayStudent(null)} onPaymentDone={handlePaymentDone} />}
             {waStudent && <WhatsAppConfirmModal student={waStudent} onClose={() => setWaStudent(null)} onConfirm={handleSendWhatsApp} />}
             {receiptStudent && (

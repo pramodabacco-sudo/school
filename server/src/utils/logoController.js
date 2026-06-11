@@ -5,45 +5,46 @@ import { generateSignedUrl } from "../lib/r2.js";
 export const getSchoolLogo = async (req, res) => {
   try {
     const { id: userId, role } = req.user;
-    let schoolId = null;
+    let universityId = null;
 
     switch (role) {
+      // ── SuperAdmin: universityId lives directly on SuperAdmin row ──
       case "SUPER_ADMIN": {
-        const access = await prisma.superAdminSchoolAccess.findFirst({
-          where: { superAdminId: userId },
-          select: { schoolId: true },
+        const sa = await prisma.superAdmin.findUnique({
+          where: { id: userId },
+          select: { universityId: true },
         });
-        schoolId = access?.schoolId;
+        universityId = sa?.universityId;
         break;
       }
 
-      // ADMIN, TEACHER, FINANCE all live in the User table with schoolId
+      // ── Staff roles: resolve schoolId → school.universityId ──
       case "ADMIN":
       case "TEACHER":
       case "FINANCE": {
         const user = await prisma.user.findUnique({
           where: { id: userId },
-          select: { schoolId: true },
+          select: { school: { select: { universityId: true } } },
         });
-        schoolId = user?.schoolId;
+        universityId = user?.school?.universityId;
         break;
       }
 
       case "PARENT": {
         const parent = await prisma.parent.findUnique({
           where: { id: userId },
-          select: { schoolId: true },
+          select: { school: { select: { universityId: true } } },
         });
-        schoolId = parent?.schoolId;
+        universityId = parent?.school?.universityId;
         break;
       }
 
       case "STUDENT": {
         const student = await prisma.student.findUnique({
           where: { id: userId },
-          select: { schoolId: true },
+          select: { school: { select: { universityId: true } } },
         });
-        schoolId = student?.schoolId;
+        universityId = student?.school?.universityId;
         break;
       }
 
@@ -51,17 +52,17 @@ export const getSchoolLogo = async (req, res) => {
         return res.json({ logoUrl: null });
     }
 
-    if (!schoolId) return res.json({ logoUrl: null });
+    if (!universityId) return res.json({ logoUrl: null });
 
-    const school = await prisma.school.findUnique({
-      where: { id: schoolId },
+    // ── Fetch logo from University table (matches superadmin flow) ──
+    const university = await prisma.university.findUnique({
+      where: { id: universityId },
       select: { logoUrl: true },
     });
 
-    if (!school?.logoUrl) return res.json({ logoUrl: null });
+    if (!university?.logoUrl) return res.json({ logoUrl: null });
 
-    // Signed URL — same as superadmin flow, valid 5 minutes
-    const signedUrl = await generateSignedUrl(school.logoUrl, 300);
+    const signedUrl = await generateSignedUrl(university.logoUrl, 300);
     return res.json({ logoUrl: signedUrl });
 
   } catch (err) {

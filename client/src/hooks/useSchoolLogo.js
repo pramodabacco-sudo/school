@@ -22,7 +22,6 @@ export function useSchoolLogo() {
       try {
         const token = getToken();
         if (!token) return;
-
         const res = await fetch(`${API}/api/school/logo`, {
           headers: { Authorization: `Bearer ${token}` },
         });

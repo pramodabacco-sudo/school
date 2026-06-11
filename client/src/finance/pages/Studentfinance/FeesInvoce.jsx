@@ -16,6 +16,48 @@ const API_URL = import.meta.env.VITE_API_URL;
 // ─── helpers ──────────────────────────────────────────────────────────────────
 const fmt = (n) => Number(n || 0).toLocaleString("en-IN");
 
+// ── Load logo → base64 for jsPDF ─────────────────────────────────────────────
+async function loadLogoForPDF(logoUrl) {
+  if (!logoUrl) return null;
+
+  // Step 1: fetch the image bytes through /api/image-proxy
+  // This avoids CORS issues with R2/S3/Cloudinary URLs
+  try {
+    const API = import.meta.env.VITE_API_URL;
+    const proxyUrl = `${API}/api/image-proxy?url=${encodeURIComponent(logoUrl)}`;
+
+    const res = await fetch(proxyUrl);
+    if (!res.ok) throw new Error(`proxy ${res.status}`);
+
+    const blob = await res.blob();
+    if (!blob || blob.size === 0) throw new Error("empty response");
+
+    // Step 2: blob → base64 data URL via FileReader
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror  = reject;
+      reader.readAsDataURL(blob);
+    });
+
+    // Step 3: strip the "data:image/xxx;base64," prefix
+    // jsPDF addImage needs ONLY the raw base64 string after the comma
+    const rawBase64 = dataUrl.split(",")[1];
+    if (!rawBase64) throw new Error("base64 split failed");
+
+    // Detect format from MIME type
+    const mime   = blob.type || "image/png";
+    const format = (mime.includes("jpeg") || mime.includes("jpg")) ? "JPEG" : "PNG";
+
+    console.log("[PDF Logo] ✅ loaded via proxy:", format, rawBase64.length, "chars");
+    return { base64: rawBase64, format };
+
+  } catch (err) {
+    console.warn("[PDF Logo] proxy failed:", err.message, "| url:", logoUrl);
+    return null;
+  }
+}
+
 // Build category rows from feeCategories (DB-backed) or fall back to feeBreakdown JSON
 function buildCategoryRows(student) {
   // ── Prefer DB-backed rows (included via getStudentFinance) ──
@@ -99,12 +141,33 @@ function buildCategoryRows(student) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-export function InvoiceModal({ student, onClose, schoolName, schoolAddress }) {
+export function InvoiceModal({ student, onClose, schoolName, schoolAddress, schoolLogoUrl }) {
   const [rows,    setRows]    = useState([]);
   const [loading, setLoading] = useState(true);
+  const [logoUrl, setLogoUrl] = useState(schoolLogoUrl || null);
 
   const invoiceNo = `INV-${String(student.id || "").slice(-4).padStart(4, "0")}-${new Date().getFullYear()}`;
   const today     = new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+
+
+  // ── Fetch logo if not passed as prop ──────────────────────────────────────
+  useEffect(() => {
+    if (logoUrl) return;
+    (async () => {
+      try {
+        const auth  = JSON.parse(localStorage.getItem("auth") || "{}");
+        const token = auth?.token;
+        if (!token) return;
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/school/logo`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.logoUrl) setLogoUrl(data.logoUrl);
+        }
+      } catch {}
+    })();
+  }, []);
 
   // ── Fetch fresh category data if not already included ─────────────────────
   useEffect(() => {
@@ -145,20 +208,42 @@ export function InvoiceModal({ student, onClose, schoolName, schoolAddress }) {
   const paidPct      = grandTotal > 0 ? Math.round((grandPaid / grandTotal) * 100) : 0;
 
   // ── PDF Download ──────────────────────────────────────────────────────────
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!window.jspdf) { alert("PDF library not loaded yet. Please try again."); return; }
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
     const W = 210, m = 18;
 
+    // ── Load logo ──
+    const logoData = logoUrl ? await loadLogoForPDF(logoUrl) : null;
+    console.log("[PDF] logo result:", logoData ? `✅ ${logoData.format}` : "null");
+
     // Header
-    const headerH = schoolAddress ? 50 : 44;
+    const headerH = schoolAddress ? 52 : 46;
     doc.setFillColor(28, 48, 68); doc.rect(0, 0, W, headerH, "F");
-    doc.setFont("helvetica", "bold"); doc.setFontSize(17); doc.setTextColor(255, 255, 255);
-    doc.text(schoolName || "Fee Receipt", m, 16);
-    doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.setTextColor(180, 205, 220);
-    doc.text("Fee Invoice & Payment Receipt", m, 25);
-    if (schoolAddress) { doc.setFontSize(8.5); doc.setTextColor(140, 175, 200); doc.text(schoolAddress, m, 33); }
+
+    const logoSize = 28;
+    const logoX    = m;
+    const logoY    = (headerH - logoSize) / 2;
+    const textX    = logoData ? m + logoSize + 7 : m;
+
+    if (logoData) {
+      doc.setFillColor(255, 255, 255);
+      doc.roundedRect(logoX, logoY, logoSize, logoSize, 4, 4, "F");
+      try {
+        // logoData.base64 is already raw base64 (no data: prefix) — ready for jsPDF
+        doc.addImage(logoData.base64, logoData.format, logoX + 2, logoY + 2, logoSize - 4, logoSize - 4);
+        console.log("[PDF] ✅ logo embedded as", logoData.format);
+      } catch (e) {
+        console.warn("[PDF] addImage failed:", e.message);
+      }
+    }
+
+    doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.setTextColor(255, 255, 255);
+    doc.text(schoolName || "Fee Receipt", textX, logoData ? logoY + 10 : 16);
+    doc.setFontSize(8.5); doc.setFont("helvetica", "normal"); doc.setTextColor(180, 205, 220);
+    doc.text("Fee Invoice & Payment Receipt", textX, logoData ? logoY + 18 : 24);
+    if (schoolAddress) { doc.setFontSize(8); doc.setTextColor(140, 175, 200); doc.text(schoolAddress, textX, logoData ? logoY + 25 : 32); }
 
     // Invoice badge
     doc.setFillColor(255, 255, 255); doc.roundedRect(W - m - 52, 8, 52, 22, 3, 3, "F");
@@ -267,6 +352,10 @@ export function InvoiceModal({ student, onClose, schoolName, schoolAddress }) {
       </tr>
     `).join("");
 
+    const logoHtml = logoUrl
+      ? `<img src="${logoUrl}" alt="Logo" style="width:52px;height:52px;object-fit:contain;border-radius:8px;background:#fff;padding:4px;margin-right:14px;flex-shrink:0;" />`
+      : "";
+
     const html = `<!DOCTYPE html>
 <html>
 <head>
@@ -275,7 +364,8 @@ export function InvoiceModal({ student, onClose, schoolName, schoolAddress }) {
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #1C3044; font-size: 13px; padding: 24px; }
-    .header { background: #1C3044; color: #fff; padding: 20px 24px; border-radius: 8px 8px 0 0; display: flex; justify-content: space-between; align-items: flex-start; }
+    .header { background: #1C3044; color: #fff; padding: 20px 24px; border-radius: 8px 8px 0 0; display: flex; justify-content: space-between; align-items: center; }
+    .header-left { display: flex; align-items: center; }
     .header-left h1 { font-size: 20px; margin-bottom: 4px; }
     .header-left p  { font-size: 11px; color: rgba(255,255,255,.65); }
     .header-right { text-align: right; }
@@ -305,9 +395,12 @@ export function InvoiceModal({ student, onClose, schoolName, schoolAddress }) {
 <body>
   <div class="header">
     <div class="header-left">
-      <h1>${schoolName || "School"}</h1>
-      <p>Fee Invoice &amp; Payment Receipt</p>
-      ${schoolAddress ? `<p style="margin-top:3px">${schoolAddress}</p>` : ""}
+      ${logoHtml}
+      <div>
+        <h1>${schoolName || "School"}</h1>
+        <p>Fee Invoice &amp; Payment Receipt</p>
+        ${schoolAddress ? `<p style="margin-top:3px">${schoolAddress}</p>` : ""}
+      </div>
     </div>
     <div class="header-right">
       <div class="inv-badge">INVOICE</div>
@@ -383,7 +476,16 @@ export function InvoiceModal({ student, onClose, schoolName, schoolAddress }) {
         {/* Header */}
         <div className="inv-head">
           <div className="inv-head-left">
-            <div className="inv-head-ico"><Receipt size={18} color="#fff" /></div>
+            {logoUrl ? (
+              <img src={logoUrl} alt="Logo"
+                style={{ width: 42, height: 42, borderRadius: 10, objectFit: "contain",
+                  background: "rgba(255,255,255,.18)", border: "1.5px solid rgba(255,255,255,.3)",
+                  padding: 3, marginRight: 4, flexShrink: 0 }}
+                onError={(e) => { e.target.style.display = "none"; }}
+              />
+            ) : (
+              <div className="inv-head-ico"><Receipt size={18} color="#fff" /></div>
+            )}
             <div>
               <div className="inv-head-title">{schoolName || "Student Invoice"}</div>
               <div className="inv-head-sub">{invoiceNo} · {today}</div>
@@ -408,12 +510,21 @@ export function InvoiceModal({ student, onClose, schoolName, schoolAddress }) {
         {/* Body */}
         <div className="inv-body">
 
-          {/* School banner */}
+          {/* School banner with logo */}
           {schoolName && (
-            <div style={{ background: "linear-gradient(135deg,#f0f7fc,#e4f0f8)", border: "1px solid #c8dff0", borderRadius: 10, padding: "10px 14px" }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: "#4A6B80", textTransform: "uppercase", letterSpacing: ".7px", display: "block" }}>Issued By</span>
-              <span style={{ fontSize: 14, fontWeight: 700, color: "#1C3044", display: "block" }}>{schoolName}</span>
-              {schoolAddress && <span style={{ fontSize: 12, color: "#4A6B80" }}>{schoolAddress}</span>}
+            <div style={{ background: "linear-gradient(135deg,#f0f7fc,#e4f0f8)", border: "1px solid #c8dff0", borderRadius: 10, padding: "10px 14px", display: "flex", alignItems: "center", gap: 12 }}>
+              {logoUrl && (
+                <img src={logoUrl} alt="School Logo"
+                  style={{ width: 48, height: 48, borderRadius: 8, objectFit: "contain",
+                    background: "#fff", border: "1px solid #d0e8f0", padding: 3, flexShrink: 0 }}
+                  onError={(e) => { e.target.style.display = "none"; }}
+                />
+              )}
+              <div>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#4A6B80", textTransform: "uppercase", letterSpacing: ".7px", display: "block" }}>Issued By</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: "#1C3044", display: "block" }}>{schoolName}</span>
+                {schoolAddress && <span style={{ fontSize: 12, color: "#4A6B80" }}>{schoolAddress}</span>}
+              </div>
             </div>
           )}
 
