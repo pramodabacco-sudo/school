@@ -337,6 +337,9 @@ model School {
   Expense                Expense[]
   reEvaluationSettings   ReEvaluationSetting[]
   reEvaluationRequests   ReEvaluationRequest[]
+  biometricDevices       BiometricDevice[]
+  biometricUserMappings  BiometricUserMapping[]
+  biometricLogs          BiometricLog[]
 
   @@index([universityId])
   @@index([type])
@@ -556,6 +559,11 @@ model User {
   FinanceMonthlySalary FinanceMonthlySalary[]
   reEvaluationRequests ReEvaluationRequest[]
 
+  biometricLogs         BiometricLog[]
+  biometricUserMappings BiometricUserMapping[]
+
+  biometricAssignedMappings BiometricUserMapping[] @relation("BiometricAssignedBy")
+
   @@unique([email, schoolId])
   @@index([role])
   @@index([isActive])
@@ -643,6 +651,8 @@ model Student {
   StudentTutorialRecommendation StudentTutorialRecommendation[]
   assignmentDrafts              AssignmentDraft[]
   reEvaluationRequests          ReEvaluationRequest[]
+  biometricUserMappings         BiometricUserMapping[]
+  biometricLogs                 BiometricLog[]
 
   @@unique([email, schoolId])
   @@index([schoolId])
@@ -864,6 +874,8 @@ model TeacherProfile {
   liveClasses            LiveClass[]
   homeworkAssignments    Assignment[]
   TeacherTutorialProfile TeacherTutorialProfile[]
+  biometricUserMappings  BiometricUserMapping[]
+  biometricLogs          BiometricLog[]
 
   @@index([schoolId])
   @@index([department])
@@ -952,6 +964,7 @@ model AcademicYear {
   studentTransports    StudentTransport[]
   classFees            ClassFee[]
   reEvaluationSettings ReEvaluationSetting[]
+  biometricLogs        BiometricLog[]
 
   @@unique([name, schoolId])
   @@index([schoolId])
@@ -1634,11 +1647,14 @@ model StaffProfile {
   school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   // 🔗 Optional login (same like teacher)
-  userId             String?              @unique
-  user               User?                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  groupBSalaries     GroupBStaffSalary[]
-  groupCSalaries     GroupCStaffSalary[]
-  MeetingParticipant MeetingParticipant[]
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  groupBSalaries        GroupBStaffSalary[]
+  groupCSalaries        GroupCStaffSalary[]
+  MeetingParticipant    MeetingParticipant[]
+  biometricUserMappings BiometricUserMapping[]
+  biometricLogs         BiometricLog[]
 
   @@map("staff_profiles")
 }
@@ -3404,16 +3420,121 @@ model Tran_MachineRawPunch {
   @@map("Tran_MachineRawPunch")
 }
 
+enum BiometricPersonType {
+  STUDENT
+  TEACHER
+  STAFF
+  ADMIN
+  FINANCE
+}
+
 model BiometricLog {
-  id            String    @id @default(cuid())
-  employeeCode  String?
-  enrollmentId  String?
-  deviceId      String?
-  deviceName    String?
-  serialNo      String?
+  id String @id @default(cuid())
+
+  schoolId String?
+  school   School? @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  biometricDeviceId String?
+  biometricDevice   BiometricDevice? @relation(fields: [biometricDeviceId], references: [id])
+
+  biometricUserMappingId String?
+  biometricUserMapping   BiometricUserMapping? @relation(fields: [biometricUserMappingId], references: [id])
+
+  academicYearId String?
+  academicYear   AcademicYear? @relation(fields: [academicYearId], references: [id])
+
+  personType BiometricPersonType?
+
+  studentId String?
+  student   Student? @relation(fields: [studentId], references: [id])
+
+  teacherId String?
+  teacher   TeacherProfile? @relation(fields: [teacherId], references: [id])
+
+  staffId String?
+  staff   StaffProfile? @relation(fields: [staffId], references: [id])
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+
   punchMode     String?
   punchDateTime DateTime?
-  rawData       Json
 
-  @@unique([employeeCode, enrollmentId, deviceId, deviceName, serialNo, punchMode, punchDateTime])
+  isProcessed Boolean @default(false)
+
+  rawData Json
+
+  createdAt DateTime @default(now())
+
+  @@index([schoolId])
+  @@index([academicYearId])
+  @@index([biometricUserMappingId])
+  @@index([studentId])
+  @@index([teacherId])
+  @@index([staffId])
+  @@index([userId])
+  @@index([punchDateTime])
+}
+
+model BiometricDevice {
+  id String @id @default(uuid())
+
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  deviceCode String
+  serialNo   String
+  deviceName String?
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  logs BiometricLog[]
+
+  @@unique([schoolId, deviceCode])
+  @@unique([schoolId, serialNo])
+  @@index([schoolId])
+}
+
+model BiometricUserMapping {
+  id String @id @default(uuid())
+
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  enrollmentId String
+
+  personType BiometricPersonType
+
+  studentId String?
+  student   Student? @relation(fields: [studentId], references: [id])
+
+  teacherId String?
+  teacher   TeacherProfile? @relation(fields: [teacherId], references: [id])
+
+  staffId String?
+  staff   StaffProfile? @relation(fields: [staffId], references: [id])
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+
+  assignedById String?
+  assignedBy   User?   @relation("BiometricAssignedBy", fields: [assignedById], references: [id])
+
+  isActive Boolean @default(true)
+
+  assignedAt    DateTime  @default(now())
+  deactivatedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  logs BiometricLog[]
+
+  @@index([schoolId])
+  @@index([enrollmentId])
+  @@index([schoolId, enrollmentId])
+  @@index([isActive])
 }
