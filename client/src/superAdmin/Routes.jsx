@@ -21,6 +21,7 @@ import ChatPage from "./pages/chat/ChatPage.jsx";
 import SchoolRecovery from "./pages/Recovery/SchoolRecovery";
 import FinanceReports from "./pages/FinanceReports/FinanceReports.jsx";
 import ResultReports from "./pages/ResultReports/ResultReports";
+import BiometricManagement from "./pages/Biometric/BiometricManagement";
 
 function SuperAdminRoutes() {
   return (
@@ -47,6 +48,7 @@ function SuperAdminRoutes() {
         <Route path="recovery"element={<SchoolRecovery />} />
         <Route path="finance-reports" element={<FinanceReports />} />
         <Route path="results-reports" element={<ResultReports />} />
+        <Route path="biometric" element={<BiometricManagement />} />
       </Routes>
     </PageLayout>
   );

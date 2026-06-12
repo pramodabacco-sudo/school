@@ -5,7 +5,7 @@ import { getToken } from "../../auth/storage";
 import {
   LayoutDashboard, Building2, UserCog, Users, ShieldCheck,
   CreditCard, BarChart3, X, GraduationCap, Wallet,
-  MessageCircle,FileText,ClipboardCheck
+  MessageCircle,FileText,ClipboardCheck,Fingerprint
 } from "lucide-react";
 
 
@@ -23,6 +23,7 @@ export default function Sidebar({ isOpen, onClose, user }) {
       { icon: Users,           label: "Users Management",   to: "/superadmin/users-management" },
       {icon: FileText,         label: "Finance Reports",    to: "/superadmin/finance-reports"},
       { icon: ClipboardCheck,  label: "Result Reports",     to: "/superadmin/results-reports"},
+      { icon: Fingerprint,     label: "Biometric Management",   to: "/superadmin/biometric"},
 
       // ✅ Gold + Premium only
       ...(userPlan === "Gold" || userPlan === "Premium"
