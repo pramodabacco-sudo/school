@@ -379,14 +379,28 @@ export async function getMonthAttendanceSummary(teacherId, year, month) {
     where: { teacherId, date: { gte: monthStart, lt: monthEnd } },
   });
 
-  const summary = { presentDays: 0, lateDays: 0, halfDays: 0, absentDays: 0, holidayDays: 0, missingPunchDays: 0 };
+  const summary = {
+    presentDays:     0,
+    lateDays:        0,
+    halfDays:        0,
+    absentDays:      0,
+    holidayDays:     0,
+    missingPunchDays: 0,
+    paidLeaveDays:   0,   // ON_LEAVE where isLeaveDeducted = false (no salary cut)
+    unpaidLeaveDays: 0,   // ON_LEAVE where isLeaveDeducted = true  (salary cut)
+  };
+
   for (const r of records) {
     switch (r.status) {
-      case "PRESENT":       summary.presentDays++;      break;
-      case "HALF_DAY":      summary.halfDays++;          break;
-      case "ABSENT":        summary.absentDays++;        break;
-      case "HOLIDAY":       summary.holidayDays++;       break;
-      case "MISSING_PUNCH": summary.missingPunchDays++;  break;
+      case "PRESENT":       summary.presentDays++;       break;
+      case "HALF_DAY":      summary.halfDays++;           break;
+      case "ABSENT":        summary.absentDays++;         break;
+      case "HOLIDAY":       summary.holidayDays++;        break;
+      case "MISSING_PUNCH": summary.missingPunchDays++;   break;
+      case "ON_LEAVE":
+        if (r.isLeaveDeducted) summary.unpaidLeaveDays++;
+        else                   summary.paidLeaveDays++;
+        break;
       // PENDING = school still open, not counted in payroll
     }
     if (r.isLate && !r.isLateExcused) summary.lateDays++;

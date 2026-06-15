@@ -80,6 +80,9 @@ export const getAttendanceCorrections = async (req, res) => {
       lateMinutes: r.lateMinutes,
       isLateExcused: r.isLateExcused,
       isMissingPunchReviewed: r.isMissingPunchReviewed,
+      leaveType:       r.leaveType       || null,
+      leaveReason:     r.leaveReason     || null,
+      isLeaveDeducted: r.isLeaveDeducted ?? true,
       originalStatus: r.originalStatus,
       correctedAt: r.correctedAt,
       correctedBy: r.correctedBy?.name || null,
@@ -146,7 +149,7 @@ export const getAttendanceCorrections = async (req, res) => {
 export const applyCorrection = async (req, res) => {
   try {
     const { id } = req.params;
-    const { action, reason, newStatus, newFirstPunch, newLastPunch } = req.body;
+    const { action, reason, newStatus, newFirstPunch, newLastPunch, leaveType, leaveReason, isLeaveDeducted } = req.body;
     const performedById = req.user?.id;
 
     if (!action) return res.status(400).json({ success: false, message: "action is required" });
@@ -245,6 +248,15 @@ export const applyCorrection = async (req, res) => {
         auditData.newStatus = newStatus || attendance.status;
         break;
 
+      case "MARK_ON_LEAVE":
+        updateData.status = "ON_LEAVE";
+        updateData.leaveType = leaveType || "OTHER";
+        updateData.leaveReason = leaveReason || reason || null;
+        // isLeaveDeducted: explicit boolean from body, default true (unpaid)
+        updateData.isLeaveDeducted = isLeaveDeducted !== false;
+        auditData.newStatus = "ON_LEAVE";
+        break;
+
       default:
         return res.status(400).json({ success: false, message: `Unknown action: ${action}` });
     }
@@ -338,6 +350,166 @@ export const reprocessSingle = async (req, res) => {
     return res.json({ success: true, data: result });
   } catch (err) {
     console.error("[reprocessSingle]", err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/payroll/corrections/mark-school-holiday
+// Mark an entire date as HOLIDAY for ALL teachers in a school
+// Body: { schoolId, dateStr, reason }
+// ─────────────────────────────────────────────────────────────────────────────
+export const markSchoolHoliday = async (req, res) => {
+  try {
+    const { schoolId, dateStr, reason } = req.body;
+    if (!schoolId || !dateStr) {
+      return res.status(400).json({ success: false, message: "schoolId and dateStr are required" });
+    }
+
+    const dayStart = new Date(dateStr + "T00:00:00+05:30");
+    const dayEnd   = new Date(dateStr + "T23:59:59+05:30");
+
+    const teachers = await prisma.teacherProfile.findMany({
+      where: { schoolId, status: "ACTIVE", deletedAt: null },
+      select: { id: true },
+    });
+
+    let updated = 0;
+    let created = 0;
+
+    for (const teacher of teachers) {
+      const existing = await prisma.teacherDailyAttendance.findFirst({
+        where: { teacherId: teacher.id, date: { gte: dayStart, lte: dayEnd } },
+      });
+
+      if (existing) {
+        await prisma.$transaction([
+          prisma.teacherDailyAttendance.update({
+            where: { id: existing.id },
+            data: {
+              status: "HOLIDAY",
+              leaveType: null,
+              leaveReason: null,
+              isLeaveDeducted: false,
+              correctedAt: new Date(),
+              originalStatus: existing.originalStatus || existing.status,
+            },
+          }),
+          prisma.attendanceAuditLog.create({
+            data: {
+              attendanceId: existing.id,
+              action: "MARK_SCHOOL_HOLIDAY",
+              previousStatus: existing.status,
+              newStatus: "HOLIDAY",
+              reason: reason || "Marked as school holiday by admin",
+              performedByName: "Super Admin",
+            },
+          }),
+        ]);
+        updated++;
+      } else {
+        const canonicalDate = new Date(dateStr + "T00:00:00+05:30");
+        const newRecord = await prisma.teacherDailyAttendance.create({
+          data: {
+            schoolId,
+            teacherId: teacher.id,
+            date: canonicalDate,
+            status: "HOLIDAY",
+            isLate: false,
+            lateMinutes: 0,
+            isLeaveDeducted: false,
+            correctedAt: new Date(),
+          },
+        });
+        await prisma.attendanceAuditLog.create({
+          data: {
+            attendanceId: newRecord.id,
+            action: "MARK_SCHOOL_HOLIDAY",
+            previousStatus: null,
+            newStatus: "HOLIDAY",
+            reason: reason || "Marked as school holiday by admin",
+            performedByName: "Super Admin",
+          },
+        });
+        created++;
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: `Holiday marked for ${teachers.length} teachers on ${dateStr}. Updated: ${updated}, Created: ${created}.`,
+      data: { total: teachers.length, updated, created, dateStr },
+    });
+  } catch (err) {
+    console.error("[markSchoolHoliday]", err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/payroll/cron-status?schoolId=&month=&year=
+// Returns processing coverage and pending issues for the month
+// ─────────────────────────────────────────────────────────────────────────────
+export const getCronStatus = async (req, res) => {
+  try {
+    const { schoolId, month, year } = req.query;
+    if (!schoolId || !month || !year) {
+      return res.status(400).json({ success: false, message: "schoolId, month, year required" });
+    }
+
+    const now    = new Date();
+    const istNow = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
+    const todayStr = istNow.toISOString().slice(0, 10);
+
+    const y = parseInt(year);
+    const m = parseInt(month);
+    const daysInMonth = new Date(y, m, 0).getDate();
+
+    const monthStart = new Date(`${y}-${String(m).padStart(2, "0")}-01T00:00:00+05:30`);
+    const monthEnd   = new Date(y, m, 1);
+
+    const processedDates = await prisma.teacherDailyAttendance.findMany({
+      where: { schoolId, date: { gte: monthStart, lt: monthEnd } },
+      select: { date: true },
+      distinct: ["date"],
+    });
+
+    let workingDaysPassed = 0;
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      if (dateStr > todayStr) break;
+      const dow = new Date(dateStr + "T12:00:00+05:30").getDay();
+      if (dow !== 0) workingDaysPassed++;
+    }
+
+    const pendingIssues = await prisma.teacherDailyAttendance.count({
+      where: {
+        schoolId,
+        date: { gte: monthStart, lt: monthEnd },
+        OR: [
+          { status: "MISSING_PUNCH", isMissingPunchReviewed: false },
+          { status: "ABSENT" },
+        ],
+      },
+    });
+
+    const lastRecord = await prisma.teacherDailyAttendance.findFirst({
+      where: { schoolId, date: { gte: monthStart, lt: monthEnd } },
+      orderBy: { updatedAt: "desc" },
+      select: { updatedAt: true },
+    });
+
+    return res.json({
+      success: true,
+      data: {
+        daysProcessed: processedDates.length,
+        workingDaysPassed,
+        pendingIssues,
+        lastProcessedAt: lastRecord?.updatedAt || null,
+        todayStr,
+      },
+    });
+  } catch (err) {
+    console.error("[getCronStatus]", err);
     return res.status(500).json({ success: false, message: err.message });
   }
 };
