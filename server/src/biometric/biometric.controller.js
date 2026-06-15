@@ -450,6 +450,31 @@ export const deactivateMapping = async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/biometric/stats
 // ─────────────────────────────────────────────────────────────────────────────
+// export const getStats = async (req, res) => {
+//   try {
+//     const universityId = req.user?.universityId;
+//     if (!universityId) {
+//       return res.status(400).json({ success: false, message: "universityId missing in token" });
+//     }
+//     const schools = await prisma.school.findMany({ where: { universityId }, select: { id: true } });
+//     const schoolIds = schools.map((s) => s.id);
+
+//     const todayStart = new Date();
+//     todayStart.setHours(0, 0, 0, 0);
+
+//     const [totalDevices, mappedUsers, todayPunches, unmappedPunches] = await Promise.all([
+//       prisma.biometricDevice.count({ where: { isActive: true, schoolId: { in: schoolIds } } }),
+//       prisma.biometricUserMapping.count({ where: { isActive: true, schoolId: { in: schoolIds } } }),
+//       prisma.biometricLog.count({ where: { schoolId: { in: schoolIds }, punchDateTime: { gte: todayStart } } }),
+//       prisma.biometricLog.count({ where: { schoolId: { in: schoolIds }, biometricUserMappingId: null } }),
+//     ]);
+
+//     return res.status(200).json({ success: true, data: { totalDevices, mappedUsers, todayPunches, unmappedPunches } });
+//   } catch (error) {
+//     console.error(error);
+//     return res.status(500).json({ success: false, message: error.message });
+//   }
+// };
 export const getStats = async (req, res) => {
   try {
     const universityId = req.user?.universityId;
@@ -459,8 +484,10 @@ export const getStats = async (req, res) => {
     const schools = await prisma.school.findMany({ where: { universityId }, select: { id: true } });
     const schoolIds = schools.map((s) => s.id);
 
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+    const now = new Date();
+    const istNow = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
+    const dateStr = istNow.toISOString().slice(0, 10);
+    const todayStart = new Date(dateStr + "T00:00:00+05:30");
 
     const [totalDevices, mappedUsers, todayPunches, unmappedPunches] = await Promise.all([
       prisma.biometricDevice.count({ where: { isActive: true, schoolId: { in: schoolIds } } }),
