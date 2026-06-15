@@ -1,7 +1,4 @@
-// PayModal.jsx  — Category-aware Fee Payment Modal
-// Updated: now calls /api/finance/recordCategoryPayment for DB-backed category tracking
-// Falls back to legacy /updateStudentFinance for FULL or non-DB categories
-
+// PayModal.jsx — Category-aware Fee Payment Modal (FULLY RESPONSIVE)
 import { CreditCard, X, CheckCircle, Clock, ChevronDown } from "lucide-react";
 import React, { useState, useEffect } from "react";
 
@@ -22,122 +19,202 @@ const FEE_DEFS = [
   { key: "labFee",       label: "Lab Fee",       flatKey: "labFee",       paidField: "labFeePaid"      },
 ];
 
-// CSS (unchanged styling)
 const STYLES = `
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
 
-.pm-overlay{position:fixed;inset:0;background:rgba(15,25,38,.72);backdrop-filter:blur(8px);z-index:1200;display:flex;align-items:center;justify-content:center;padding:12px;animation:pmFade .2s ease;font-family:'DM Sans',sans-serif;}
+*, *::before, *::after { box-sizing: border-box; }
+
+.pm-overlay{position:fixed;inset:0;background:rgba(15,25,38,.72);backdrop-filter:blur(6px);z-index:1200;display:flex;align-items:flex-end;justify-content:center;padding:0;animation:pmFade .2s ease;font-family:'DM Sans',sans-serif;}
+@media(min-width:600px){.pm-overlay{align-items:center;padding:24px;}}
 @keyframes pmFade{from{opacity:0}to{opacity:1}}
-@keyframes pmUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
-.pm-box{background:#fff;border-radius:20px;width:100%;max-width:660px;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 28px 72px rgba(15,25,38,.3);animation:pmUp .26s cubic-bezier(.16,1,.3,1);overflow:hidden;}
-.pm-head{background:linear-gradient(135deg,#1C3044,#27435B);padding:18px 22px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
-.pm-head-left{display:flex;align-items:center;gap:12px}
-.pm-head-ico{width:42px;height:42px;border-radius:12px;background:rgba(255,255,255,.14);border:1.5px solid rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-.pm-head-title{font-size:15px;font-weight:700;color:#fff;margin:0 0 2px}
-.pm-head-sub{font-size:11.5px;color:rgba(255,255,255,.55);margin:0}
-.pm-close{width:32px;height:32px;border-radius:8px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.75);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;}
-.pm-close:hover{background:rgba(255,255,255,.24);color:#fff}
-.pm-body{overflow-y:auto;padding:20px 22px 24px;flex:1;display:flex;flex-direction:column;gap:16px;}
-.pm-body::-webkit-scrollbar{width:4px}
-.pm-body::-webkit-scrollbar-thumb{background:#d0e2ee;border-radius:4px}
-.pm-cat-label{font-size:11px;font-weight:700;color:#4A6B80;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;display:block}
-.pm-cat-wrap{position:relative}
-.pm-cat-select{width:100%;border:1.5px solid #A0C0D4;border-radius:10px;padding:10px 36px 10px 14px;font-size:13.5px;font-weight:600;color:#1C3044;background:#fff;outline:none;font-family:'DM Sans',sans-serif;appearance:none;cursor:pointer;transition:border-color .2s;}
-.pm-cat-select:focus{border-color:#27435B;box-shadow:0 0 0 3px rgba(39,67,91,.12)}
-.pm-cat-chevron{position:absolute;right:11px;top:50%;transform:translateY(-50%);pointer-events:none;color:#4A6B80}
-.pm-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-.pm-card{background:#f0f7fc;border-radius:11px;padding:12px 14px;border:1px solid #d0e2ee;text-align:center;}
-.pm-card-lbl{font-size:10px;font-weight:700;color:#4A6B80;text-transform:uppercase;letter-spacing:.7px;margin-bottom:5px}
-.pm-card-val{font-size:16px;font-weight:700;color:#1C3044}
-.pm-card-val.green{color:#1a6e3e}
-.pm-card-val.red{color:#a33030}
-.pm-prog-row{display:flex;justify-content:space-between;font-size:11px;color:#4A6B80;margin-bottom:5px}
-.pm-prog-row span:last-child{font-weight:700;color:#27435B}
-.pm-prog-track{height:9px;background:#D0E2EE;border-radius:8px;overflow:hidden}
-.pm-prog-fill{height:100%;background:linear-gradient(90deg,#3A5E78,#27435B);border-radius:8px;transition:width .5s ease}
-.pm-prog-hints{display:flex;justify-content:space-between;font-size:10.5px;color:#6A8FA4;margin-top:4px}
-.pm-methods{background:#f0f7fc;border-radius:14px;padding:20px;border:1px solid #d0e2ee}
-.pm-methods-title{font-size:13px;font-weight:700;color:#1C3044;margin-bottom:14px;text-align:center}
-.pm-method-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.pm-method-btn{background:#fff;border:2px solid #A0C0D4;border-radius:12px;padding:18px 14px;cursor:pointer;text-align:center;font-family:'DM Sans',sans-serif;transition:all .15s;}
-.pm-method-btn:hover{border-color:#27435B;box-shadow:0 4px 16px rgba(39,67,91,.15)}
-.pm-method-icon{font-size:26px;margin-bottom:8px}
-.pm-method-title{font-size:13px;font-weight:700;color:#1C3044}
-.pm-method-sub{font-size:11px;color:#4A6B80;margin-top:4px}
-.pm-panel{background:#f8fafc;border-radius:12px;border:1px solid #d0e2ee;overflow:hidden}
-.pm-panel-back{padding:11px 16px 0;background:#f8fafc}
-.pm-panel-back button{background:none;border:none;color:#4A6B80;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;padding:0}
-.pm-panel-inner{padding:14px 16px 18px}
-.pm-panel-sec-lbl{font-size:11px;font-weight:700;color:#4A6B80;text-transform:uppercase;letter-spacing:.6px;margin-bottom:14px}
-.pm-fullpay-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px}
-.pm-amount-big{font-size:26px;font-weight:700;color:#1C3044}
-.pm-amount-sub{font-size:11px;color:#4A6B80;margin-bottom:2px}
-.pm-mode-row{display:flex;align-items:center;gap:10px}
-.pm-mode-lbl{font-size:12px;color:#4A6B80;font-weight:600;white-space:nowrap}
-.pm-select{font-size:13px;border:1.5px solid #A0C0D4;border-radius:8px;padding:7px 10px;color:#1C3044;font-family:'DM Sans',sans-serif;outline:none;background:#fff;cursor:pointer;}
-.pm-custom-lbl{font-size:12px;color:#4A6B80;font-weight:600;margin-bottom:6px;display:block}
-.pm-custom-inp{width:100%;margin-top:6px;border:1.5px solid #A0C0D4;border-radius:8px;padding:9px 12px;font-size:13px;outline:none;font-family:'DM Sans',sans-serif;transition:border-color .2s;box-sizing:border-box;}
-.pm-custom-inp:focus{border-color:#27435B;box-shadow:0 0 0 3px rgba(39,67,91,.1)}
-.pm-confirm-btn{width:100%;background:linear-gradient(135deg,#27435B,#1C3044);border:none;color:#fff;border-radius:10px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:opacity .15s;margin-top:16px;}
-.pm-confirm-btn:hover:not(:disabled){opacity:.88}
-.pm-confirm-btn:disabled{opacity:.6;cursor:not-allowed}
-.pm-success{background:#edf7f1;border:1px solid #b2dfc6;border-radius:12px;padding:16px 18px;display:flex;align-items:center;gap:12px;}
-.pm-success-text{font-weight:700;color:#1a6e3e;font-size:14px}
-.pm-success-sub{font-size:12px;color:#4A6B80;margin-top:2px}
-.pm-paid-banner{background:#edf7f1;border:1px solid #b2dfc6;border-radius:12px;padding:18px;text-align:center;}
-.pm-paid-title{font-weight:700;color:#1a6e3e;font-size:14px;margin-top:6px}
-.pm-err{color:#a33030;font-size:12px;margin-top:10px}
-.pm-emi-controls{display:flex;align-items:center;justify-content:space-between;background:#f0f7fc;border-radius:10px;padding:10px 14px;border:1px solid #d0e2ee;flex-wrap:wrap;gap:8px;}
-.pm-emi-count-row{display:flex;align-items:center;gap:8px}
-.pm-emi-lbl{font-size:12px;font-weight:700;color:#27435B;white-space:nowrap}
+@keyframes pmUp{from{transform:translateY(30px) scale(.97);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
+@keyframes pmSheet{from{transform:translateY(100%)}to{transform:translateY(0)}}
+
+/* ── MOBILE: bottom sheet, fixed 88% height so body can scroll ── */
+.pm-box{
+  background:#fff;
+  border-radius:20px 20px 0 0;
+  width:100%;
+  height:88svh;
+  max-height:88svh;
+  display:flex;
+  flex-direction:column;
+  box-shadow:0 -8px 40px rgba(15,25,38,.22);
+  animation:pmSheet .32s cubic-bezier(.16,1,.3,1);
+  overflow:hidden;
+}
+
+/* ── TABLET / DESKTOP: centered modal, fixed height so body still scrolls ── */
+@media(min-width:600px){
+  .pm-box{
+    border-radius:20px;
+    width:100%;
+    max-width:660px;
+    height:min(90vh, 820px);   /* fixed height → body gets real space to flex into */
+    max-height:90vh;
+    box-shadow:0 28px 72px rgba(15,25,38,.3);
+    animation:pmUp .26s cubic-bezier(.16,1,.3,1);
+  }
+}
+
+/* Drag handle for mobile sheet */
+.pm-drag-handle{display:flex;justify-content:center;padding:10px 0 4px;flex-shrink:0;}
+.pm-drag-pip{width:36px;height:4px;background:#d0e2ee;border-radius:4px;}
+@media(min-width:600px){.pm-drag-handle{display:none;}}
+
+.pm-head{background:linear-gradient(135deg,#1C3044,#27435B);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+@media(min-width:600px){.pm-head{padding:18px 22px;}}
+.pm-head-left{display:flex;align-items:center;gap:10px;}
+@media(min-width:600px){.pm-head-left{gap:12px;}}
+.pm-head-ico{width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.14);border:1.5px solid rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+@media(min-width:600px){.pm-head-ico{width:42px;height:42px;border-radius:12px;}}
+.pm-head-title{font-size:14px;font-weight:700;color:#fff;margin:0 0 1px;}
+@media(min-width:600px){.pm-head-title{font-size:15px;margin:0 0 2px;}}
+.pm-head-sub{font-size:11px;color:rgba(255,255,255,.55);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px;}
+@media(min-width:400px){.pm-head-sub{max-width:260px;}}
+@media(min-width:600px){.pm-head-sub{font-size:11.5px;max-width:none;}}
+.pm-close{width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.75);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;}
+.pm-close:hover{background:rgba(255,255,255,.24);color:#fff;}
+
+.pm-body{overflow-y:auto;overflow-x:hidden;padding:14px 14px 32px;flex:1 1 0;min-height:0;display:flex;flex-direction:column;gap:12px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;scroll-behavior:smooth;}
+@media(min-width:600px){.pm-body{padding:20px 22px 24px;gap:16px;}}
+.pm-body::-webkit-scrollbar{width:4px;}
+.pm-body::-webkit-scrollbar-thumb{background:#d0e2ee;border-radius:4px;}
+
+/* Category selector */
+.pm-cat-label{font-size:11px;font-weight:700;color:#4A6B80;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px;display:block;}
+.pm-cat-wrap{position:relative;}
+.pm-cat-select{width:100%;border:1.5px solid #A0C0D4;border-radius:10px;padding:10px 36px 10px 12px;font-size:13px;font-weight:600;color:#1C3044;background:#fff;outline:none;font-family:'DM Sans',sans-serif;appearance:none;cursor:pointer;transition:border-color .2s;}
+@media(min-width:600px){.pm-cat-select{padding:10px 36px 10px 14px;font-size:13.5px;}}
+.pm-cat-select:focus{border-color:#27435B;box-shadow:0 0 0 3px rgba(39,67,91,.12);}
+.pm-cat-chevron{position:absolute;right:11px;top:50%;transform:translateY(-50%);pointer-events:none;color:#4A6B80;}
+
+/* Summary cards */
+.pm-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+@media(min-width:500px){.pm-cards{grid-template-columns:repeat(3,1fr);gap:10px;}}
+.pm-card{background:#f0f7fc;border-radius:10px;padding:10px 12px;border:1px solid #d0e2ee;text-align:center;}
+@media(min-width:600px){.pm-card{border-radius:11px;padding:12px 14px;}}
+.pm-card-third{grid-column:1/-1;}
+@media(min-width:500px){.pm-card-third{grid-column:auto;}}
+.pm-card-lbl{font-size:9.5px;font-weight:700;color:#4A6B80;text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px;}
+@media(min-width:600px){.pm-card-lbl{font-size:10px;}}
+.pm-card-val{font-size:15px;font-weight:700;color:#1C3044;}
+@media(min-width:600px){.pm-card-val{font-size:16px;}}
+.pm-card-val.green{color:#1a6e3e;}
+.pm-card-val.red{color:#a33030;}
+
+/* Progress */
+.pm-prog-row{display:flex;justify-content:space-between;font-size:11px;color:#4A6B80;margin-bottom:5px;}
+.pm-prog-row span:last-child{font-weight:700;color:#27435B;}
+.pm-prog-track{height:8px;background:#D0E2EE;border-radius:8px;overflow:hidden;}
+@media(min-width:600px){.pm-prog-track{height:9px;}}
+.pm-prog-fill{height:100%;background:linear-gradient(90deg,#3A5E78,#27435B);border-radius:8px;transition:width .5s ease;}
+.pm-prog-hints{display:flex;justify-content:space-between;font-size:10px;color:#6A8FA4;margin-top:4px;}
+@media(min-width:600px){.pm-prog-hints{font-size:10.5px;}}
+
+/* Payment method buttons */
+.pm-methods{background:#f0f7fc;border-radius:12px;padding:14px;border:1px solid #d0e2ee;}
+@media(min-width:600px){.pm-methods{border-radius:14px;padding:20px;}}
+.pm-methods-title{font-size:12.5px;font-weight:700;color:#1C3044;margin-bottom:12px;text-align:center;line-height:1.4;}
+@media(min-width:600px){.pm-methods-title{font-size:13px;margin-bottom:14px;}}
+.pm-method-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+@media(min-width:600px){.pm-method-grid{gap:12px;}}
+.pm-method-btn{background:#fff;border:2px solid #A0C0D4;border-radius:11px;padding:14px 10px;cursor:pointer;text-align:center;font-family:'DM Sans',sans-serif;transition:all .15s;}
+@media(min-width:600px){.pm-method-btn{border-radius:12px;padding:18px 14px;}}
+.pm-method-btn:hover{border-color:#27435B;box-shadow:0 4px 16px rgba(39,67,91,.15);}
+.pm-method-btn:active{transform:scale(.97);}
+.pm-method-icon{font-size:22px;margin-bottom:6px;}
+@media(min-width:600px){.pm-method-icon{font-size:26px;margin-bottom:8px;}}
+.pm-method-title{font-size:12.5px;font-weight:700;color:#1C3044;}
+@media(min-width:600px){.pm-method-title{font-size:13px;}}
+.pm-method-sub{font-size:10.5px;color:#4A6B80;margin-top:3px;}
+@media(min-width:600px){.pm-method-sub{font-size:11px;margin-top:4px;}}
+
+/* Full/Custom pay panel */
+.pm-panel{background:#f8fafc;border-radius:11px;border:1px solid #d0e2ee;}
+@media(min-width:600px){.pm-panel{border-radius:12px;}}
+.pm-panel-back{padding:10px 14px 0;background:#f8fafc;}
+.pm-panel-back button{background:none;border:none;color:#4A6B80;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;padding:0;}
+.pm-panel-inner{padding:12px 14px 20px;}
+@media(min-width:600px){.pm-panel-inner{padding:14px 16px 22px;}}
+.pm-panel-sec-lbl{font-size:11px;font-weight:700;color:#4A6B80;text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px;}
+@media(min-width:600px){.pm-panel-sec-lbl{margin-bottom:14px;}}
+.pm-fullpay-row{display:flex;flex-direction:column;gap:10px;margin-bottom:14px;}
+@media(min-width:560px){.pm-fullpay-row{flex-direction:row;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;}}
+.pm-amount-big{font-size:20px;font-weight:700;color:#1C3044;}
+@media(min-width:400px){.pm-amount-big{font-size:22px;}}
+@media(min-width:600px){.pm-amount-big{font-size:26px;}}
+.pm-amount-sub{font-size:11px;color:#4A6B80;margin-bottom:2px;}
+.pm-mode-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+@media(min-width:600px){.pm-mode-row{gap:10px;}}
+.pm-mode-lbl{font-size:12px;color:#4A6B80;font-weight:600;white-space:nowrap;}
+.pm-select{font-size:13px;border:1.5px solid #A0C0D4;border-radius:8px;padding:8px 12px;color:#1C3044;font-family:'DM Sans',sans-serif;outline:none;background:#fff;cursor:pointer;min-width:130px;}
+.pm-custom-lbl{font-size:12px;color:#4A6B80;font-weight:600;margin-bottom:5px;display:block;}
+.pm-custom-inp{width:100%;margin-top:5px;border:1.5px solid #A0C0D4;border-radius:8px;padding:9px 12px;font-size:13px;outline:none;font-family:'DM Sans',sans-serif;transition:border-color .2s;box-sizing:border-box;}
+.pm-custom-inp:focus{border-color:#27435B;box-shadow:0 0 0 3px rgba(39,67,91,.1);}
+.pm-confirm-btn{width:100%;background:linear-gradient(135deg,#27435B,#1C3044);border:none;color:#fff;border-radius:10px;padding:14px 12px;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:opacity .15s;margin-top:16px;display:block;}
+@media(min-width:600px){.pm-confirm-btn{padding:13px;font-size:14px;margin-top:16px;}}
+.pm-confirm-btn:hover:not(:disabled){opacity:.88;}
+.pm-confirm-btn:active:not(:disabled){opacity:.75;}
+.pm-confirm-btn:disabled{opacity:.6;cursor:not-allowed;}
+
+/* Success & paid states */
+.pm-success{background:#edf7f1;border:1px solid #b2dfc6;border-radius:11px;padding:14px 16px;display:flex;align-items:center;gap:10px;}
+@media(min-width:600px){.pm-success{border-radius:12px;padding:16px 18px;gap:12px;}}
+.pm-success-text{font-weight:700;color:#1a6e3e;font-size:13.5px;}
+@media(min-width:600px){.pm-success-text{font-size:14px;}}
+.pm-success-sub{font-size:11.5px;color:#4A6B80;margin-top:2px;}
+.pm-paid-banner{background:#edf7f1;border:1px solid #b2dfc6;border-radius:11px;padding:16px;text-align:center;}
+@media(min-width:600px){.pm-paid-banner{border-radius:12px;padding:18px;}}
+.pm-paid-title{font-weight:700;color:#1a6e3e;font-size:13.5px;margin-top:6px;}
+@media(min-width:600px){.pm-paid-title{font-size:14px;}}
+.pm-err{color:#a33030;font-size:12px;margin-top:10px;}
+
+/* EMI section */
+.pm-emi-controls{display:flex;flex-direction:column;gap:10px;background:#f0f7fc;border-radius:10px;padding:10px 12px;border:1px solid #d0e2ee;}
+@media(min-width:480px){.pm-emi-controls{flex-direction:row;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:10px 14px;}}
+.pm-emi-count-row{display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
+@media(min-width:480px){.pm-emi-count-row{gap:8px;}}
+.pm-emi-lbl{font-size:12px;font-weight:700;color:#27435B;white-space:nowrap;}
 .pm-emi-chip{width:34px;height:34px;border-radius:8px;border:none;background:rgba(39,67,91,.12);color:#27435B;font-weight:700;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;}
-.pm-emi-chip.active{background:linear-gradient(135deg,#27435B,#1C3044);color:#fff}
-.pm-emi-table-wrap{border-radius:12px;overflow:hidden;border:1px solid #d0e2ee}
-.pm-emi-tbl{width:100%;border-collapse:collapse;font-size:13px}
-.pm-emi-tbl th{padding:10px 12px;color:rgba(255,255,255,.85);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.6px;text-align:left;white-space:nowrap;background:linear-gradient(135deg,#1C3044,#27435B);}
-.pm-emi-tbl td{padding:10px 12px;border-bottom:1px solid #e8f2f8;color:#1C3044;vertical-align:middle}
-.pm-emi-tbl tr:last-child td{border-bottom:none}
-.pm-emi-tbl tfoot td{background:#e8f2f8;border-top:2px solid #C0D8E8;font-weight:700}
-.pm-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:600}
-.pm-badge-paid{color:#1a6e3e;background:#edf7f1;border:1px solid #b2dfc6}
-.pm-badge-pend{color:#a33030;background:#fdf0f0;border:1px solid #f5c2c2}
-.pm-badge-mode{color:#27435B;background:rgba(39,67,91,.12)}
-.pm-emi-pay-btn{background:linear-gradient(135deg,#27435B,#1C3044);border:none;color:#fff;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;}
-.pm-emi-confirm-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.pm-emi-ok-btn{background:#1a6e3e;border:none;color:#fff;border-radius:6px;padding:5px 11px;font-size:13px;font-weight:700;cursor:pointer}
-.pm-emi-x-btn{background:rgba(39,67,91,.13);border:none;color:#27435B;border-radius:6px;padding:5px 9px;font-size:13px;font-weight:700;cursor:pointer}
-.pm-footer{display:flex;justify-content:flex-end;padding-top:4px}
-.pm-close-btn{background:none;border:1.5px solid #A0C0D4;border-radius:10px;color:#27435B;font-weight:700;font-size:14px;cursor:pointer;padding:9px 28px;font-family:'DM Sans',sans-serif;}
-.pm-close-btn:hover{background:#f0f7fc}
-@media(max-width:520px){
-  .pm-box{border-radius:16px;max-height:96vh}
-  .pm-head{padding:14px 16px;border-radius:16px 16px 0 0}
-  .pm-body{padding:14px 14px 20px;gap:12px}
-  .pm-cards{grid-template-columns:1fr 1fr}
-  .pm-card:last-child{grid-column:1/-1}
-  .pm-method-grid{grid-template-columns:1fr 1fr}
-  .pm-method-btn{padding:14px 10px}
-  .pm-amount-big{font-size:22px}
-  .pm-fullpay-row{flex-direction:column;align-items:flex-start}
-  .pm-emi-tbl{font-size:11.5px}
-  .pm-emi-tbl th,.pm-emi-tbl td{padding:8px 8px}
-  .pm-emi-tbl th:nth-child(3),.pm-emi-tbl td:nth-child(3){display:none}
-}
-@media(max-width:380px){
-  .pm-cards{grid-template-columns:1fr}
-  .pm-card:last-child{grid-column:auto}
-  .pm-method-grid{grid-template-columns:1fr}
-}
+.pm-emi-chip.active{background:linear-gradient(135deg,#27435B,#1C3044);color:#fff;}
+
+/* EMI table - scrollable on mobile */
+.pm-emi-table-wrap{border-radius:11px;overflow:hidden;border:1px solid #d0e2ee;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+@media(min-width:600px){.pm-emi-table-wrap{border-radius:12px;}}
+.pm-emi-tbl{width:100%;border-collapse:collapse;font-size:12px;min-width:380px;}
+@media(min-width:600px){.pm-emi-tbl{font-size:13px;min-width:420px;}}
+.pm-emi-tbl th{padding:9px 10px;color:rgba(255,255,255,.85);font-weight:700;font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;text-align:left;white-space:nowrap;background:linear-gradient(135deg,#1C3044,#27435B);}
+@media(min-width:600px){.pm-emi-tbl th{padding:10px 12px;font-size:11px;}}
+.pm-emi-tbl td{padding:9px 10px;border-bottom:1px solid #e8f2f8;color:#1C3044;vertical-align:middle;}
+@media(min-width:600px){.pm-emi-tbl td{padding:10px 12px;}}
+.pm-emi-tbl tr:last-child td{border-bottom:none;}
+.pm-emi-tbl tfoot td{background:#e8f2f8;border-top:2px solid #C0D8E8;font-weight:700;}
+
+/* Badges */
+.pm-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;}
+@media(min-width:600px){.pm-badge{padding:3px 10px;font-size:11.5px;}}
+.pm-badge-paid{color:#1a6e3e;background:#edf7f1;border:1px solid #b2dfc6;}
+.pm-badge-pend{color:#a33030;background:#fdf0f0;border:1px solid #f5c2c2;}
+.pm-badge-mode{color:#27435B;background:rgba(39,67,91,.12);}
+.pm-emi-pay-btn{background:linear-gradient(135deg,#27435B,#1C3044);border:none;color:#fff;border-radius:7px;padding:5px 12px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;}
+@media(min-width:600px){.pm-emi-pay-btn{padding:6px 14px;font-size:12px;}}
+.pm-emi-confirm-row{display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
+.pm-emi-ok-btn{background:#1a6e3e;border:none;color:#fff;border-radius:6px;padding:5px 10px;font-size:13px;font-weight:700;cursor:pointer;}
+.pm-emi-x-btn{background:rgba(39,67,91,.13);border:none;color:#27435B;border-radius:6px;padding:5px 8px;font-size:13px;font-weight:700;cursor:pointer;}
+
+/* Footer */
+.pm-footer{display:flex;justify-content:flex-end;padding:10px 14px 14px;border-top:1px solid #e8f2f8;background:#fff;flex-shrink:0;}
+.pm-close-btn{background:none;border:1.5px solid #A0C0D4;border-radius:10px;color:#27435B;font-weight:700;font-size:13.5px;cursor:pointer;padding:9px 24px;font-family:'DM Sans',sans-serif;}
+@media(min-width:600px){.pm-close-btn{font-size:14px;padding:9px 28px;}}
+.pm-close-btn:hover{background:#f0f7fc;}
 `;
 
-// ─────────────────────────────────────────────────────────────────────────────
 export function PayModal({ student, onClose, onPaymentDone }) {
 
   const totalFees = Number(student.fees || 0);
   const bd = parseBreakdown(student.feeBreakdown);
 
-  // ── Build category list ───────────────────────────────────────────────────
-  // If student.feeCategories is present (from DB include), use those for categoryId mapping
   const dbCategoryMap = {};
   if (Array.isArray(student.feeCategories)) {
     student.feeCategories.forEach((sfc) => {
@@ -146,7 +223,6 @@ export function PayModal({ student, onClose, onPaymentDone }) {
   }
 
   const feeCategories = [];
-
   feeCategories.push({ id: "FULL", label: "Full Fee", total: totalFees, paidField: "paidAmount", dbSfcId: null });
 
   for (const def of FEE_DEFS) {
@@ -156,7 +232,6 @@ export function PayModal({ student, onClose, onPaymentDone }) {
       : Number(student[def.flatKey] || 0);
 
     if (amount > 0) {
-      // Try to find matching DB StudentFeeCategory record
       const dbSfc = Object.values(dbCategoryMap).find((sfc) => {
         const nm = sfc.category?.name?.toLowerCase() || "";
         return nm.includes(def.label.toLowerCase().replace(" fee", "").trim());
@@ -167,7 +242,7 @@ export function PayModal({ student, onClose, onPaymentDone }) {
         label:     def.label,
         total:     amount,
         paidField: def.paidField,
-        dbSfcId:   dbSfc ? sfc.categoryId : null,   // used for new API
+        dbSfcId:   dbSfc ? sfc.categoryId : null,
         dbCategoryId: dbSfc?.categoryId || null,
       });
     }
@@ -184,7 +259,6 @@ export function PayModal({ student, onClose, onPaymentDone }) {
     }
   });
 
-  // ── Live paid map ─────────────────────────────────────────────────────────
   const initPaidMap = () => {
     const m = { paidAmount: Number(student.paidAmount || 0) };
     for (const def of FEE_DEFS) {
@@ -233,23 +307,16 @@ export function PayModal({ student, onClose, onPaymentDone }) {
 
   const getToken = () => { try { return JSON.parse(localStorage.getItem("auth"))?.token; } catch { return null; } };
 
-  // ── NEW: call category-specific API when we have a DB category ID ─────────
   const apiRecordCategoryPayment = async (categoryId, amount, mode) => {
     const res = await fetch(`${API_URL}/api/finance/recordCategoryPayment`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
-      body: JSON.stringify({
-        studentListId: student.id,
-        categoryId,
-        amount,
-        paymentMode: mode,
-      }),
+      body: JSON.stringify({ studentListId: student.id, categoryId, amount, paymentMode: mode }),
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   };
 
-  // ── LEGACY: update via updateStudentFinance (FULL or no DB category) ──────
   const buildPayload = (addedAmt) => {
     const newTotalPaid = Math.min(totalFees, paidMap.paidAmount + addedAmt);
     const isFullyPaid  = newTotalPaid >= totalFees;
@@ -296,12 +363,9 @@ export function PayModal({ student, onClose, onPaymentDone }) {
     onPaymentDone(student.id, payload.paidAmount, payload.paymentStatus);
   };
 
-  // ── Decide which API to use ───────────────────────────────────────────────
   const doPayment = async (amount, mode) => {
-    // If a DB category ID is available and it's not FULL, use the new API
     if (activeCat.dbCategoryId && activeCat.id !== "FULL") {
       const result = await apiRecordCategoryPayment(activeCat.dbCategoryId, amount, mode);
-      // Update local paidMap with new total from API response
       const newTotalPaid = result.newTotalPaid;
       setPaidMap(prev => {
         const next = { ...prev };
@@ -311,7 +375,6 @@ export function PayModal({ student, onClose, onPaymentDone }) {
       });
       onPaymentDone(student.id, newTotalPaid, newTotalPaid >= totalFees ? "PAID" : "PARTIAL");
     } else {
-      // Fallback: legacy update
       const payload = { ...buildPayload(amount), paymentMode: mode };
       await apiUpdate(payload);
       applyPatch(amount);
@@ -346,22 +409,24 @@ export function PayModal({ student, onClose, onPaymentDone }) {
     finally { setLoading(false); }
   };
 
-  // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div className="pm-overlay" onClick={onClose}>
+    <div className="pm-overlay">
       <style>{STYLES}</style>
       <div className="pm-box" onClick={e => e.stopPropagation()}>
+
+        {/* Mobile drag handle */}
+        <div className="pm-drag-handle"><div className="pm-drag-pip" /></div>
 
         {/* Header */}
         <div className="pm-head">
           <div className="pm-head-left">
-            <div className="pm-head-ico"><CreditCard size={19} color="#fff" /></div>
+            <div className="pm-head-ico"><CreditCard size={18} color="#fff" /></div>
             <div>
               <div className="pm-head-title">Fee Payment</div>
               <div className="pm-head-sub">{student.name} · {student.course}</div>
             </div>
           </div>
-          <button className="pm-close" onClick={onClose}><X size={16} /></button>
+          <button className="pm-close" onClick={onClose}><X size={15} /></button>
         </div>
 
         {/* Body */}
@@ -392,7 +457,7 @@ export function PayModal({ student, onClose, onPaymentDone }) {
               <div className="pm-card-lbl">Amount Paid</div>
               <div className="pm-card-val green">₹{(useEmi ? catPaid + emiPaid : (fullDone ? catTotal : catPaid)).toLocaleString("en-IN")}</div>
             </div>
-            <div className="pm-card">
+            <div className="pm-card pm-card-third">
               <div className="pm-card-lbl">Pending</div>
               <div className={`pm-card-val ${(useEmi ? emiPending : (fullDone ? 0 : catRemaining)) > 0 ? "red" : "green"}`}>
                 ₹{(useEmi ? emiPending : (fullDone ? 0 : catRemaining)).toLocaleString("en-IN")}
@@ -416,7 +481,7 @@ export function PayModal({ student, onClose, onPaymentDone }) {
             </div>
           </div>
 
-          {/* Already paid */}
+          {/* Already fully paid */}
           {catRemaining === 0 && !fullDone && (
             <div className="pm-paid-banner">
               <CheckCircle size={26} color="#1a6e3e" />
@@ -466,7 +531,7 @@ export function PayModal({ student, onClose, onPaymentDone }) {
                 <div style={{ marginBottom: 4 }}>
                   <span className="pm-custom-lbl">Or enter a custom amount</span>
                   <input
-                    className="pm-custom-inp" type="number"
+                    className="pm-custom-inp" type="number" inputMode="numeric"
                     placeholder={`Max ₹${catRemaining.toLocaleString("en-IN")}`}
                     value={customAmt} onChange={e => setCustomAmt(e.target.value)}
                   />
@@ -484,7 +549,7 @@ export function PayModal({ student, onClose, onPaymentDone }) {
           {/* Full pay success */}
           {useEmi === false && fullDone && (
             <div className="pm-success">
-              <CheckCircle size={28} color="#1a6e3e" />
+              <CheckCircle size={26} color="#1a6e3e" />
               <div>
                 <div className="pm-success-text">Payment Confirmed!</div>
                 <div className="pm-success-sub">
@@ -511,8 +576,8 @@ export function PayModal({ student, onClose, onPaymentDone }) {
                 <strong style={{ color: "#27435B" }}>EMI for: {activeCat.label}</strong> — ₹{catRemaining.toLocaleString("en-IN")} split into {emiCount} instalments.
               </div>
 
-              <div className="pm-emi-table-wrap" style={{ overflowX: "auto" }}>
-                <table className="pm-emi-tbl" style={{ minWidth: 420 }}>
+              <div className="pm-emi-table-wrap">
+                <table className="pm-emi-tbl">
                   <thead>
                     <tr>{["Instalment", "Amount", "Date", "Mode", "Status", "Action"].map(h => <th key={h}>{h}</th>)}</tr>
                   </thead>
@@ -521,21 +586,21 @@ export function PayModal({ student, onClose, onPaymentDone }) {
                       <tr key={emi.id} style={{ background: i % 2 === 0 ? "#f8fafc" : "#fff" }}>
                         <td style={{ fontWeight: 600 }}>{emi.label}</td>
                         <td style={{ fontWeight: 700, color: "#27435B" }}>₹{emi.amount.toLocaleString("en-IN")}</td>
-                        <td style={{ color: "#4A6B80", fontSize: 12 }}>{emi.date || "—"}</td>
-                        <td>{emi.mode ? <span className="pm-badge pm-badge-mode" style={{ fontSize: 11 }}>{emi.mode}</span> : <span style={{ color: "#A0B8C8", fontSize: 12 }}>—</span>}</td>
+                        <td style={{ color: "#4A6B80", fontSize: 11 }}>{emi.date || "—"}</td>
+                        <td>{emi.mode ? <span className="pm-badge pm-badge-mode" style={{ fontSize: 10.5 }}>{emi.mode}</span> : <span style={{ color: "#A0B8C8", fontSize: 11 }}>—</span>}</td>
                         <td>
                           {emi.status === "paid"
-                            ? <span className="pm-badge pm-badge-paid"><CheckCircle size={11} /> Paid</span>
-                            : <span className="pm-badge pm-badge-pend"><Clock size={11} /> Pending</span>}
+                            ? <span className="pm-badge pm-badge-paid"><CheckCircle size={10} /> Paid</span>
+                            : <span className="pm-badge pm-badge-pend"><Clock size={10} /> Pending</span>}
                         </td>
                         <td>
-                          {emi.status === "paid" && <span style={{ color: "#A0B8C8", fontSize: 12 }}>—</span>}
+                          {emi.status === "paid" && <span style={{ color: "#A0B8C8", fontSize: 11 }}>—</span>}
                           {emi.status === "pending" && confirmId !== emi.id && (
                             <button className="pm-emi-pay-btn" onClick={() => setConfirmId(emi.id)}>Pay</button>
                           )}
                           {emi.status === "pending" && confirmId === emi.id && (
                             <div className="pm-emi-confirm-row">
-                              <select className="pm-select" style={{ fontSize: 12, padding: "5px 8px" }} value={modeInput} onChange={e => setModeInput(e.target.value)}>
+                              <select className="pm-select" style={{ fontSize: 11.5, padding: "4px 7px" }} value={modeInput} onChange={e => setModeInput(e.target.value)}>
                                 {MODES.map(m => <option key={m}>{m}</option>)}
                               </select>
                               <button className="pm-emi-ok-btn" disabled={loading} onClick={() => handleConfirmEmi(emi)}>✓</button>
@@ -550,8 +615,8 @@ export function PayModal({ student, onClose, onPaymentDone }) {
                     <tr>
                       <td>Total</td>
                       <td>₹{catRemaining.toLocaleString("en-IN")}</td>
-                      <td colSpan={2} style={{ color: "#1a6e3e", fontSize: 12 }}>Paid: ₹{emiPaid.toLocaleString("en-IN")}</td>
-                      <td colSpan={2} style={{ color: emiPending > 0 ? "#a33030" : "#1a6e3e", fontSize: 12 }}>
+                      <td colSpan={2} style={{ color: "#1a6e3e", fontSize: 11.5 }}>Paid: ₹{emiPaid.toLocaleString("en-IN")}</td>
+                      <td colSpan={2} style={{ color: emiPending > 0 ? "#a33030" : "#1a6e3e", fontSize: 11.5 }}>
                         {emiPending > 0 ? `Pending: ₹${emiPending.toLocaleString("en-IN")}` : "✓ Fully Paid"}
                       </td>
                     </tr>
@@ -563,12 +628,14 @@ export function PayModal({ student, onClose, onPaymentDone }) {
             </>
           )}
 
-          {/* Footer close */}
-          <div className="pm-footer">
-            <button className="pm-close-btn" onClick={onClose}>Close</button>
-          </div>
 
+        </div>{/* end pm-body */}
+
+        {/* Footer — pinned outside scroll area */}
+        <div className="pm-footer">
+          <button className="pm-close-btn" onClick={onClose}>Close</button>
         </div>
+
       </div>
     </div>
   );

@@ -315,188 +315,108 @@ export const deleteTimetableEntry = async (req, res) => {
 
 export const bulkUploadTimetable = async (req, res) => {
   try {
-
     const schoolId = req.user.schoolId;
-
     const { id: classSectionId } = req.params;
-
     const { academicYearId } = req.body;
 
-    if (!req.file) {
-      return res.status(400).json({
-        message: "Excel file required",
-      });
-    }
+    if (!req.file)
+      return res.status(400).json({ message: "Excel file required" });
 
-    const workbook = XLSX.read(
-      req.file.buffer,
-      { type: "buffer" }
-    );
+    const workbook = XLSX.read(req.file.buffer, { type: "buffer" });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
 
-    const sheet =
-      workbook.Sheets[
-        workbook.SheetNames[0]
-      ];
-
-    const rows =
-      XLSX.utils.sheet_to_json(sheet, {
-        header: 1,
-        defval: "",
-      });
-
-    const config =
-      await prisma.timetableConfig.findFirst({
-        where: {
-          schoolId,
-          academicYearId,
+    const config = await prisma.timetableConfig.findFirst({
+      where: { schoolId, academicYearId },
+      include: {
+        periodDefinitions: {
+          where: { slotType: "PERIOD" }, // periods only, no breaks
+          orderBy: { order: "asc" },
         },
+      },
+    });
 
-        include: {
-          periodDefinitions: {
-            where: {
-              slotType: "PERIOD",
-            },
+    if (!config)
+      return res.status(404).json({ message: "Timetable config not found" });
 
-            orderBy: {
-              order: "asc",
-            },
-          },
-        },
-      });
+    // ✅ Split into weekday vs saturday period arrays
+    const weekdayPeriods = config.periodDefinitions
+      .filter((d) => d.dayType === "WEEKDAY")
+      .sort((a, b) => a.order - b.order);
+    const saturdayPeriods = config.periodDefinitions
+      .filter((d) => d.dayType === "SATURDAY")
+      .sort((a, b) => a.order - b.order);
 
-    if (!config) {
-      return res.status(404).json({
-        message:
-          "Timetable config not found",
-      });
-    }
+    const subjects = await prisma.subject.findMany({ where: { schoolId } });
+    const teachers = await prisma.teacherProfile.findMany({ where: { schoolId } });
 
-    const subjects =
-      await prisma.subject.findMany({
-        where: { schoolId },
-      });
-
-    const teachers =
-      await prisma.teacherProfile.findMany({
-        where: { schoolId },
-      });
-
+    const VALID_DAYS = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
     const entries = [];
 
-    for (
-      let rowIndex = 1;
-      rowIndex < rows.length;
-      rowIndex++
-    ) {
-
+    // ✅ Start from row 1 — row 0 is CLASS NAME marker (skipped as invalid day)
+    //    row 1 = header (skipped), row 2 = timings (skipped), row 3+ = data
+    for (let rowIndex = 1; rowIndex < rows.length; rowIndex++) {
       const row = rows[rowIndex];
+      const day = String(row[0] || "").trim().toUpperCase();
 
-      const day =
-        String(row[0] || "")
-          .trim()
-          .toUpperCase();
+      if (!day || !VALID_DAYS.includes(day)) continue; // skip header/timing/blank rows
 
-      if (!day) continue;
+      // ✅ Use correct period array based on day
+      const periodSlots = day === "SATURDAY" && saturdayPeriods.length > 0
+        ? saturdayPeriods
+        : weekdayPeriods;
 
-      for (
-        let col = 1;
-        col <=
-        config.periodDefinitions.length;
-        col++
-      ) {
-
+      for (let col = 1; col <= periodSlots.length; col++) {
         const raw = row[col];
-
         if (!raw) continue;
 
-        const lines =
-          String(raw)
-            .split("\n")
-            .map((x) => x.trim())
-            .filter(Boolean);
+        const lines = String(raw).split("\n").map((x) => x.trim()).filter(Boolean);
+        const subjectName = lines[0];
+        const teacherName = lines[1] || null;
 
-        const subjectName =
-          lines[0];
-
-        const teacherName =
-          lines[1] || null;
-
-        const subject =
-          subjects.find(
-            (s) =>
-              s.name.toLowerCase() ===
-              subjectName.toLowerCase()
-          );
-
+        const subject = subjects.find(
+          (s) => s.name.toLowerCase() === subjectName.toLowerCase()
+        );
         if (!subject) continue;
 
         let teacher = null;
-
         if (teacherName) {
-
           teacher = teachers.find(
             (t) =>
-              `${t.firstName} ${t.lastName}`
-                .toLowerCase()
-                .trim() ===
-              teacherName
-                .toLowerCase()
-                .trim()
+              `${t.firstName} ${t.lastName}`.toLowerCase().trim() ===
+              teacherName.toLowerCase().trim()
           );
         }
 
-        const period =
-          config.periodDefinitions[
-            col - 1
-          ];
+        // ✅ col-1 maps directly to periodSlots index (no breaks in array)
+        const period = periodSlots[col - 1];
+        if (!period) continue;
 
         entries.push({
           schoolId,
           academicYearId,
           classSectionId,
           configId: config.id,
-          periodDefinitionId:
-            period.id,
+          periodDefinitionId: period.id,
           day,
           subjectId: subject.id,
-          teacherId:
-            teacher?.id || null,
+          teacherId: teacher?.id || null,
         });
       }
     }
 
-    await prisma.$transaction(
-      async (tx) => {
+    await prisma.$transaction(async (tx) => {
+      await tx.timetableEntry.deleteMany({ where: { schoolId, academicYearId, classSectionId } });
+      await tx.timetableEntry.createMany({ data: entries });
+    });
 
-        await tx.timetableEntry.deleteMany({
-          where: {
-            schoolId,
-            academicYearId,
-            classSectionId,
-          },
-        });
-
-        await tx.timetableEntry.createMany({
-          data: entries,
-        });
-      }
-    );
-
-    await cacheService.invalidateSchool(
-      schoolId
-    );
-
+    await cacheService.invalidateSchool(schoolId);
     return res.json({
       success: true,
       count: entries.length,
-      message:
-        "Timetable uploaded successfully",
+      message: "Timetable uploaded successfully",
     });
-
   } catch (err) {
-
-    return res.status(500).json({
-      message: err.message,
-    });
+    return res.status(500).json({ message: err.message });
   }
 };
