@@ -28,8 +28,23 @@ import {
   fetchAcademicYears,
   fetchClassSectionById,
   fetchTeachersForDropdown,
+  // ── Excel template downloads (server-built, includes Class Subjects sheet) ──
+  downloadAllTimetableTemplate as downloadAllTimetableExcel,
+  downloadSingleTimetableTemplate as downloadSingleTimetableExcel,
 } from "./api/classesApi.js";
-import { getToken } from "../../../auth/storage";
+
+// Trigger a browser download for a Blob returned from the server.
+function triggerBlobDownload(blob, filename) {
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
+}
+import { getToken } from "../../../auth/storage.js";
 const C = {
   bg: "#F4F8FC",
   card: "#FFFFFF",
@@ -109,93 +124,15 @@ function Toast({ type, msg, onClose }) {
 // BULK UPLOAD MODAL
 // Two Excel template downloads + two upload options (single / all classes)
 // ─────────────────────────────────────────────────────────────────────────────
-function BulkUploadModal({ selectedClass, slots, subjects, allClasses, allTeachers, onUpload, onBulkUpload, onClose }) {
+function BulkUploadModal({ selectedClass, slots, subjects, allClasses, allTeachers, onUpload, onBulkUpload, onClose, onDownloadSingle, onDownloadAll, downloading }) {
   const singleRef = useRef();
   const bulkRef = useRef();
 
-  const DAYS_LIST = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
-  // Marker embedded in row 0 so the server can auto-detect the class on upload
-  const CLASS_MARKER_PREFIX = "CLASS NAME:";
-
-  // ── Download: Single Class Template ────────────────────────────────────────
-  // Row 0: CLASS NAME: <name>  ← auto-detect identifier
-  // Row 1: DAYS/PERIODS header
-  // Row 2: TIMINGS
-  // Row 3+: day rows
-  const downloadSingleTemplate = () => {
-    const periodSlots = slots.filter((s) => s.slotType === "PERIOD");
-    const className = selectedClass?.name || "Class";
-    const totalCols = 1 + periodSlots.length;
-    const wb = XLSX.utils.book_new();
-
-    // Sheet 1 — Timetable
-    const classMarkerRow = [`${CLASS_MARKER_PREFIX} ${className}`, ...Array(periodSlots.length).fill("")];
-    const headers = ["DAYS / PERIODS", ...periodSlots.map((s) => s.label)];
-    const timings = ["TIMINGS", ...periodSlots.map((s) => `${s.startTime}-${s.endTime}`)];
-    const rows = [classMarkerRow, headers, timings];
-    DAYS_LIST.forEach((day) => {
-      rows.push([day, ...periodSlots.map(() => "")]);
-    });
-    const ws = XLSX.utils.aoa_to_sheet(rows);
-    ws["!cols"] = [{ wch: 22 }, ...periodSlots.map(() => ({ wch: 18 }))];
-    XLSX.utils.book_append_sheet(wb, ws, className.substring(0, 31));
-
-    // Sheet 2 — Class Subjects
-    const subjectRows = [["Subject Name"], ...subjects.map((s) => [s.name])];
-    const ws2 = XLSX.utils.aoa_to_sheet(subjectRows);
-    ws2["!cols"] = [{ wch: 28 }];
-    XLSX.utils.book_append_sheet(wb, ws2, "Class Subjects");
-
-    XLSX.writeFile(wb, `Timetable_${className}.xlsx`);
-  };
-
-  // ── Download: All Classes Template (single sheet) ──────────────────────────
-  // Sheet 1 — "All Classes Timetable": all classes in sequence, each block
-  //   starting with a "CLASS NAME: <name>" green marker row.
-  // Sheet 2 — "Class Subjects": Class Name | Subject Name
-  const downloadAllTemplate = () => {
-    const periodSlots = slots.filter((s) => s.slotType === "PERIOD");
-    const wb = XLSX.utils.book_new();
-    const classSubjectsRows = [["Class Name", "Subject Name"]];
-    const combinedAOA = [];
-    const classList = allClasses || [];
-    const totalCols = 1 + periodSlots.length;
-
-    classList.forEach((cls, ci) => {
-      const clsSubjects = (cls.classSubjects || [])
-        .map((cs) => cs.subject?.name || cs.name)
-        .filter(Boolean)
-        .sort();
-
-      clsSubjects.forEach((name) => classSubjectsRows.push([cls.name, name]));
-
-      // CLASS NAME marker row
-      combinedAOA.push([`${CLASS_MARKER_PREFIX} ${cls.name}`, ...Array(periodSlots.length).fill("")]);
-      // DAYS/PERIODS header
-      combinedAOA.push(["DAYS / PERIODS", ...periodSlots.map((s) => s.label)]);
-      // TIMINGS
-      combinedAOA.push(["TIMINGS", ...periodSlots.map((s) => `${s.startTime}-${s.endTime}`)]);
-      // Day rows
-      DAYS_LIST.forEach((day) => {
-        combinedAOA.push([day, ...periodSlots.map(() => "")]);
-      });
-      // Blank separator between classes
-      if (ci < classList.length - 1) {
-        combinedAOA.push(Array(totalCols).fill(""));
-      }
-    });
-
-    const ws = XLSX.utils.aoa_to_sheet(combinedAOA);
-    ws["!cols"] = [{ wch: 24 }, ...periodSlots.map(() => ({ wch: 18 }))];
-    XLSX.utils.book_append_sheet(wb, ws, "All Classes Timetable");
-
-    // Class Subjects sheet
-    const csWs = XLSX.utils.aoa_to_sheet(classSubjectsRows);
-    csWs["!cols"] = [{ wch: 22 }, { wch: 28 }];
-    XLSX.utils.book_append_sheet(wb, csWs, "Class Subjects");
-
-    XLSX.writeFile(wb, "All_Classes_Timetable_Template.xlsx");
-  };
+  // ── Downloads now come from the server (timetable-excel/download-*) ────────
+  // The backend includes each class's `classSubjects` from the DB, so the
+  // "Class Subjects" sheet is populated correctly — the previous client-side
+  // build used `allClasses` from /class-sections, which doesn't include
+  // classSubjects, leaving that sheet empty.
 
   return (
     <div
@@ -259,14 +196,15 @@ function BulkUploadModal({ selectedClass, slots, subjects, allClasses, allTeache
 
             {/* Single class download */}
             <button
-              onClick={downloadSingleTemplate}
-              style={{ padding: "14px 16px", borderRadius: 12, border: `1.5px solid ${C.border}`, background: C.pale, cursor: "pointer", textAlign: "left", transition: "all 0.15s" }}
+              onClick={onDownloadSingle}
+              disabled={downloading === "single"}
+              style={{ padding: "14px 16px", borderRadius: 12, border: `1.5px solid ${C.border}`, background: C.pale, cursor: downloading === "single" ? "wait" : "pointer", textAlign: "left", transition: "all 0.15s", opacity: downloading === "single" ? 0.6 : 1 }}
               onMouseEnter={(e) => { e.currentTarget.style.borderColor = C.light; e.currentTarget.style.background = "rgba(136,189,242,0.14)"; }}
               onMouseLeave={(e) => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.background = C.pale; }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                 <div style={{ width: 30, height: 30, borderRadius: 8, background: "#fff", border: `1.5px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <Download size={14} color={C.primary} />
+                  {downloading === "single" ? <Loader2 size={14} color={C.primary} className="animate-spin" /> : <Download size={14} color={C.primary} />}
                 </div>
                 <span style={{ fontSize: 13, fontWeight: 700, color: C.primary, fontFamily: "'Inter', sans-serif" }}>
                   Single Class
@@ -281,14 +219,15 @@ function BulkUploadModal({ selectedClass, slots, subjects, allClasses, allTeache
 
             {/* All classes download */}
             <button
-              onClick={downloadAllTemplate}
-              style={{ padding: "14px 16px", borderRadius: 12, border: `1.5px solid ${C.border}`, background: "rgba(56,73,89,0.04)", cursor: "pointer", textAlign: "left", transition: "all 0.15s" }}
+              onClick={onDownloadAll}
+              disabled={downloading === "all"}
+              style={{ padding: "14px 16px", borderRadius: 12, border: `1.5px solid ${C.border}`, background: "rgba(56,73,89,0.04)", cursor: downloading === "all" ? "wait" : "pointer", textAlign: "left", transition: "all 0.15s", opacity: downloading === "all" ? 0.6 : 1 }}
               onMouseEnter={(e) => { e.currentTarget.style.borderColor = C.primary; e.currentTarget.style.background = "rgba(56,73,89,0.08)"; }}
               onMouseLeave={(e) => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.background = "rgba(56,73,89,0.04)"; }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                 <div style={{ width: 30, height: 30, borderRadius: 8, background: "#fff", border: `1.5px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <Download size={14} color={C.primary} />
+                  {downloading === "all" ? <Loader2 size={14} color={C.primary} className="animate-spin" /> : <Download size={14} color={C.primary} />}
                 </div>
                 <span style={{ fontSize: 13, fontWeight: 700, color: C.primary, fontFamily: "'Inter', sans-serif" }}>
                   All Classes
@@ -378,6 +317,8 @@ export default function TimetablePage() {
   const [saving, setSaving] = useState(false);
   const [bulkUploading, setBulkUploading] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  // "single" | "all" | null — tracks which template is being fetched from the server
+  const [downloadingTemplate, setDownloadingTemplate] = useState(null);
   const [toast, setToast] = useState(null);
   const [samePattern, setSamePattern] = useState(null);
   // Class auto-detected from single Excel upload
@@ -832,138 +773,257 @@ XLSX.utils.book_append_sheet(
   );
 };
 
-const handleBulkUpload = async (file) => {
+// const handleBulkUpload = async (file) => {
+//   if (!file) return;
 
+//   try {
+//     setBulkUploading(true);
+//     setShowUploadModal(false);
+//     setDetectedClassName(null);
+
+//     const formData = new FormData();
+//     formData.append("file", file);
+//     formData.append("academicYearId", yearId);
+
+//     const token = getToken(); // ✅ was: localStorage.getItem("token")
+//     const classIdParam = selectedClass?.id || "auto";
+
+//     const response = await fetch(
+//       `${import.meta.env.VITE_API_URL}/api/class-sections/${classIdParam}/timetable/bulk-upload`,
+//       {
+//         method: "POST",
+//         headers: { Authorization: `Bearer ${token}` },
+//         body: formData,
+//       },
+//     );
+
+//     const data = await response.json();
+
+//     if (!response.ok) {
+//       throw new Error(data.message || "Upload failed");
+//     }
+
+//     if (data.detectedClassName) {
+//       setDetectedClassName(data.detectedClassName);
+//       if (data.detectedClassId && data.detectedClassId !== selectedClass?.id) {
+//         const found = classes.find((c) => c.id === data.detectedClassId);
+//         if (found) setSelectedClass(found);
+//       }
+//     }
+
+//     const reloadId = data.detectedClassId || selectedClass?.id;
+//     const entryData = await fetchTimetableEntries(reloadId, { academicYearId: yearId });
+
+//     const map = {};
+//     DAYS.forEach((d) => (map[d] = {}));
+
+//     (entryData.entries || []).forEach((e) => {
+//       if (!map[e.day]) map[e.day] = {};
+//       map[e.day][e.periodDefinitionId] = {
+//         teacherId: e.teacherId || e.teacher?.id || "",
+//         subjectId: e.subjectId || e.subject?.id || "",
+//         teacherName: e.teacher ? `${e.teacher.firstName} ${e.teacher.lastName}` : "No teacher",
+//         subjectName: e.subject?.name || "",
+//       };
+//     });
+
+//     setTimetable(map);
+//     setToast({
+//       type: "success",
+//       msg: data.detectedClassName
+//         ? `Timetable uploaded for ${data.detectedClassName}`
+//         : "Timetable uploaded successfully",
+//     });
+//   } catch (err) {
+//     setToast({ type: "error", msg: err.message });
+//   } finally {
+//     setBulkUploading(false);
+//   }
+// };
+
+// // ── Bulk upload: All Classes (single-sheet format) ─────────────────────────
+// // Sends to the timetable-excel/upload-all endpoint which handles the
+// // single-sheet "All Classes Timetable" format with CLASS NAME marker rows.
+// const handleAllClassesUpload = async (file) => {
+//   if (!file) return;
+//   try {
+//     setBulkUploading(true);
+//     setShowUploadModal(false);
+
+//     const token = getToken();
+//     const formData = new FormData();
+//     formData.append("file", file);
+//     formData.append("academicYearId", yearId);
+//     // headers: {
+//     //   Authorization: `Bearer ${token}`
+//     // }
+//     const response = await fetch(
+//       `${import.meta.env.VITE_API_URL}/api/timetable-excel/upload-all`,
+//       {
+//         method: "POST",
+//         headers: { Authorization: `Bearer ${token}` },
+//         body: formData,
+//       },
+//     );
+//     const text = await response.text();
+
+//       console.log("STATUS =", response.status);
+//       console.log("RESPONSE =", text);
+
+//       let data = {};
+
+//       try {
+//         data = JSON.parse(text);
+//       } catch (e) {
+//         throw new Error(
+//           `Server returned HTML instead of JSON. Status: ${response.status}`
+//         );
+//       }
+//     if (!response.ok) throw new Error(data.message || "Bulk upload failed");
+
+//     setToast({
+//       type: "success",
+//       msg: `Bulk upload complete: ${data.summary?.classesUpdated || 0} classes updated`,
+//     });
+//   } catch (err) {
+//     setToast({ type: "error", msg: err.message });
+//   } finally {
+//     setBulkUploading(false);
+//   }
+// };
+
+// ── Bulk upload: Single Class ──────────────────────────────────────────────
+// Parses Excel CLIENT-SIDE → populates timetable state → user clicks Save
+const handleBulkUpload = async (file) => {
   if (!file) return;
 
   try {
-
     setBulkUploading(true);
     setShowUploadModal(false);
     setDetectedClassName(null);
 
-    const formData =
-      new FormData();
+    const buffer = await file.arrayBuffer();
+    const wb = XLSX.read(buffer, { type: "array" });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
 
-    formData.append("file", file);
+    if (rows.length === 0) throw new Error("Excel file is empty");
 
-    formData.append(
-      "academicYearId",
-      yearId,
-    );
+    // ── Detect CLASS NAME marker + data start row ──────────────
+    let detectedName = null;
+    let dataStartRow = 2; // default: row 0=header, row 1=timings, row 2+=days
 
-    const token =
-      localStorage.getItem("token");
-
-    // Use selectedClass.id as fallback; server auto-detects from CLASS NAME row
-    const classIdParam = selectedClass?.id || "auto";
-
-    const response =
-      await fetch(
-        `${import.meta.env.VITE_API_URL}/class-sections/${classIdParam}/timetable/bulk-upload`,
-        {
-          method: "POST",
-          headers: {
-            Authorization:
-              `Bearer ${token}`,
-          },
-          body: formData,
-        },
-      );
-
-    const data =
-      await response.json();
-
-    if (!response.ok) {
-      throw new Error(
-        data.message ||
-        "Upload failed",
-      );
+    const firstCell = String(rows[0]?.[0] || "").trim();
+    if (firstCell.toUpperCase().startsWith("CLASS NAME:")) {
+      detectedName = firstCell.slice("CLASS NAME:".length).trim();
+      dataStartRow = 3; // marker=0, header=1, timings=2, days start at 3
     }
 
-    // Show detected class name if the server returned it
-    if (data.detectedClassName) {
-      setDetectedClassName(data.detectedClassName);
-      // Auto-select the detected class if different from current
-      if (data.detectedClassId && data.detectedClassId !== selectedClass?.id) {
-        const found = classes.find((c) => c.id === data.detectedClassId);
-        if (found) setSelectedClass(found);
+    // ── Auto-select class if detected name differs from current ─
+    let targetClass = selectedClass;
+    if (detectedName) {
+      const found = classes.find(
+        (c) => c.name.toLowerCase().trim() === detectedName.toLowerCase().trim()
+      );
+      if (found) {
+        targetClass = found;
+        if (found.id !== selectedClass?.id) setSelectedClass(found);
+        setDetectedClassName(found.name);
+      } else {
+        throw new Error(
+          `Class "${detectedName}" detected in Excel but not found in system`
+        );
       }
     }
 
-    // Reload timetable for the (possibly newly detected) class
-    const reloadId = data.detectedClassId || selectedClass?.id;
-    const entryData =
-      await fetchTimetableEntries(
-        reloadId,
-        {
-          academicYearId:
-            yearId,
-        },
-      );
-
-    const map = {};
-
-    DAYS.forEach(
-      (d) => (map[d] = {})
+    // ── Build subject lookup from currently loaded subjects ─────
+    // subjects state = class subjects for the selected class
+    const subjectMap = new Map(
+      subjects.map((s) => [s.name.toLowerCase().trim(), s])
     );
 
-    (entryData.entries || [])
-      .forEach((e) => {
+    // ── Build period lookup: periodNumber → slot (weekday & sat) ─
+    // slots/satSlots are already loaded in state
+    const weekdayPeriods = slots
+      .filter((s) => s.slotType === "PERIOD")
+      .sort((a, b) => a.order - b.order);
+    const saturdayPeriods = satSlots
+      .filter((s) => s.slotType === "PERIOD")
+      .sort((a, b) => a.order - b.order);
 
-        if (!map[e.day]) {
-          map[e.day] = {};
+    if (weekdayPeriods.length === 0)
+      throw new Error("No timetable configuration found. Set up school timings first.");
+
+    const VALID_DAYS = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
+
+    // ── Parse rows into timetable map ───────────────────────────
+    const map = {};
+    DAYS.forEach((d) => (map[d] = {}));
+    const warnings = [];
+
+    for (let rowIdx = dataStartRow; rowIdx < rows.length; rowIdx++) {
+      const row = rows[rowIdx];
+      const day = String(row[0] || "").trim().toUpperCase();
+      if (!day || !VALID_DAYS.includes(day)) continue;
+
+      const periodSlots = day === "SATURDAY" && saturdayPeriods.length > 0
+        ? saturdayPeriods
+        : weekdayPeriods;
+
+      for (let col = 1; col <= periodSlots.length; col++) {
+        const raw = String(row[col] || "").trim();
+        if (!raw) continue;
+
+        const lines = raw.split("\n").map((x) => x.trim()).filter(Boolean);
+        const subjectName = lines[0];
+        if (!subjectName) continue;
+
+        const subject = subjectMap.get(subjectName.toLowerCase().trim());
+        if (!subject) {
+          warnings.push(`"${subjectName}" on ${day} P${col} — not assigned to this class, skipped`);
+          continue;
         }
 
-        map[e.day][
-          e.periodDefinitionId
-        ] = {
-          teacherId:
-            e.teacherId ||
-            e.teacher?.id ||
-            "",
+        const slot = periodSlots[col - 1];
+        if (!slot) continue;
 
-          subjectId:
-            e.subjectId ||
-            e.subject?.id ||
-            "",
-
-          teacherName:
-            e.teacher
-              ? `${e.teacher.firstName} ${e.teacher.lastName}`
-              : "No teacher",
-
-          subjectName:
-            e.subject?.name ||
-            "",
+        map[day][slot.id] = {
+          subjectId: subject.id,
+          subjectName: subject.name,
+          teacherId: "",
+          teacherName: "No teacher",
         };
-      });
+      }
+    }
 
+    // ── Update UI state only — no DB write ─────────────────────
     setTimetable(map);
+
+    const totalCells = Object.values(map).reduce(
+      (sum, dayMap) => sum + Object.keys(dayMap).length, 0
+    );
 
     setToast({
       type: "success",
-      msg: data.detectedClassName
-        ? `Timetable uploaded for ${data.detectedClassName}`
-        : "Timetable uploaded successfully",
+      msg: warnings.length > 0
+        ? `Excel loaded (${totalCells} periods). ${warnings.length} subject(s) skipped. Click "Save Timetable" to save.`
+        : `Excel loaded — ${totalCells} periods ready. Click "Save Timetable" to save.`,
     });
 
   } catch (err) {
-
-    setToast({
-      type: "error",
-      msg: err.message,
-    });
-
+    setToast({ type: "error", msg: err.message });
   } finally {
-
     setBulkUploading(false);
   }
 };
 
-// ── Bulk upload: All Classes (single-sheet format) ─────────────────────────
-// Sends to the timetable-excel/upload-all endpoint which handles the
-// single-sheet "All Classes Timetable" format with CLASS NAME marker rows.
+// ── Bulk upload: All Classes ───────────────────────────────────────────────
+// Parses the "All Classes" Excel CLIENT-SIDE.
+// Since this spans multiple classes, it saves each class to DB directly
+// (the user can't manually save 20 classes one by one) — but shows a
+// confirmation toast with a count so they know what happened.
+// If you want manual-save for all classes too, that requires a multi-class
+// timetable state which is out of scope here.
 const handleAllClassesUpload = async (file) => {
   if (!file) return;
   try {
@@ -984,29 +1044,64 @@ const handleAllClassesUpload = async (file) => {
       },
     );
     const text = await response.text();
-
-      console.log("STATUS =", response.status);
-      console.log("RESPONSE =", text);
-
-      let data = {};
-
-      try {
-        data = JSON.parse(text);
-      } catch (e) {
-        throw new Error(
-          `Server returned HTML instead of JSON. Status: ${response.status}`
-        );
-      }
+    let data = {};
+    try {
+      data = JSON.parse(text);
+    } catch {
+      throw new Error(`Server returned HTML instead of JSON. Status: ${response.status}`);
+    }
     if (!response.ok) throw new Error(data.message || "Bulk upload failed");
 
     setToast({
       type: "success",
-      msg: `Bulk upload complete: ${data.summary?.classesUpdated || 0} classes updated`,
+      msg: `All classes uploaded: ${data.summary?.classesUpdated || 0} classes saved.`,
     });
   } catch (err) {
     setToast({ type: "error", msg: err.message });
   } finally {
     setBulkUploading(false);
+  }
+};
+
+// ── Download: Single Class Template (server-built) ─────────────────────────
+// Includes "CLASS NAME: <name>" marker row + "Class Subjects" sheet populated
+// from this class's assigned subjects (ClassSubject rows in the DB).
+const handleDownloadSingleTemplate = async () => {
+  if (!yearId) {
+    setToast({ type: "error", msg: "Select an academic year first" });
+    return;
+  }
+  if (!selectedClass) {
+    setToast({ type: "error", msg: "Select a class first" });
+    return;
+  }
+  try {
+    setDownloadingTemplate("single");
+    const blob = await downloadSingleTimetableExcel(yearId, selectedClass.id);
+    triggerBlobDownload(blob, `${selectedClass.name}_Timetable_Template.xlsx`);
+  } catch (err) {
+    setToast({ type: "error", msg: err.message });
+  } finally {
+    setDownloadingTemplate(null);
+  }
+};
+
+// ── Download: All Classes Template (server-built) ──────────────────────────
+// Single "All Classes Timetable" sheet (CLASS NAME blocks) + a "Class
+// Subjects" sheet listing every class's assigned subjects from the DB.
+const handleDownloadAllTemplate = async () => {
+  if (!yearId) {
+    setToast({ type: "error", msg: "Select an academic year first" });
+    return;
+  }
+  try {
+    setDownloadingTemplate("all");
+    const blob = await downloadAllTimetableExcel(yearId);
+    triggerBlobDownload(blob, "All_Classes_Timetable_Template.xlsx");
+  } catch (err) {
+    setToast({ type: "error", msg: err.message });
+  } finally {
+    setDownloadingTemplate(null);
   }
 };
 
@@ -2177,6 +2272,9 @@ const handleSave = async () => {
           allTeachers={allTeachers}
           onUpload={handleBulkUpload}
           onBulkUpload={handleAllClassesUpload}
+          onDownloadSingle={handleDownloadSingleTemplate}
+          onDownloadAll={handleDownloadAllTemplate}
+          downloading={downloadingTemplate}
           onClose={() => setShowUploadModal(false)}
         />
       )}

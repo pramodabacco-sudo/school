@@ -14,6 +14,8 @@ import {
   getCorrectionHistory,
   triggerAttendanceProcessing,
   reprocessSingle,
+  markSchoolHoliday,
+  getCronStatus,
 } from "../controllers/attendanceCorrections.controller.js";
 import {
   getPayrollList,
@@ -40,6 +42,8 @@ router.put  ("/config/:schoolId",  upsertAttendanceConfig);
 // ── Attendance Processing (Super Admin / cron) ────────────────────────────────
 router.post ("/process-attendance", triggerAttendanceProcessing);
 router.post ("/corrections/reprocess-single", reprocessSingle);
+router.post ("/corrections/mark-school-holiday", markSchoolHoliday);
+router.get  ("/cron-status", getCronStatus);
 
 // ── Attendance Corrections (Super Admin) ─────────────────────────────────────
 router.get  ("/corrections",         getAttendanceCorrections);

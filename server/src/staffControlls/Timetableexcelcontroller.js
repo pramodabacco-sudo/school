@@ -1,5 +1,5 @@
 // server/src/staffControlls/timetableExcelController.js
- 
+
 import XLSX from "xlsx";
 import { prisma } from "../config/db.js";
 import cacheService from "../utils/cacheService.js";
@@ -45,10 +45,20 @@ function periodColumnHeader(def) {
   return def.label.toUpperCase();
 }
 
-function periodTimeRange(def) {
-  return `${def.startTime}-${def.endTime}`;
+function format12Hour(time) {
+  if (!time) return "";
+
+  const [hour, minute] = time.split(":").map(Number);
+
+  const period = hour >= 12 ? "PM" : "AM";
+  const h = hour % 12 || 12;
+
+  return `${h}:${String(minute).padStart(2, "0")} ${period}`;
 }
 
+function periodTimeRange(def) {
+  return `${format12Hour(def.startTime)} - ${format12Hour(def.endTime)}`;
+}
 function getDayType(day) {
   return day === "SATURDAY" ? "SATURDAY" : "WEEKDAY";
 }
@@ -508,12 +518,8 @@ export const uploadAllTimetableTemplate = async (req, res) => {
 
     const periodDefs = config.periodDefinitions;
 
-    const weekdayPeriods = periodDefs
-      .filter((d) => d.dayType === "WEEKDAY" && d.slotType === "PERIOD")
-      .sort((a, b) => a.order - b.order);
-    const saturdayPeriods = periodDefs
-      .filter((d) => d.dayType === "SATURDAY" && d.slotType === "PERIOD")
-      .sort((a, b) => a.order - b.order);
+    // All slots (PERIOD + BREAK) — column index must match the Excel layout
+    // produced by buildTimetableAOA() on the download side.
     const weekdayAllCols = periodDefs
       .filter((d) => d.dayType === "WEEKDAY")
       .sort((a, b) => a.order - b.order);
@@ -642,18 +648,12 @@ export const uploadAllTimetableTemplate = async (req, res) => {
 
         const isSaturday = dayRaw === "SATURDAY";
         const periodSlots =
-          isSaturday && saturdayPeriods.length > 0 ? saturdayPeriods : weekdayPeriods;
-        const allCols =
           isSaturday && saturdayAllCols.length > 0 ? saturdayAllCols : primaryCols;
 
-        let periodIdx = 0;
-        for (let colIdx = 1; colIdx < row.length; colIdx++) {
-          const colDef = allCols[colIdx - 1];
-          if (!colDef) break;
-          if (colDef.slotType !== "PERIOD") continue;
-
-          const period = periodSlots[periodIdx++];
+        for (let colIdx = 1; colIdx <= periodSlots.length; colIdx++) {
+          const period = periodSlots[colIdx - 1];
           if (!period) break;
+          if (period.slotType !== "PERIOD") continue; // skip break columns
 
           const raw = String(row[colIdx] || "").trim();
           if (!raw) continue;
@@ -749,12 +749,8 @@ export const uploadSingleTimetableTemplate = async (req, res) => {
 
     const periodDefs = config.periodDefinitions;
 
-    const weekdayPeriods = periodDefs
-      .filter((d) => d.dayType === "WEEKDAY" && d.slotType === "PERIOD")
-      .sort((a, b) => a.order - b.order);
-    const saturdayPeriods = periodDefs
-      .filter((d) => d.dayType === "SATURDAY" && d.slotType === "PERIOD")
-      .sort((a, b) => a.order - b.order);
+    // All slots (PERIOD + BREAK) — column index must match the Excel layout
+    // produced by buildTimetableSheet()/buildTimetableAOA() on the download side.
     const weekdayAllCols = periodDefs
       .filter((d) => d.dayType === "WEEKDAY")
       .sort((a, b) => a.order - b.order);
@@ -841,18 +837,12 @@ export const uploadSingleTimetableTemplate = async (req, res) => {
 
       const isSaturday = dayRaw === "SATURDAY";
       const periodSlots =
-        isSaturday && saturdayPeriods.length > 0 ? saturdayPeriods : weekdayPeriods;
-      const allCols =
         isSaturday && saturdayAllCols.length > 0 ? saturdayAllCols : primaryCols;
 
-      let periodIdx = 0;
-      for (let colIdx = 1; colIdx < row.length; colIdx++) {
-        const colDef = allCols[colIdx - 1];
-        if (!colDef) break;
-        if (colDef.slotType !== "PERIOD") continue;
-
-        const period = periodSlots[periodIdx++];
+      for (let colIdx = 1; colIdx <= periodSlots.length; colIdx++) {
+        const period = periodSlots[colIdx - 1];
         if (!period) break;
+        if (period.slotType !== "PERIOD") continue; // skip break columns
 
         const raw = String(row[colIdx] || "").trim();
         if (!raw) continue;

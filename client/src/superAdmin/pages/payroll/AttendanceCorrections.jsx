@@ -10,12 +10,13 @@ const API = import.meta.env.VITE_API_URL;
 const token = () => { try { const a = localStorage.getItem("auth"); return a ? JSON.parse(a).token : null; } catch { return null; } };
 
 const STATUS_CONFIG = {
-  PRESENT:       { label: "Present",       color: "bg-green-100 text-green-700",  icon: CheckCircle },
-  ABSENT:        { label: "Absent",        color: "bg-red-100 text-red-700",      icon: XCircle },
+  PRESENT:       { label: "Present",       color: "bg-green-100 text-green-700",   icon: CheckCircle },
+  ABSENT:        { label: "Absent",        color: "bg-red-100 text-red-700",       icon: XCircle },
   HALF_DAY:      { label: "Half Day",      color: "bg-yellow-100 text-yellow-700", icon: Clock },
   LATE:          { label: "Late",          color: "bg-orange-100 text-orange-700", icon: Clock },
   MISSING_PUNCH: { label: "Missing Punch", color: "bg-purple-100 text-purple-700", icon: AlertTriangle },
-  HOLIDAY:       { label: "Holiday",       color: "bg-blue-100 text-blue-700",    icon: CheckCircle },
+  HOLIDAY:       { label: "Holiday",       color: "bg-blue-100 text-blue-700",     icon: CheckCircle },
+  ON_LEAVE:      { label: "On Leave",      color: "bg-teal-100 text-teal-700",     icon: Clock },
 };
 
 const StatusBadge = ({ status, isLate, isLateExcused }) => {
@@ -57,20 +58,24 @@ function CorrectionModal({ record, onClose, onSuccess }) {
   const [newStatus, setNewStatus] = useState("");
   const [newFirstPunch, setNewFirstPunch] = useState("");
   const [newLastPunch, setNewLastPunch] = useState("");
+  const [leaveType, setLeaveType] = useState("CASUAL");
+  const [leaveReason, setLeaveReason] = useState("");
+  const [isLeaveDeducted, setIsLeaveDeducted] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
   if (!record) return null;
 
   const ACTIONS = [
-    { value: "APPROVE_PRESENT",     label: "✅ Approve as Present" },
-    { value: "MARK_LATE",           label: "🕐 Mark as Late" },
-    { value: "MARK_HALF_DAY",       label: "⏰ Mark as Half Day" },
-    { value: "MARK_ABSENT",         label: "❌ Mark as Absent" },
-    { value: "EXCUSE_LATE",         label: "🟢 Excuse Late Arrival" },
-    { value: "UPDATE_IN_TIME",      label: "✏️ Update In Time" },
-    { value: "UPDATE_OUT_TIME",     label: "✏️ Update Out Time" },
-    { value: "UPDATE_STATUS",       label: "🔄 Update Status" },
+    { value: "APPROVE_PRESENT",        label: "✅ Approve as Present" },
+    { value: "MARK_LATE",              label: "🕐 Mark as Late" },
+    { value: "MARK_HALF_DAY",          label: "⏰ Mark as Half Day" },
+    { value: "MARK_ABSENT",            label: "❌ Mark as Absent" },
+    { value: "MARK_ON_LEAVE",          label: "🏖️ Mark as On Leave" },
+    { value: "EXCUSE_LATE",            label: "🟢 Excuse Late Arrival" },
+    { value: "UPDATE_IN_TIME",         label: "✏️ Update In Time" },
+    { value: "UPDATE_OUT_TIME",        label: "✏️ Update Out Time" },
+    { value: "UPDATE_STATUS",          label: "🔄 Update Status" },
     { value: "MISSING_PUNCH_REVIEWED", label: "👁 Mark Missing Punch Reviewed" },
   ];
 
@@ -78,10 +83,15 @@ function CorrectionModal({ record, onClose, onSuccess }) {
     setSaving(true); setError(null);
     try {
       const body = { action, reason };
-      if (action === "UPDATE_STATUS") body.newStatus = newStatus;
-      if (action === "UPDATE_IN_TIME") body.newFirstPunch = newFirstPunch;
-      if (action === "UPDATE_OUT_TIME") body.newLastPunch = newLastPunch;
+      if (action === "UPDATE_STATUS")          body.newStatus = newStatus;
+      if (action === "UPDATE_IN_TIME")         body.newFirstPunch = newFirstPunch;
+      if (action === "UPDATE_OUT_TIME")        body.newLastPunch = newLastPunch;
       if (action === "MISSING_PUNCH_REVIEWED" && newStatus) body.newStatus = newStatus;
+      if (action === "MARK_ON_LEAVE") {
+        body.leaveType       = leaveType;
+        body.leaveReason     = leaveReason || reason;
+        body.isLeaveDeducted = isLeaveDeducted;
+      }
 
       const res = await fetch(`${API}/api/payroll/corrections/${record.id}`, {
         method: "PATCH",
@@ -100,7 +110,7 @@ function CorrectionModal({ record, onClose, onSuccess }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="p-5 border-b border-gray-100">
           <h3 className="font-bold text-gray-800">Apply Correction</h3>
           <p className="text-sm text-gray-500 mt-0.5">
@@ -139,7 +149,67 @@ function CorrectionModal({ record, onClose, onSuccess }) {
             </select>
           </div>
 
-          {/* Conditional fields */}
+          {/* ON_LEAVE fields */}
+          {action === "MARK_ON_LEAVE" && (
+            <div className="space-y-3 bg-teal-50 border border-teal-100 rounded-xl p-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Leave Type</label>
+                <select
+                  value={leaveType}
+                  onChange={(e) => setLeaveType(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
+                >
+                  <option value="CASUAL">Casual Leave</option>
+                  <option value="SICK">Sick Leave</option>
+                  <option value="EARNED">Earned Leave</option>
+                  <option value="OTHER">Other</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Leave Reason</label>
+                <input
+                  type="text"
+                  value={leaveReason}
+                  onChange={(e) => setLeaveReason(e.target.value)}
+                  placeholder="e.g. Medical appointment, Family emergency..."
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
+                />
+              </div>
+              {/* Salary deduction toggle — key admin power */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Salary Deduction</label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setIsLeaveDeducted(false)}
+                    className={`flex-1 py-2.5 rounded-xl text-sm font-semibold border transition ${
+                      !isLeaveDeducted
+                        ? "bg-green-600 text-white border-green-600"
+                        : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"
+                    }`}
+                  >
+                    ✅ Paid Leave — No Deduction
+                  </button>
+                  <button
+                    onClick={() => setIsLeaveDeducted(true)}
+                    className={`flex-1 py-2.5 rounded-xl text-sm font-semibold border transition ${
+                      isLeaveDeducted
+                        ? "bg-red-500 text-white border-red-500"
+                        : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"
+                    }`}
+                  >
+                    ❌ Unpaid Leave — Deduct
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 mt-1.5">
+                  {isLeaveDeducted
+                    ? "Salary will be deducted for this leave day."
+                    : "No salary deduction — this is a paid leave day."}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* UPDATE_STATUS fields */}
           {action === "UPDATE_STATUS" && (
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">New Status</label>
@@ -192,23 +262,26 @@ function CorrectionModal({ record, onClose, onSuccess }) {
                 <option value="PRESENT">Present</option>
                 <option value="HALF_DAY">Half Day</option>
                 <option value="ABSENT">Absent</option>
+                <option value="ON_LEAVE">On Leave</option>
               </select>
             </div>
           )}
 
-          {/* Reason */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Reason <span className="font-normal text-gray-400">(for audit log)</span>
-            </label>
-            <textarea
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              rows={2}
-              placeholder="Optional reason for this correction..."
-              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-            />
-          </div>
+          {/* Reason (always shown except ON_LEAVE which has its own reason field) */}
+          {action !== "MARK_ON_LEAVE" && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Reason <span className="font-normal text-gray-400">(for audit log)</span>
+              </label>
+              <textarea
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                rows={2}
+                placeholder="Optional reason for this correction..."
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              />
+            </div>
+          )}
 
           {error && (
             <p className="text-sm text-red-600 bg-red-50 p-3 rounded-xl">{error}</p>
@@ -294,11 +367,29 @@ function AuditModal({ attendanceId, onClose }) {
   );
 }
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const todayIST = () =>
+  new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function AttendanceCorrections({ defaultSchoolId, schools = [] }) {
   const now = new Date();
-  const [schoolId, setSchoolId] = useState(defaultSchoolId || "");
-  const [month, setMonth]       = useState(now.getMonth() + 1);
+
+  // View mode: "day" (default, fast) | "month" (full month, opt-in)
+  const [viewMode, setViewMode]       = useState("day");
+
+  const [schoolId, setSchoolId]       = useState(defaultSchoolId || "");
+  const [date, setDate]               = useState(todayIST());        // single date for day view
+  const [month, setMonth]             = useState(now.getMonth() + 1);
+  const [year, setYear]               = useState(now.getFullYear());
+  const [status, setStatus]           = useState("ALL");
+  const [records, setRecords]         = useState([]);
+  const [meta, setMeta]               = useState({ total: 0, totalPages: 1, page: 1 });
+  const [page, setPage]               = useState(1);
+  const [loading, setLoading]         = useState(false);
+  const [selected, setSelected]       = useState(null);
+  const [auditId, setAuditId]         = useState(null);
+  const [markingHoliday, setMarkingHoliday] = useState(false);
 
   // Sync when parent resolves schoolId after async fetch
   useEffect(() => {
@@ -307,50 +398,72 @@ export default function AttendanceCorrections({ defaultSchoolId, schools = [] })
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [defaultSchoolId]);
-  const [year, setYear]         = useState(now.getFullYear());
-  const [status, setStatus]     = useState("ALL");
-  const [records, setRecords]   = useState([]);
-  const [meta, setMeta]         = useState({ total: 0, totalPages: 1, page: 1 });
-  const [page, setPage]         = useState(1);
-  const [loading, setLoading]   = useState(false);
-  const [selected, setSelected] = useState(null);  // for correction modal
-  const [auditId, setAuditId]   = useState(null);  // for audit modal
+
+  const switchViewMode = (mode) => { setViewMode(mode); setPage(1); };
 
   const fetch_ = useCallback(() => {
     if (!schoolId) return;
     setLoading(true);
-    const params = new URLSearchParams({ schoolId, month, year, status, page, limit: 25 });
+
+    const params = new URLSearchParams({ schoolId, status, page, limit: 25 });
+    if (viewMode === "day") {
+      params.set("date", date);
+    } else {
+      params.set("month", month);
+      params.set("year", year);
+    }
+
     const url = `${API}/api/payroll/corrections?${params}`;
     console.log("[AttendanceCorrections] Fetching:", url);
-    fetch(url, {
-      headers: { Authorization: `Bearer ${token()}` },
-    })
+    fetch(url, { headers: { Authorization: `Bearer ${token()}` } })
       .then((r) => r.json())
       .then((d) => {
-        console.log("[AttendanceCorrections] API response:", d);
-        if (d.success) {
-          console.log("[AttendanceCorrections] Records count:", d.data?.length);
-          d.data?.forEach((r, i) => {
-            console.log(
-              `[AttendanceCorrections] Record[${i}]: teacher=${r.teacherName} date=${r.date} status=${r.status} firstPunch=${r.firstPunch} lastPunch=${r.lastPunch} worked=${r.workedMinutes}`
-            );
-          });
-          setRecords(d.data);
-          setMeta(d.meta);
-        } else {
-          console.error("[AttendanceCorrections] API error:", d.message);
-        }
+        if (d.success) { setRecords(d.data); setMeta(d.meta); }
+        else console.error("[AttendanceCorrections] API error:", d.message);
       })
       .catch((err) => console.error("[AttendanceCorrections] Fetch failed:", err))
       .finally(() => setLoading(false));
-  }, [schoolId, month, year, status, page]);
+  }, [schoolId, viewMode, date, month, year, status, page]);
 
   useEffect(() => { fetch_(); }, [fetch_]);
 
-  // Force reprocess a single record — deletes old row and recalculates from BiometricLog
+  // Prev / Next day navigation
+  const prevDay = () => {
+    const d = new Date(date + "T12:00:00+05:30");
+    d.setDate(d.getDate() - 1);
+    setDate(d.toISOString().slice(0, 10));
+    setPage(1);
+  };
+  const nextDay = () => {
+    const d = new Date(date + "T12:00:00+05:30");
+    d.setDate(d.getDate() + 1);
+    const next = d.toISOString().slice(0, 10);
+    if (next <= todayIST()) { setDate(next); setPage(1); }
+  };
+
+  // Mark entire day as school holiday for all teachers
+  const markSchoolHoliday = async () => {
+    if (!window.confirm(`Mark ${date} as a School Holiday for ALL teachers? Everyone's status will change to HOLIDAY with no salary deduction.`)) return;
+    setMarkingHoliday(true);
+    try {
+      const res = await fetch(`${API}/api/payroll/corrections/mark-school-holiday`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
+        body: JSON.stringify({ schoolId, dateStr: date, reason: "School holiday marked by admin" }),
+      });
+      const d = await res.json();
+      if (d.success) { alert(d.message); fetch_(); }
+      else alert(`Error: ${d.message}`);
+    } catch (e) {
+      alert("Failed: " + e.message);
+    } finally {
+      setMarkingHoliday(false);
+    }
+  };
+
+  // Reprocess single record from biometric raw data
   const reprocess = async (r) => {
     const dateStr = new Date(r.date).toISOString().slice(0, 10);
-    console.log(`[reprocess] Reprocessing teacherId=${r.teacherId} date=${dateStr}`);
     try {
       const res = await fetch(`${API}/api/payroll/corrections/reprocess-single`, {
         method: "POST",
@@ -358,15 +471,13 @@ export default function AttendanceCorrections({ defaultSchoolId, schools = [] })
         body: JSON.stringify({ schoolId, teacherId: r.teacherId, dateStr }),
       });
       const d = await res.json();
-      console.log(`[reprocess] Result:`, d);
       if (d.success) {
-        alert(`Reprocessed! New status: ${d.data?.status} firstPunch: ${d.data?.firstPunch} lastPunch: ${d.data?.lastPunch} worked: ${d.data?.workedMinutes}min`);
+        alert(`Reprocessed! New status: ${d.data?.status} | worked: ${d.data?.workedMinutes}min`);
         fetch_();
       } else {
         alert(`Error: ${d.message}`);
       }
     } catch (e) {
-      console.error("[reprocess] failed:", e);
       alert("Reprocess failed: " + e.message);
     }
   };
@@ -389,7 +500,9 @@ export default function AttendanceCorrections({ defaultSchoolId, schools = [] })
       )}
 
       {/* Filters */}
-      <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4 mb-5 flex flex-wrap gap-3">
+      <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4 mb-5 flex flex-wrap gap-3 items-center">
+
+        {/* School selector */}
         {schools.length > 0 && (
           <select
             value={schoolId}
@@ -401,22 +514,65 @@ export default function AttendanceCorrections({ defaultSchoolId, schools = [] })
           </select>
         )}
 
-        <select
-          value={month}
-          onChange={(e) => { setMonth(Number(e.target.value)); setPage(1); }}
-          className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
-        </select>
+        {/* View mode toggle */}
+        <div className="flex rounded-xl border border-gray-200 overflow-hidden text-sm">
+          <button
+            onClick={() => switchViewMode("day")}
+            className={`px-3 py-2 font-medium transition ${viewMode === "day" ? "bg-blue-600 text-white" : "bg-white text-gray-500 hover:bg-gray-50"}`}
+          >
+            📅 Day
+          </button>
+          <button
+            onClick={() => switchViewMode("month")}
+            className={`px-3 py-2 font-medium transition border-l border-gray-200 ${viewMode === "month" ? "bg-blue-600 text-white" : "bg-white text-gray-500 hover:bg-gray-50"}`}
+          >
+            🗓 Month
+          </button>
+        </div>
 
-        <select
-          value={year}
-          onChange={(e) => { setYear(Number(e.target.value)); setPage(1); }}
-          className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
-        </select>
+        {/* Date picker with prev/next arrows (day view) */}
+        {viewMode === "day" && (
+          <div className="flex items-center gap-1">
+            <button onClick={prevDay} className="p-2 border border-gray-200 rounded-xl hover:bg-gray-50 transition text-gray-500" title="Previous day">
+              <ChevronLeft size={15} />
+            </button>
+            <input
+              type="date"
+              value={date}
+              max={todayIST()}
+              onChange={(e) => { setDate(e.target.value); setPage(1); }}
+              className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button onClick={nextDay} disabled={date >= todayIST()} className="p-2 border border-gray-200 rounded-xl hover:bg-gray-50 transition text-gray-500 disabled:opacity-30" title="Next day">
+              <ChevronRight size={15} />
+            </button>
+          </div>
+        )}
 
+        {/* Month + Year selectors (month view) */}
+        {viewMode === "month" && (
+          <>
+            <select
+              value={month}
+              onChange={(e) => { setMonth(Number(e.target.value)); setPage(1); }}
+              className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+            </select>
+            <select
+              value={year}
+              onChange={(e) => { setYear(Number(e.target.value)); setPage(1); }}
+              className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+            </select>
+            <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">
+              ⚠️ Month view loads all data — may be slow
+            </span>
+          </>
+        )}
+
+        {/* Status filter */}
         <select
           value={status}
           onChange={(e) => { setStatus(e.target.value); setPage(1); }}
@@ -427,6 +583,17 @@ export default function AttendanceCorrections({ defaultSchoolId, schools = [] })
             <option key={k} value={k}>{v.label}</option>
           ))}
         </select>
+
+        {/* Mark School Holiday — only in day view */}
+        {viewMode === "day" && schoolId && (
+          <button
+            onClick={markSchoolHoliday}
+            disabled={markingHoliday}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl font-medium transition disabled:opacity-50"
+          >
+            🎉 {markingHoliday ? "Marking..." : "Mark School Holiday"}
+          </button>
+        )}
 
         <span className="ml-auto text-sm text-gray-500 self-center">
           {meta.total} records
@@ -479,13 +646,17 @@ export default function AttendanceCorrections({ defaultSchoolId, schools = [] })
                     {r.status === "MISSING_PUNCH" && !r.isMissingPunchReviewed && (
                       <span className="text-purple-600 font-medium">Needs review</span>
                     )}
-                    {r.isLate && !r.isLateExcused && (
+                    {r.status === "ON_LEAVE" && (
+                      <span className={`font-medium ${r.isLeaveDeducted ? "text-red-500" : "text-teal-600"}`}>
+                        {r.leaveType || "Leave"} · {r.isLeaveDeducted ? "Unpaid" : "Paid"}
+                        {r.leaveReason && <span className="block text-gray-400 font-normal truncate max-w-[120px]">{r.leaveReason}</span>}
+                      </span>
+                    )}
+                    {r.isLate && !r.isLateExcused && r.status !== "ON_LEAVE" && (
                       <span className="text-orange-600 font-medium">Late {r.lateMinutes}m</span>
                     )}
-                    {r.correctedAt && (
-                      <span className="text-gray-400">
-                        Corrected by {r.correctedBy || "—"}
-                      </span>
+                    {r.correctedAt && r.status !== "ON_LEAVE" && (
+                      <span className="text-gray-400">Corrected by {r.correctedBy || "—"}</span>
                     )}
                     {!r.correctedAt && r.status === "PRESENT" && !r.isLate && "—"}
                   </td>

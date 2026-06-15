@@ -17,22 +17,45 @@ const toQuery = (params = {}) => {
   });
   return s.toString();
 };
-
 const handle = async (r) => {
+  const text = await r.text();
+
+  console.log("=================================");
+  console.log("URL:", r.url);
+  console.log("STATUS:", r.status);
+  console.log("CONTENT-TYPE:", r.headers.get("content-type"));
+  console.log("RESPONSE:");
+  console.log(text);
+  console.log("=================================");
+
   let j = null;
 
   try {
-    j = await r.json();
-  } catch {
-    j = null;
+    j = JSON.parse(text);
+  } catch (err) {
+    console.error("JSON Parse Failed");
+    console.error("Response was:", text.substring(0, 500));
+
+    throw new Error(
+      `Expected JSON but received: ${text.substring(0, 100)}`
+    );
   }
 
   if (!r.ok) {
-    const err = new Error(j?.message || j?.error || `HTTP ${r.status}`);
-    if (j?.periodsWithEntries) err.periodsWithEntries = j.periodsWithEntries;
-    if (j?.conflicts) err.conflicts = j.conflicts;
-    if (j?.dayMismatch) err.dayMismatch = j.dayMismatch;
-    throw err;
+    const error = new Error(
+      j?.message || j?.error || `HTTP ${r.status}`
+    );
+
+    if (j?.periodsWithEntries)
+      error.periodsWithEntries = j.periodsWithEntries;
+
+    if (j?.conflicts)
+      error.conflicts = j.conflicts;
+
+    if (j?.dayMismatch)
+      error.dayMismatch = j.dayMismatch;
+
+    throw error;
   }
 
   return j;
