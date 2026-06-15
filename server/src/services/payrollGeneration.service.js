@@ -88,8 +88,6 @@ export async function generateTeacherPayroll(schoolId, teacherId, year, month, g
   const sundayCount = countSundays(year, month);
   const holidayCount = await countSchoolHolidays(schoolId, year, month);
   const workingDays = totalDays - sundayCount - holidayCount;
-
-  // Working days can be 0 for edge cases (e.g. all holidays); treat gracefully
   const safeWorkingDays = Math.max(workingDays, 1);
 
   // ── Step 5: Attendance Summary ───────────────────────────────────────────
@@ -102,20 +100,22 @@ export async function generateTeacherPayroll(schoolId, teacherId, year, month, g
   });
   if (!teacher) throw new Error("Teacher not found");
 
-  const monthlySalary = teacher.salary ? Number(teacher.salary) : 0;
+  const monthlySalary     = teacher.salary ? Number(teacher.salary) : 0;
   const noSalaryConfigured = !teacher.salary;
-  const dailySalary   = monthlySalary / safeWorkingDays;
+  const dailySalary       = monthlySalary / safeWorkingDays;
 
   // ── Step 7: Deductions ───────────────────────────────────────────────────
-  const absentDeduction  = noSalaryConfigured ? 0 : summary.absentDays * dailySalary;
-  const halfDayDeduction = noSalaryConfigured ? 0 : summary.halfDays * (dailySalary / 2);
+  const absentDeduction  = noSalaryConfigured ? 0 : summary.absentDays  * dailySalary;
+  const halfDayDeduction = noSalaryConfigured ? 0 : summary.halfDays     * (dailySalary / 2);
   const lateDeduction    = 0;
-  const totalDeduction   = absentDeduction + halfDayDeduction + lateDeduction;
+  // Unpaid leave days (isLeaveDeducted = true) are deducted at daily salary rate
+  const leaveDeduction   = noSalaryConfigured ? 0 : summary.unpaidLeaveDays * dailySalary;
+  const totalDeduction   = absentDeduction + halfDayDeduction + lateDeduction + leaveDeduction;
 
   // ── Step 8: Net Salary ───────────────────────────────────────────────────
   const netSalary = Math.max(0, monthlySalary - totalDeduction);
 
-  // ── Validate generatedById against users table (Super Admins aren't in `users`) ──
+  // ── Validate generatedById against users table ──
   let validGeneratedById = null;
   if (generatedById) {
     const userExists = await prisma.user.findUnique({
@@ -131,39 +131,45 @@ export async function generateTeacherPayroll(schoolId, teacherId, year, month, g
     create: {
       schoolId, teacherId, month, year,
       totalDays, sundayCount, holidayCount,
-      workingDays: workingDays > 0 ? workingDays : 0,
+      workingDays:      workingDays > 0 ? workingDays : 0,
       presentDays:      summary.presentDays,
       lateDays:         summary.lateDays,
       halfDays:         summary.halfDays,
       absentDays:       summary.absentDays,
       holidayDays:      summary.holidayDays,
       missingPunchDays: summary.missingPunchDays,
+      paidLeaveDays:    summary.paidLeaveDays,
+      unpaidLeaveDays:  summary.unpaidLeaveDays,
       monthlySalary,
       dailySalary:      parseFloat(dailySalary.toFixed(2)),
       absentDeduction:  parseFloat(absentDeduction.toFixed(2)),
       halfDayDeduction: parseFloat(halfDayDeduction.toFixed(2)),
       lateDeduction:    0,
+      leaveDeduction:   parseFloat(leaveDeduction.toFixed(2)),
       totalDeduction:   parseFloat(totalDeduction.toFixed(2)),
       netSalary:        parseFloat(netSalary.toFixed(2)),
       generatedById:    validGeneratedById,
     },
     update: {
       totalDays, sundayCount, holidayCount,
-      workingDays: workingDays > 0 ? workingDays : 0,
+      workingDays:      workingDays > 0 ? workingDays : 0,
       presentDays:      summary.presentDays,
       lateDays:         summary.lateDays,
       halfDays:         summary.halfDays,
       absentDays:       summary.absentDays,
       holidayDays:      summary.holidayDays,
       missingPunchDays: summary.missingPunchDays,
+      paidLeaveDays:    summary.paidLeaveDays,
+      unpaidLeaveDays:  summary.unpaidLeaveDays,
       monthlySalary,
       dailySalary:      parseFloat(dailySalary.toFixed(2)),
       absentDeduction:  parseFloat(absentDeduction.toFixed(2)),
       halfDayDeduction: parseFloat(halfDayDeduction.toFixed(2)),
+      leaveDeduction:   parseFloat(leaveDeduction.toFixed(2)),
       totalDeduction:   parseFloat(totalDeduction.toFixed(2)),
       netSalary:        parseFloat(netSalary.toFixed(2)),
       generatedById:    validGeneratedById,
-      updatedAt: new Date(),
+      updatedAt:        new Date(),
     },
   });
 
