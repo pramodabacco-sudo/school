@@ -1,6 +1,7 @@
 import {
   listDeletedRecords,
   restoreSingleRecord,
+  permanentlyDeleteRecord,
   listSchoolBackups,
   restoreEntireSchool,
     getSchoolBackupDetailsService,
@@ -53,6 +54,51 @@ export async function restoreRecord(req, res) {
     res.json({
       success: true,
       message: "Record restored",
+    });
+
+  } catch (err) {
+
+    console.log(err);
+
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+
+  }
+
+}
+
+export async function permanentDeleteRecord(req, res) {
+
+  try {
+
+    const { model, recordId } = req.params;
+    const { confirm } = req.body;
+
+    // ✅ REQUIRE EXPLICIT CONFIRMATION
+    if (!confirm) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Permanent deletion must be explicitly confirmed",
+      });
+    }
+
+    await permanentlyDeleteRecord({
+      schoolId: req.user.schoolId,
+      model,
+      recordId,
+    });
+
+    // ✅ CLEAR CACHE AFTER PERMANENT DELETE
+    await cacheService.invalidateSchool(
+      req.user.schoolId
+    );
+
+    res.json({
+      success: true,
+      message: "Record permanently deleted",
     });
 
   } catch (err) {

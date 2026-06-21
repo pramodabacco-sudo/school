@@ -101,11 +101,12 @@ const models = [
       }
 
       // Skip models without deletedAt
-// models without deletedAt
-const noSoftDeleteModels = [
-  "chatRoom",
-   "message",
-];
+    // models without deletedAt
+    const noSoftDeleteModels = [
+      "chatRoom",
+      "message",
+      "studentEnrollment",
+    ];
 
 if (noSoftDeleteModels.includes(model)) {
   continue;
@@ -117,59 +118,74 @@ const whereClause = {
   },
 };
 
-// models having direct schoolId
-const schoolIdModels = [
-  "student",
-  "studentList",
-  "parent",
-  "teacherProfile",
-  "staffProfile",
-  "classSection",
-  "subject",
-  "academicYear",
-  "attendanceRecord",
-  "teacherAttendance",
-  "assessmentTerm",
-  "assessmentGroup",
-  "assessmentSchedule",
-  "marks",
-  "schoolHoliday",
-  "timetableConfig",
-  "timetableEntry",
-  
-  "activity",
-  "activityEvent",
-  "certificate",
-  "galleryAlbum",
-  "expense",
-  
-  "teacherMonthlySalary",
-  "transport",
-  "transportRoute",
-  "hostel",
-  "notification",
- "teacherTutorialProfile",
-  "groupBStaffSalary",
-  "groupCStaffSalary",
- 
-];
+  // models having direct schoolId
+  const schoolIdModels = [
+    "student",
+    "studentList",
+    "parent",
+    "teacherProfile",
+    "staffProfile",
+
+    // Academics
+    "classSection",
+    "subject",
+    "academicYear",
+    "teacherAttendance",
+    "assessmentTerm",
+    "assessmentGroup",
+
+    // Timetable
+    "timetableConfig",
+    "timetableEntry",
+
+    // Activities
+    "activity",
+    "activityEvent",
+
+    // Gallery
+    "galleryAlbum",
+
+    // Finance
+    "expense",
+    "teacherMonthlySalary",
+    "groupBStaffSalary",
+    "groupCStaffSalary",
+
+    // Transport
+    "transportRoute",
+
+    // Tutorial
+    "teacherTutorialProfile",
+  ];
 
 if (schoolId && schoolIdModels.includes(model)) {
   whereClause.schoolId = schoolId;
-}
-if (model === "galleryImage" && schoolId) {
+}if (model === "galleryImage" && schoolId) {
   whereClause.album = {
     schoolId,
   };
 }
-// marks -> through schedule
-if (model === "marks" && schoolId) {
-  whereClause.schedule = {
+
+if (model === "attendanceRecord" && schoolId) {
+  whereClause.classSection = {
     schoolId,
   };
 }
 
-// certificate -> through student
+if (model === "assessmentSchedule" && schoolId) {
+  whereClause.classSection = {
+    schoolId,
+  };
+}
+
+if (model === "marks" && schoolId) {
+  whereClause.schedule = {
+    classSection: {
+      schoolId,
+    },
+  };
+}
+
 if (model === "certificate" && schoolId) {
   whereClause.student = {
     schoolId,
@@ -182,10 +198,6 @@ if (model === "schoolHoliday" && schoolId) {
   };
 }
 const includeConfig = {
-  parent: {
-    user: true,
-  },
-
   teacherProfile: {
     user: true,
   },
@@ -315,6 +327,106 @@ export const restoreSingleRecord = async ({
     throw error;
   }
 };
+
+/* =========================================================
+   PERMANENTLY DELETE RECORD
+========================================================= */
+
+export const permanentlyDeleteRecord = async ({
+  schoolId,
+  model,
+  recordId,
+}) => {
+
+  try {
+
+    if (!prisma[model]) {
+      throw new Error(`Invalid model: ${model}`);
+    }
+
+    console.log("PERMANENT DELETE REQUEST:", {
+      model,
+      recordId,
+      type: typeof recordId,
+    });
+
+    // =========================
+    // STAFF PERMANENT DELETE
+    // (also removes the linked user account)
+    // =========================
+
+    if (model === "staffProfile") {
+
+      const staff =
+        await prisma.staffProfile.findUnique({
+          where: {
+            id: recordId,
+          },
+        });
+
+      if (!staff) {
+        throw new Error("Record not found");
+      }
+
+      const deletedStaff =
+        await prisma.staffProfile.delete({
+          where: {
+            id: recordId,
+          },
+        });
+
+      if (staff.userId) {
+
+        await prisma.user
+          .delete({
+            where: {
+              id: staff.userId,
+            },
+          })
+          .catch((err) => {
+            console.log(
+              "⚠️ Could not delete linked user:",
+              err.message
+            );
+          });
+
+      }
+
+      return deletedStaff;
+    }
+
+    // =========================
+    // NORMAL PERMANENT DELETE
+    // =========================
+
+    const existing =
+      await prisma[model].findUnique({
+        where: {
+          id: recordId,
+        },
+      });
+
+    if (!existing) {
+      throw new Error("Record not found");
+    }
+
+    const deletedRecord =
+      await prisma[model].delete({
+        where: {
+          id: recordId,
+        },
+      });
+
+    return deletedRecord;
+
+  } catch (error) {
+
+    console.log("❌ PERMANENT DELETE ERROR:", error);
+
+    throw error;
+  }
+};
+
 /* =========================================================
    LIST SCHOOL BACKUPS
 ========================================================= */

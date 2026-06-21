@@ -8,6 +8,7 @@ import {
     CalendarDays,
     AlertTriangle,
     DatabaseBackup,
+    X,
 } from "lucide-react";
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -17,6 +18,8 @@ export default function DeletedRecords() {
     const [deletedRecords, setDeletedRecords] = useState([]);
     const [loading, setLoading] = useState(true);
     const [restoringId, setRestoringId] = useState(null);
+    const [deletingId, setDeletingId] = useState(null);
+    const [confirmDeleteRecord, setConfirmDeleteRecord] = useState(null);
 
     /* =========================================================
        FETCH DELETED RECORDS
@@ -169,6 +172,49 @@ export default function DeletedRecords() {
         } finally {
 
             setRestoringId(null);
+
+        }
+    };
+
+    /* =========================================================
+       PERMANENTLY DELETE RECORD
+    ========================================================= */
+
+    const permanentlyDeleteRecord = async (
+        model,
+        recordId
+    ) => {
+
+        try {
+
+            setDeletingId(recordId);
+
+            const token =
+                JSON.parse(localStorage.getItem("auth"))?.token;
+
+            await axios.delete(
+                `${API_URL}/api/backups/permanent-delete/${model}/${recordId}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                    data: {
+                        confirm: true,
+                    },
+                }
+            );
+
+            setConfirmDeleteRecord(null);
+
+            await fetchDeletedRecords();
+
+        } catch (error) {
+
+            console.log(error);
+
+        } finally {
+
+            setDeletingId(null);
 
         }
     };
@@ -498,28 +544,54 @@ export default function DeletedRecords() {
 
                                         <td className="px-6 py-5 text-right">
 
-                                            <button
-                                                onClick={() =>
-                                                    restoreRecord(
-                                                        record.model,
-                                                        record.id
-                                                    )
-                                                }
+                                            <div className="inline-flex items-center gap-2">
 
-                                                disabled={
-                                                    restoringId === record.id
-                                                }
+                                                <button
+                                                    onClick={() =>
+                                                        restoreRecord(
+                                                            record.model,
+                                                            record.id
+                                                        )
+                                                    }
 
-                                                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition disabled:opacity-50"
-                                            >
+                                                    disabled={
+                                                        restoringId === record.id ||
+                                                        deletingId === record.id
+                                                    }
 
-                                                <RotateCcw size={16} />
+                                                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition disabled:opacity-50"
+                                                >
 
-                                                {restoringId === record.id
-                                                    ? "Restoring..."
-                                                    : "Restore"}
+                                                    <RotateCcw size={16} />
 
-                                            </button>
+                                                    {restoringId === record.id
+                                                        ? "Restoring..."
+                                                        : "Restore"}
+
+                                                </button>
+
+                                                <button
+                                                    onClick={() =>
+                                                        setConfirmDeleteRecord(record)
+                                                    }
+
+                                                    disabled={
+                                                        restoringId === record.id ||
+                                                        deletingId === record.id
+                                                    }
+
+                                                    className="inline-flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 text-sm font-medium rounded-xl hover:bg-red-100 transition disabled:opacity-50"
+                                                >
+
+                                                    <Trash2 size={16} />
+
+                                                    {deletingId === record.id
+                                                        ? "Deleting..."
+                                                        : "Delete Permanently"}
+
+                                                </button>
+
+                                            </div>
 
                                         </td>
 
@@ -536,6 +608,101 @@ export default function DeletedRecords() {
                 )}
 
             </div>
+
+            {/* =====================================================
+               PERMANENT DELETE CONFIRMATION MODAL
+            ===================================================== */}
+
+            {confirmDeleteRecord && (
+
+                <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+
+                    <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+
+                        <div className="flex items-start justify-between mb-4">
+
+                            <div className="flex items-center gap-3">
+
+                                <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center">
+
+                                    <AlertTriangle
+                                        size={20}
+                                        className="text-red-600"
+                                    />
+
+                                </div>
+
+                                <h3 className="text-lg font-semibold text-gray-800">
+                                    Delete Permanently?
+                                </h3>
+
+                            </div>
+
+                            <button
+                                onClick={() =>
+                                    setConfirmDeleteRecord(null)
+                                }
+                                className="text-gray-400 hover:text-gray-600"
+                            >
+
+                                <X size={20} />
+
+                            </button>
+
+                        </div>
+
+                        <p className="text-sm text-gray-600 mb-6">
+                            You're about to permanently delete{" "}
+                            <span className="font-semibold text-gray-800">
+                                {confirmDeleteRecord.name}
+                            </span>
+                            {" "}({confirmDeleteRecord.type}). This action
+                            cannot be undone and the record will no longer
+                            be recoverable, even from backups.
+                        </p>
+
+                        <div className="flex justify-end gap-3">
+
+                            <button
+                                onClick={() =>
+                                    setConfirmDeleteRecord(null)
+                                }
+                                disabled={
+                                    deletingId === confirmDeleteRecord.id
+                                }
+                                className="px-4 py-2 text-sm font-medium text-gray-600 rounded-xl hover:bg-gray-100 transition disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+
+                            <button
+                                onClick={() =>
+                                    permanentlyDeleteRecord(
+                                        confirmDeleteRecord.model,
+                                        confirmDeleteRecord.id
+                                    )
+                                }
+                                disabled={
+                                    deletingId === confirmDeleteRecord.id
+                                }
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-xl hover:bg-red-700 transition disabled:opacity-50"
+                            >
+
+                                <Trash2 size={16} />
+
+                                {deletingId === confirmDeleteRecord.id
+                                    ? "Deleting..."
+                                    : "Yes, Delete Permanently"}
+
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            )}
 
         </div>
     );

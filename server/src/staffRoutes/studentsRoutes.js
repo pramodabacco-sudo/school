@@ -18,6 +18,7 @@ import {
   bulkImportStudents,  
   exportStudentsExcel,
   getStudentLimitStatus,
+  bulkDeleteStudents
 } from "../staffControlls/StudentsControlls.js";
 
 const router = express.Router();
@@ -91,6 +92,7 @@ router.get("/documents/:documentId/view", authMiddleware, viewStudentDocument);
 router.get("/:id/profile-image", authMiddleware, getProfileImage);
 
 // Delete student
+router.post("/bulk-delete", authMiddleware, bulkDeleteStudents);
 router.delete("/:id", authMiddleware, deleteStudent);
 
 router.get("/export/excel", authMiddleware, exportStudentsExcel);
