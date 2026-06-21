@@ -4,6 +4,7 @@ import { requireAuth } from "../../middlewares/auth.middleware.js";
 import {
   getDeletedRecords,
   restoreRecord,
+  permanentDeleteRecord,
   getSchoolsBackups,
   restoreSchoolBackup,
   getSchoolBackupDetails,
@@ -27,6 +28,12 @@ router.post(
   "/restore/:model/:recordId",
   requireAuth,
   restoreRecord
+);
+
+router.delete(
+  "/permanent-delete/:model/:recordId",
+  requireAuth,
+  permanentDeleteRecord
 );
 
 // SUPER ADMIN

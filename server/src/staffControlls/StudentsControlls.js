@@ -672,6 +672,33 @@ export const deleteStudent = async (req, res) => {
   }
 };
 
+// ── bulkDeleteStudents ────────────────────────────────────────────────────────
+export const bulkDeleteStudents = async (req, res) => {
+  try {
+    const { ids } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: "No student ids provided" });
+    }
+
+    const result = await prisma.student.updateMany({
+      where: { id: { in: ids } },
+      data: { deletedAt: new Date() },
+    });
+
+    return res.json({
+      success: true,
+      message: `${result.count} student${result.count !== 1 ? "s" : ""} moved to recovery`,
+      count: result.count,
+    });
+  } catch (error) {
+    console.log("BULK DELETE ERROR:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // ── viewStudentDocument ───────────────────────────────────────────────────────
 export const viewStudentDocument = async (req, res) => {
   try {

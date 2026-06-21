@@ -1259,6 +1259,7 @@ function StudentsList() {
   const [openImport, setOpenImport] = useState(false);
   const [openExport, setOpenExport] = useState(false);
   const [selectedStudentIds, setSelectedStudentIds] = useState(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [students, setStudents] = useState([]);
   const [stats, setStats] = useState({
     total: 0,
@@ -1659,6 +1660,65 @@ function StudentsList() {
 
     }
   };
+
+  const handleBulkDelete = async () => {
+    const ids = Array.from(selectedStudentIds);
+    if (ids.length === 0) return;
+
+    if (
+      !window.confirm(
+        `Delete ${ids.length} selected student${ids.length !== 1 ? "s" : ""}? This cannot be undone.`,
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setBulkDeleting(true);
+
+      const res = await fetch(`${API_URL}/api/students/bulk-delete`, {
+        method: "POST",
+        headers: {
+          ...authHeaders(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ ids }),
+      });
+
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        // The request never hit the API (404/proxy/HTML fallback page etc.)
+        throw new Error(
+          `Server returned ${res.status} ${res.statusText || ""} (non-JSON response). ` +
+            `Check that POST /api/students/bulk-delete is registered on the backend.`,
+        );
+      }
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Bulk delete failed");
+      }
+
+      // ✅ REMOVE DELETED STUDENTS IMMEDIATELY
+      setStudents((prev) => prev.filter((student) => !selectedStudentIds.has(student.id)));
+      setTotal((prev) => Math.max(0, prev - ids.length));
+
+      // ✅ CLEAR SELECTION
+      setSelectedStudentIds(new Set());
+
+      // ✅ REFRESH FROM SERVER + STATS
+      await fetchStudents();
+      invalidate();
+
+      alert(`${ids.length} student${ids.length !== 1 ? "s" : ""} moved to recovery successfully`);
+    } catch (err) {
+      console.error(err);
+      alert(`Bulk delete failed: ${err.message}`);
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
   const viewLevel = !navStack.length
     ? 0
     : !selectedSection
@@ -1821,6 +1881,59 @@ function StudentsList() {
               </p>
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+              {selectedStudentIds.size > 0 && (
+                <button
+                  onClick={handleBulkDelete}
+                  disabled={bulkDeleting}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 7,
+                    padding: "10px 18px",
+                    borderRadius: 13,
+                    border: "1.5px solid #f5b0b0",
+                    background: bulkDeleting ? "#fde8e8" : "#fee8e8",
+                    color: "#b91c1c",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: bulkDeleting ? "not-allowed" : "pointer",
+                    fontFamily: "'Inter', sans-serif",
+                    transition: "all 0.2s",
+                    flexShrink: 0,
+                    opacity: bulkDeleting ? 0.7 : 1,
+                  }}
+                  onMouseEnter={(e) => {
+                    if (bulkDeleting) return;
+                    e.currentTarget.style.background = "#fdd5d5";
+                    e.currentTarget.style.borderColor = "#e88c8c";
+                  }}
+                  onMouseLeave={(e) => {
+                    if (bulkDeleting) return;
+                    e.currentTarget.style.background = "#fee8e8";
+                    e.currentTarget.style.borderColor = "#f5b0b0";
+                  }}
+                >
+                  {bulkDeleting ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <Trash2 size={14} />
+                  )}
+                  Delete Selected
+                  <span
+                    style={{
+                      background: "#b91c1c",
+                      color: "#fff",
+                      borderRadius: 20,
+                      fontSize: 10,
+                      fontWeight: 800,
+                      padding: "1px 7px",
+                      marginLeft: 2,
+                    }}
+                  >
+                    {selectedStudentIds.size}
+                  </span>
+                </button>
+              )}
               <button
                 onClick={() => setOpenExport(true)}
                 style={{
