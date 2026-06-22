@@ -423,18 +423,22 @@ export default function BulkImportStudents({ onClose, onSuccess }) {
       }
 
       if (response.ok && Array.isArray(data.results)) {
+        // result.row is 1-based index into the valid[] array sent to backend
         data.results.forEach((result) => {
-          const validRow = valid[result.row - 1];
+          const validRow = valid[result.row - 1]; // valid[0] = first sent student
           if (!validRow) return;
           const idx = updatedRows.findIndex((x) => x._idx === validRow._idx);
           if (idx === -1) return;
           updatedRows[idx] = {
             ...updatedRows[idx],
             status: result.success ? "success" : "error",
-            serverError: result.success ? null : (result.error || result.detail || result.message || "Unknown error"),
+            serverError: result.success
+              ? null
+              : (result.error || result.detail || result.message || "Server rejected this row"),
           };
         });
       } else {
+        // Whole batch rejected (limit exceeded, auth error, etc.)
         const errorMsg = data.message || "Import failed";
         valid.forEach((row) => {
           const idx = updatedRows.findIndex((x) => x._idx === row._idx);
@@ -443,10 +447,10 @@ export default function BulkImportStudents({ onClose, onSuccess }) {
         });
       }
 
-      // Mark any valid rows that got no response
+      // Any valid row that got no result entry = server missed it
       updatedRows.forEach((row, index) => {
         if (row.status === "pending" && row.errors.length === 0) {
-          updatedRows[index] = { ...row, status: "error", serverError: "No response from server" };
+          updatedRows[index] = { ...row, status: "error", serverError: "No response from server for this row" };
         }
       });
 
@@ -915,83 +919,124 @@ export default function BulkImportStudents({ onClose, onSuccess }) {
           {/* ── STEP 3: Done ──────────────────────────────────────────────── */}
           {step === "done" && (
             <div className="space-y-4">
-              {/* Summary */}
+
+              {/* ── Summary banner ── */}
               <div
-                className="rounded-xl p-5 flex flex-col items-center gap-3 text-center"
+                className="rounded-xl p-4"
                 style={{
                   background: successCount > 0 ? "#f0fdf4" : "#fef2f2",
                   border: `1px solid ${successCount > 0 ? "#bbf7d0" : "#fecaca"}`,
                 }}
               >
-                <CheckCircle
-                  size={32}
-                  style={{ color: successCount > 0 ? "#16a34a" : "#dc2626" }}
-                />
-                <div>
-                  <p className="font-bold text-base" style={{ color: successCount > 0 ? "#15803d" : "#dc2626" }}>
-                    {successCount > 0 ? `${successCount} students imported successfully!` : "Import failed"}
+                {/* Headline */}
+                <div className="flex items-center gap-2 mb-3">
+                  <CheckCircle size={20} style={{ color: successCount > 0 ? "#16a34a" : "#dc2626", flexShrink: 0 }} />
+                  <p className="font-bold text-sm" style={{ color: successCount > 0 ? "#15803d" : "#dc2626" }}>
+                    {successCount > 0 && failCount === 0
+                      ? `All ${successCount} students imported successfully!`
+                      : successCount > 0
+                        ? `${successCount} imported, ${failCount} failed`
+                        : "Import failed — no students were added"}
                   </p>
+                </div>
+
+                {/* Stat pills */}
+                <div className="flex flex-wrap gap-2 mb-3">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold"
+                    style={{ background: "#dcfce7", color: "#15803d" }}>
+                    <CheckCircle size={10} /> {successCount} Uploaded
+                  </span>
                   {failCount > 0 && (
-                    <p className="text-xs mt-1" style={{ color: "#dc2626" }}>
-                      {failCount} row(s) failed — see details below
-                    </p>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold"
+                      style={{ background: "#fee2e2", color: "#dc2626" }}>
+                      <AlertCircle size={10} /> {failCount} Failed (server rejected)
+                    </span>
                   )}
                   {invalidCount > 0 && (
-                    <p className="text-xs mt-1" style={{ color: "#d97706" }}>
-                      {invalidCount} row(s) were skipped due to validation issues
-                    </p>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold"
+                      style={{ background: "#fef3c7", color: "#b45309" }}>
+                      <AlertCircle size={10} /> {invalidCount} Skipped (missing fields)
+                    </span>
                   )}
                 </div>
+
+                {/* Reason hints */}
+                {failCount > 0 && (
+                  <p className="text-xs" style={{ color: "#991b1b" }}>
+                    ⚠ Failed rows were rejected by the server. Common reasons: email already registered,
+                    duplicate admission number, wrong class name, or academic year mismatch.
+                    Check the <strong>Reason</strong> column below for each row.
+                  </p>
+                )}
+                {invalidCount > 0 && (
+                  <p className="text-xs mt-1" style={{ color: "#92400e" }}>
+                    ⚠ Skipped rows had missing required fields and were never sent to the server.
+                  </p>
+                )}
               </div>
 
-              {/* Result table */}
-              <div
-                className="rounded-xl overflow-hidden"
-                style={{ border: `1px solid ${COLORS.border}` }}
-              >
+              {/* ── Result table ── */}
+              <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${COLORS.border}` }}>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-xs" style={{ minWidth: 400 }}>
+                  <table className="w-full text-xs" style={{ minWidth: 500 }}>
                     <thead>
                       <tr style={{ background: COLORS.bgSoft, borderBottom: `1px solid ${COLORS.border}` }}>
                         <th className="px-3 py-2.5 text-left font-bold" style={{ color: COLORS.secondary }}>Row</th>
                         <th className="px-3 py-2.5 text-left font-bold" style={{ color: COLORS.secondary }}>Name</th>
-                        <th className="px-3 py-2.5 text-left font-bold hidden sm:table-cell" style={{ color: COLORS.secondary }}>Email</th>
+                        <th className="px-3 py-2.5 text-left font-bold" style={{ color: COLORS.secondary }}>Email</th>
                         <th className="px-3 py-2.5 text-left font-bold" style={{ color: COLORS.secondary }}>Result</th>
-                        <th className="px-3 py-2.5 text-left font-bold hidden sm:table-cell" style={{ color: COLORS.secondary }}>Message</th>
+                        <th className="px-3 py-2.5 text-left font-bold" style={{ color: COLORS.secondary }}>Reason</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {rows.map((row) => (
-                        <tr
-                          key={row._idx}
-                          style={{
-                            borderBottom: `1px solid ${COLORS.border}`,
-                            background:
-                              row.status === "success" ? "#f0fdf4"
-                                : row.status === "error" ? "#fef2f2"
-                                  : row.errors.length ? "#fffbeb"
-                                    : "white",
-                          }}
-                        >
-                          <td className="px-3 py-2.5 font-mono" style={{ color: COLORS.secondary }}>#{row._idx}</td>
-                          <td className="px-3 py-2.5 font-semibold" style={{ color: COLORS.primary }}>
-                            <span className="block">{row.student.firstName} {row.student.lastName}</span>
-                            {/* show error inline on mobile */}
-                            {(row.serverError || row.errors[0]) && (
-                              <span className="sm:hidden text-[10px] font-normal block" style={{ color: "#dc2626" }}>
-                                {row.serverError || row.errors[0]}
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-3 py-2.5 hidden sm:table-cell" style={{ color: COLORS.secondary }}>{row.student.email}</td>
-                          <td className="px-3 py-2.5">
-                            <RowStatus status={row.status} errors={row.errors} />
-                          </td>
-                          <td className="px-3 py-2.5 hidden sm:table-cell" style={{ color: "#dc2626" }}>
-                            {row.serverError || (row.errors.length ? row.errors[0] : "")}
-                          </td>
-                        </tr>
-                      ))}
+                      {rows.map((row) => {
+                        const reason = row.status === "success"
+                          ? ""
+                          : row.serverError
+                            ? row.serverError
+                            : row.errors.length
+                              ? row.errors.join(" | ")
+                              : "";
+                        return (
+                          <tr
+                            key={row._idx}
+                            style={{
+                              borderBottom: `1px solid ${COLORS.border}`,
+                              background:
+                                row.status === "success" ? "#f0fdf4"
+                                  : row.status === "error" ? "#fef2f2"
+                                    : row.errors.length ? "#fffbeb"
+                                      : "white",
+                            }}
+                          >
+                            <td className="px-3 py-2.5 font-mono" style={{ color: COLORS.secondary }}>
+                              #{row._idx}
+                            </td>
+                            <td className="px-3 py-2.5 font-semibold" style={{ color: COLORS.primary }}>
+                              {row.student.firstName} {row.student.lastName}
+                            </td>
+                            <td className="px-3 py-2.5" style={{ color: COLORS.secondary, wordBreak: "break-all" }}>
+                              {row.student.email}
+                            </td>
+                            <td className="px-3 py-2.5">
+                              <RowStatus status={row.status} errors={row.errors} />
+                            </td>
+                            <td className="px-3 py-2.5" style={{
+                              color: row.status === "success" ? "#15803d"
+                                : row.status === "error" ? "#dc2626"
+                                  : "#b45309",
+                              fontSize: "11px",
+                              maxWidth: "260px",
+                            }}>
+                              {row.status === "success"
+                                ? "✓ Imported successfully"
+                                : reason
+                                  ? `✗ ${reason}`
+                                  : "—"}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
