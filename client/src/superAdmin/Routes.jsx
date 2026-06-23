@@ -24,7 +24,8 @@ import ResultReports from "./pages/ResultReports/ResultReports";
 import BiometricManagement from "./pages/Biometric/BiometricManagement";
 import PayrollManagement from "./pages/PayrollManagement/PayrollManagement.jsx";
 import VehicleManagement from "./pages/VehicleTracking/VehicleManagement";
-import VoiceAnnouncements from "./pages/VoiceAnnouncements/VoiceAnnouncements.jsx"; // ← ADD THIS
+import VoiceAnnouncements from "./pages/VoiceAnnouncements/VoiceAnnouncements.jsx";
+import IdCardManagement from "./pages/IdCards/IdCardManagement";
 
 
 function SuperAdminRoutes() {
@@ -54,7 +55,8 @@ function SuperAdminRoutes() {
         <Route path="biometric" element={<BiometricManagement />} />
         <Route path="payroll" element={<PayrollManagement />} />
         <Route path="vehicles" element={<VehicleManagement />} />
-        <Route path="voice-announcements" element={<VoiceAnnouncements />} /> {/* ← ADD THIS */}
+        <Route path="voice-announcements" element={<VoiceAnnouncements />} />
+        <Route path="id-cards" element={<IdCardManagement />} />
         <Route path="*" element={<Navigate to="dashboard" replace />} />
       </Routes>
     </PageLayout>
