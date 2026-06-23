@@ -349,6 +349,8 @@ model School {
   schoolVehicles     SchoolVehicle[]
   vehicleLocations   VehicleLocation[]
   voiceAnnouncements VoiceAnnouncement[]
+  idCardOrders       IdCardOrder[]
+  idCardTemplates    IdCardTemplate[]
 
   biometricStudentAttendances BiometricStudentAttendance[]
 
@@ -3992,4 +3994,63 @@ model VoiceAnnouncementListen {
   @@unique([announcementId, parentId])
   @@index([parentId])
   @@map("voice_announcement_listens")
+}
+
+model IdCardOrder {
+  id String @id @default(uuid())
+
+  schoolId   String
+  school     School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  schoolName String
+
+  templateId String?
+  template   IdCardTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  classDetails Json @default("[]")
+  totalCards   Int  @default(0)
+
+  contactName  String?
+  contactPhone String?
+  contactEmail String?
+
+  status IdCardOrderStatus @default(PENDING)
+  notes  String?
+
+  orderedAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([schoolId])
+  @@index([status])
+  @@index([orderedAt])
+  @@map("id_card_orders")
+}
+
+enum IdCardOrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  DISPATCHED
+  DELIVERED
+  CANCELLED
+}
+
+model IdCardTemplate {
+  id          String  @id @default(uuid())
+  title       String
+  description String?
+  imageKey    String
+  imageUrl    String?
+  isActive    Boolean @default(true)
+  isDefault   Boolean @default(false)
+
+  schoolId String?
+  school   School? @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  uploadedAt DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  orders IdCardOrder[]
+
+  @@index([schoolId])
+  @@map("id_card_templates")
 }

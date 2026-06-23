@@ -64,7 +64,8 @@
   // ── GET /api/class-sections ──────────────────────────────────────────────────
   export const getClassSections = async (req, res) => {
     try {
-      const schoolId = req.user.schoolId;
+      // const schoolId = req.user.schoolId;
+      const schoolId = req.query.schoolId || req.user.schoolId;
       if (!schoolId)
         return res.status(400).json({ message: "schoolId missing from token" });
 
@@ -73,7 +74,7 @@
       const key = await cacheService.buildKey(schoolId, namespace);
 
       const cached = await cacheGet(key);
-      if (cached)
+      if (cached && !req.query.schoolId)
         return res.json({ classSections: JSON.parse(cached), fromCache: true });
 
       const classSections = await prisma.classSection.findMany({
@@ -132,9 +133,9 @@
       const namespace = `class-sections:${schoolId}:${id}:${academicYearId ?? "all"}`;
       const key = await cacheService.buildKey(schoolId, namespace);
 
-      const cached = await cacheGet(key);
-      if (cached)
-        return res.json({ classSection: JSON.parse(cached), fromCache: true });
+    const cached = await cacheGet(key);
+    if (cached && !req.query.schoolId)
+      return res.json({ classSections: JSON.parse(cached), fromCache: true });
 
       const section = await prisma.classSection.findFirst({
         where: { id, schoolId },
