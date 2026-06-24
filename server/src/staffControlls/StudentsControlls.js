@@ -484,7 +484,7 @@ export const uploadDocumentsBulk = async (req, res) => {
 // ── getStudent ────────────────────────────────────────────────────────────────
 export const getStudent = async (req, res) => {
   try {
-    const schoolId = req.user?.schoolId;
+    const schoolId = req.query.schoolId || req.user.schoolId;
     if (!schoolId)
       return res.status(400).json({ message: "schoolId missing from token" });
 
@@ -560,7 +560,7 @@ export const getStudent = async (req, res) => {
 // ── listStudents ──────────────────────────────────────────────────────────────
 export const listStudents = async (req, res) => {
   try {
-    const schoolId = req.user?.schoolId;
+   const schoolId = req.query.schoolId || req.user?.schoolId;
     if (!schoolId)
       return res.status(400).json({ message: "schoolId missing from token" });
 
