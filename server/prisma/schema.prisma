@@ -3738,6 +3738,8 @@ enum AttendanceAuditAction {
 //    Generated from TeacherDailyAttendance — never from BiometricLog directly.
 //    Locked payrolls cannot be regenerated.
 // ─────────────────────────────────────────────────────────────────────────────
+
+
 model TeacherMonthlyPayroll {
   id        String         @id @default(cuid())
   schoolId  String

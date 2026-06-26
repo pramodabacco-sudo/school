@@ -12,6 +12,7 @@ import { InvoiceModal } from "./FeesInvoce.jsx";
 import { downloadStudentFinanceExcel } from "../../../utils/downloadStudentFinanceExcel.js";
 import { FaWhatsapp, FaPhone } from "react-icons/fa";
 import { useSchoolLogo } from "../../../hooks/useSchoolLogo";
+import VoiceCallModal from "./components/VoiceCallModal";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -250,122 +251,122 @@ function ReceiptConfirmModal({ student, onClose, onConfirm }) {
     );
 }
 
-function VoiceCallConfirmModal({
-    student,
-    onClose,
-    onConfirm
-}) {
-    return (
-        <div className="inv-overlay" onClick={onClose}>
-            <div
-                style={{
-                    background: "#fff",
-                    borderRadius: 16,
-                    width: "100%",
-                    maxWidth: 340,
-                    overflow: "hidden",
-                    boxShadow: "0 16px 40px rgba(0,0,0,.22)"
-                }}
-                onClick={(e) => e.stopPropagation()}
-            >
-                <div
-                    style={{
-                        background:
-                            "linear-gradient(135deg,#1C3044,#27435B)",
-                        padding: "16px 20px",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 10
-                    }}
-                >
-                    <div
-                        style={{
-                            width: 38,
-                            height: 38,
-                            borderRadius: 10,
-                            background: "rgba(255,255,255,.14)",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center"
-                        }}
-                    >
-                        <FaPhone size={18} color="#fff" />
-                    </div>
+// function VoiceCallConfirmModal({
+//     student,
+//     onClose,
+//     onConfirm
+// }) {
+//     return (
+//         <div className="inv-overlay" onClick={onClose}>
+//             <div
+//                 style={{
+//                     background: "#fff",
+//                     borderRadius: 16,
+//                     width: "100%",
+//                     maxWidth: 340,
+//                     overflow: "hidden",
+//                     boxShadow: "0 16px 40px rgba(0,0,0,.22)"
+//                 }}
+//                 onClick={(e) => e.stopPropagation()}
+//             >
+//                 <div
+//                     style={{
+//                         background:
+//                             "linear-gradient(135deg,#1C3044,#27435B)",
+//                         padding: "16px 20px",
+//                         display: "flex",
+//                         alignItems: "center",
+//                         gap: 10
+//                     }}
+//                 >
+//                     <div
+//                         style={{
+//                             width: 38,
+//                             height: 38,
+//                             borderRadius: 10,
+//                             background: "rgba(255,255,255,.14)",
+//                             display: "flex",
+//                             alignItems: "center",
+//                             justifyContent: "center"
+//                         }}
+//                     >
+//                         <FaPhone size={18} color="#fff" />
+//                     </div>
 
-                    <div>
-                        <div
-                            style={{
-                                color: "#fff",
-                                fontWeight: 700
-                            }}
-                        >
-                            Voice Call Reminder
-                        </div>
+//                     <div>
+//                         <div
+//                             style={{
+//                                 color: "#fff",
+//                                 fontWeight: 700
+//                             }}
+//                         >
+//                             Voice Call Reminder
+//                         </div>
 
-                        <div
-                            style={{
-                                color: "rgba(255,255,255,.6)",
-                                fontSize: 12
-                            }}
-                        >
-                            Automated Voice Call
-                        </div>
-                    </div>
-                </div>
+//                         <div
+//                             style={{
+//                                 color: "rgba(255,255,255,.6)",
+//                                 fontSize: 12
+//                             }}
+//                         >
+//                             Automated Voice Call
+//                         </div>
+//                     </div>
+//                 </div>
 
-                <div
-                    style={{
-                        padding: "24px 22px",
-                        textAlign: "center"
-                    }}
-                >
-                    <FaPhone
-                        size={28}
-                        color="#2563eb"
-                        style={{ marginBottom: 12 }}
-                    />
+//                 <div
+//                     style={{
+//                         padding: "24px 22px",
+//                         textAlign: "center"
+//                     }}
+//                 >
+//                     <FaPhone
+//                         size={28}
+//                         color="#2563eb"
+//                         style={{ marginBottom: 12 }}
+//                     />
 
-                    <p>
-                        Send voice fee reminder to
-                        <strong> {student.name}</strong> ?
-                    </p>
-                </div>
+//                     <p>
+//                         Send voice fee reminder to
+//                         <strong> {student.name}</strong> ?
+//                     </p>
+//                 </div>
 
-                <div
-                    style={{
-                        padding: "20px",
-                        display: "flex",
-                        gap: 10
-                    }}
-                >
-                    <button
-                        onClick={onClose}
-                        style={{
-                            flex: 1,
-                            padding: 10
-                        }}
-                    >
-                        Cancel
-                    </button>
+//                 <div
+//                     style={{
+//                         padding: "20px",
+//                         display: "flex",
+//                         gap: 10
+//                     }}
+//                 >
+//                     <button
+//                         onClick={onClose}
+//                         style={{
+//                             flex: 1,
+//                             padding: 10
+//                         }}
+//                     >
+//                         Cancel
+//                     </button>
 
-                    <button
-                        onClick={onConfirm}
-                        style={{
-                            flex: 1,
-                            padding: 10,
-                            background: "#2563eb",
-                            color: "#fff",
-                            border: "none",
-                            borderRadius: 8
-                        }}
-                    >
-                        Call Now
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-}
+//                     <button
+//                         onClick={onConfirm}
+//                         style={{
+//                             flex: 1,
+//                             padding: 10,
+//                             background: "#2563eb",
+//                             color: "#fff",
+//                             border: "none",
+//                             borderRadius: 8
+//                         }}
+//                     >
+//                         Call Now
+//                     </button>
+//                 </div>
+//             </div>
+//         </div>
+//     );
+// }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN PAGE
@@ -1836,10 +1837,11 @@ export default function StudentFeesPage() {
                 />
             )}
             {voiceStudent && (
-                <VoiceCallConfirmModal
+                <VoiceCallModal
                     student={voiceStudent}
+                    schoolInfo={schoolInfo}
                     onClose={() => setVoiceStudent(null)}
-                    onConfirm={handleSendVoiceCall}
+                    apiUrl={API_URL}
                 />
             )}
 
