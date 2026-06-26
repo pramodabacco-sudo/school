@@ -815,7 +815,7 @@ export default function AddStudent({ onClose, closeModal, onSuccess }) {
       "academicYearId",
       "admDate",
     ],
-    parent: ["pNm", "pPh", "pEm"],
+    parent: ["pNm", "pPh"],
     health: ["blood"],
     documents: [],
   };
