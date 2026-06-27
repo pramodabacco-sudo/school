@@ -46,10 +46,12 @@ export const loginSuperAdmin = (credentials) =>
 export const registerSuperAdmin = (data) =>
   post("/api/auth/super-admin/register", data);
 
-// ── Login OTP ─────────────────────────────────────────────────────────────
+// ── Login OTP (phone-based) ───────────────────────────────────────────────
 
 export const sendLoginOtp = (credentials) =>
   post("/api/auth/login-with-otp", credentials);
+// credentials shape: { phone, password, selectedRole }
 
 export const verifyLoginOtp = (data) =>
   post("/api/auth/verify-login-otp", data);
+// data shape: { phone, otp }

@@ -2,8 +2,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  loginRequest,
-  loginSuperAdmin,
   sendLoginOtp,
   verifyLoginOtp,
 } from "./api";
@@ -13,7 +11,7 @@ import {
   Users,
   ShieldCheck,
   Building2,
-  Mail,
+  Phone,
   Lock,
   Eye,
   EyeOff,
@@ -35,16 +33,16 @@ const REDIRECT = {
 };
 
 const STAFF_ROLES = [
-  { label: "Admin", value: "admin", icon: UserCog },
-  { label: "Teacher", value: "teacher", icon: BookOpen },
+  { label: "Admin",    value: "admin",    icon: UserCog  },
+  { label: "Teacher",  value: "teacher",  icon: BookOpen },
   { label: "Financer", value: "financer", icon: BarChart3 },
 ];
 
 const TOP_TABS = [
-  { label: "Staff", value: "staff", icon: Users },
-  { label: "Student", value: "student", icon: GraduationCap },
-  { label: "Parent", value: "parent", icon: Building2 },
-  { label: "Super Admin", value: "superAdmin", icon: ShieldCheck },
+  { label: "Staff",       value: "staff",      icon: Users        },
+  { label: "Student",     value: "student",    icon: GraduationCap },
+  { label: "Parent",      value: "parent",     icon: Building2    },
+  { label: "Super Admin", value: "superAdmin", icon: ShieldCheck  },
 ];
 
 const FEATURES = [
@@ -68,74 +66,72 @@ const FEATURES = [
 export default function Login({ onSwitchToRegister }) {
   const navigate = useNavigate();
 
-  const [type, setType] = useState("staff");
+  const [type, setType]           = useState("staff");
   const [staffRole, setStaffRole] = useState("admin");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [phone, setPhone]         = useState("");
+  const [password, setPassword]   = useState("");
+  const [loading, setLoading]     = useState(false);
+  const [error, setError]         = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  const [showOtp, setShowOtp] = useState(false);
-  const [otp, setOtp] = useState("");
+  const [mounted, setMounted]     = useState(false);
+  const [showOtp, setShowOtp]     = useState(false);
+  const [otp, setOtp]             = useState("");
   const [otpMessage, setOtpMessage] = useState("");
+
   useEffect(() => {
     setTimeout(() => setMounted(true), 50);
   }, []);
 
+  // Resolve selectedRole from tab + sub-role
+  const resolveRole = () => {
+    const staffRoleMap = {
+      admin:    "ADMIN",
+      teacher:  "TEACHER",
+      financer: "FINANCE",
+    };
+    const roleMap = {
+      superAdmin: "SUPER_ADMIN",
+      student:    "STUDENT",
+      parent:     "PARENT",
+    };
+    return type === "staff" ? staffRoleMap[staffRole] : roleMap[type];
+  };
+
   const handleLogin = async () => {
     setError("");
 
-    if (!email || !password) {
-      return setError("Please enter email and password");
+    if (!phone || !password) {
+      return setError("Please enter mobile number and password");
+    }
+
+    // Basic phone validation
+    const digits = phone.replace(/\D/g, "");
+    if (digits.length < 10) {
+      return setError("Please enter a valid 10-digit mobile number");
     }
 
     try {
       setLoading(true);
 
-      const roleMap = {
-        superAdmin: "SUPER_ADMIN",
-        student: "STUDENT",
-        parent: "PARENT",
-      };
-
-      const staffRoleMap = {
-        admin: "ADMIN",
-        teacher: "TEACHER",
-        financer: "FINANCE",
-      };
-
       const result = await sendLoginOtp({
-        email,
+        phone,
         password,
-        selectedRole:
-          type === "staff" ? staffRoleMap[staffRole] : roleMap[type],
+        selectedRole: resolveRole(),
       });
 
-      // STAFF / SUPER ADMIN
       if (result?.otpRequired) {
         setShowOtp(true);
-
         setOtpMessage("OTP sent to your registered mobile number");
-
         setError("");
-
         return;
       }
 
-      // STUDENT / PARENT
+      // Student / Parent (direct token if ever returned without OTP)
       if (result?.token) {
         saveAuth(result);
-
         const role = result?.user?.role;
-
-        if (!role) {
-          setError("Login failed: role not found");
-          return;
-        }
-
+        if (!role) { setError("Login failed: role not found"); return; }
         window.location.href = REDIRECT[role] || "/dashboard";
-
         return;
       }
     } catch (err) {
@@ -148,26 +144,17 @@ export default function Login({ onSwitchToRegister }) {
   const handleVerifyOtp = async () => {
     setError("");
 
-    if (!otp) {
-      return setError("Please enter OTP");
-    }
+    if (!otp) return setError("Please enter OTP");
 
     try {
       setLoading(true);
 
-      const result = await verifyLoginOtp({
-        email,
-        otp,
-      });
+      const result = await verifyLoginOtp({ phone, otp });
 
       saveAuth(result);
 
       const role = result?.user?.role;
-
-      if (!role) {
-        setError("Login failed: role not found");
-        return;
-      }
+      if (!role) { setError("Login failed: role not found"); return; }
 
       window.location.href = REDIRECT[role] || "/dashboard";
     } catch (err) {
@@ -178,6 +165,17 @@ export default function Login({ onSwitchToRegister }) {
   };
 
   const activeTab = TOP_TABS.find((t) => t.value === type);
+
+  // Student hint text
+  const phonePlaceholder =
+    type === "student"
+      ? "Parent's mobile number"
+      : "Enter mobile number";
+
+  const phoneHint =
+    type === "student"
+      ? "Use the parent's registered mobile number"
+      : null;
 
   return (
     <>
@@ -468,6 +466,13 @@ export default function Login({ onSwitchToRegister }) {
           margin-bottom: 7px;
           letter-spacing: 0.1px;
         }
+        .field-hint {
+          display: block;
+          font-size: 11px;
+          color: #6A89A7;
+          margin-top: 5px;
+          font-style: italic;
+        }
         .field-wrap { position: relative; }
         .field-icon {
           position: absolute;
@@ -557,28 +562,6 @@ export default function Login({ onSwitchToRegister }) {
         .divider-line { flex: 1; height: 1px; background: #dde8f5; }
         .divider-text { font-size: 10.5px; color: #88BDF2; font-weight: 700; letter-spacing: 1px; }
 
-        .btn-secondary {
-          width: 100%;
-          padding: 12px;
-          border-radius: 12px;
-          border: 1.5px solid #88BDF2;
-          background: #fff;
-          color: #384959;
-          font-family: 'DM Sans', sans-serif;
-          font-size: 13.5px;
-          font-weight: 700;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 7px;
-          transition: all 0.2s;
-        }
-        .btn-secondary:hover {
-          background: #eaf3fc;
-          border-color: #6A89A7;
-        }
-
         /* Loading spinner */
         @keyframes spin { to { transform: rotate(360deg); } }
         .spinner {
@@ -587,6 +570,18 @@ export default function Login({ onSwitchToRegister }) {
           border-top-color: #fff;
           border-radius: 50%;
           animation: spin 0.7s linear infinite;
+        }
+
+        /* OTP success message */
+        .otp-success {
+          margin-top: -8px;
+          margin-bottom: 16px;
+          font-size: 13px;
+          color: #16a34a;
+          font-weight: 600;
+          display: flex;
+          align-items: center;
+          gap: 6px;
         }
 
         /* ── RESPONSIVE ── */
@@ -644,16 +639,8 @@ export default function Login({ onSwitchToRegister }) {
             </div>
           </div>
 
-          {/* Mobile-only inline brand (no headline/features) */}
           <div className="mobile-brand">
-            <span
-              style={{
-                color: "#fff",
-                fontFamily: "Outfit,sans-serif",
-                fontWeight: 800,
-                fontSize: 17,
-              }}
-            >
+            <span style={{ color: "#fff", fontFamily: "Outfit,sans-serif", fontWeight: 800, fontSize: 17 }}>
               UniPortal
             </span>
             <span style={{ color: "#88BDF2", fontSize: 11, fontWeight: 500 }}>
@@ -662,8 +649,7 @@ export default function Login({ onSwitchToRegister }) {
           </div>
 
           <h1 className="left-headline">
-            Your campus,
-            <br />
+            Your campus,<br />
             <span>one platform.</span>
           </h1>
           <p className="left-sub">
@@ -707,10 +693,7 @@ export default function Login({ onSwitchToRegister }) {
                   <button
                     key={tab.value}
                     className={`tab-btn ${type === tab.value ? "active" : ""}`}
-                    onClick={() => {
-                      setType(tab.value);
-                      setError("");
-                    }}
+                    onClick={() => { setType(tab.value); setError(""); setShowOtp(false); setOtp(""); }}
                   >
                     <Icon size={14} />
                     {tab.label}
@@ -722,23 +705,16 @@ export default function Login({ onSwitchToRegister }) {
             {/* Staff Sub-roles */}
             {type === "staff" && (
               <div className="staff-roles">
-                {STAFF_ROLES.map(({ label, value, icon: Icon, desc }) => (
+                {STAFF_ROLES.map(({ label, value, icon: Icon }) => (
                   <button
                     key={value}
                     className={`role-btn ${staffRole === value ? "active" : ""}`}
-                    onClick={() => {
-                      setStaffRole(value);
-                      setError("");
-                    }}
+                    onClick={() => { setStaffRole(value); setError(""); }}
                   >
                     <div className="role-btn-icon">
-                      <Icon
-                        size={15}
-                        color={staffRole === value ? "#384959" : "#88BDF2"}
-                      />
+                      <Icon size={15} color={staffRole === value ? "#384959" : "#88BDF2"} />
                     </div>
                     <div className="role-btn-label">{label}</div>
-                    <div className="role-btn-desc">{desc}</div>
                   </button>
                 ))}
               </div>
@@ -758,22 +734,26 @@ export default function Login({ onSwitchToRegister }) {
             {/* Error */}
             {error && <div className="error-box">{error}</div>}
 
-            {/* Email */}
+            {/* Mobile Number */}
             <div className="field-group">
-              <label className="field-label">Email Address</label>
+              <label className="field-label">
+                {type === "student" ? "Parent's Mobile Number" : "Mobile Number"}
+              </label>
               <div className="field-wrap">
                 <span className="field-icon">
-                  <Mail size={15} color="#88BDF2" />
+                  <Phone size={15} color="#88BDF2" />
                 </span>
                 <input
                   className="field-input"
-                  type="email"
-                  placeholder="name@university.edu"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+                  type="tel"
+                  placeholder={phonePlaceholder}
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  onKeyDown={(e) => !showOtp && e.key === "Enter" && handleLogin()}
+                  maxLength={13}
                 />
               </div>
+              {phoneHint && <span className="field-hint">{phoneHint}</span>}
             </div>
 
             {/* Password */}
@@ -789,7 +769,7 @@ export default function Login({ onSwitchToRegister }) {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+                  onKeyDown={(e) => !showOtp && e.key === "Enter" && handleLogin()}
                   style={{ paddingRight: 44 }}
                 />
                 <button
@@ -797,46 +777,40 @@ export default function Login({ onSwitchToRegister }) {
                   type="button"
                   onClick={() => setShowPassword((s) => !s)}
                 >
-                  {showPassword ? (
-                    <EyeOff size={16} color="#6A89A7" />
-                  ) : (
-                    <Eye size={16} color="#6A89A7" />
-                  )}
+                  {showPassword
+                    ? <EyeOff size={16} color="#6A89A7" />
+                    : <Eye size={16} color="#6A89A7" />}
                 </button>
               </div>
             </div>
 
+            {/* OTP field (shown after first step) */}
             {showOtp && (
               <>
                 <div className="field-group">
                   <label className="field-label">Enter OTP</label>
-
                   <input
                     className="field-input"
+                    style={{ paddingLeft: 14 }}
                     value={otp}
                     onChange={(e) => setOtp(e.target.value)}
-                    placeholder="Enter 6 digit OTP"
+                    onKeyDown={(e) => e.key === "Enter" && handleVerifyOtp()}
+                    placeholder="Enter 6-digit OTP"
+                    maxLength={6}
                   />
                 </div>
 
-                <div
-                  style={{
-                    marginTop: "-8px",
-                    marginBottom: "16px",
-                    fontSize: "13px",
-                    color: "#16a34a",
-                    fontWeight: "600",
-                  }}
-                >
+                <div className="otp-success">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                    <polyline points="22 4 12 14.01 9 11.01" />
+                  </svg>
                   {otpMessage}
                 </div>
               </>
             )}
 
-            <span
-              className="forgot-link"
-              onClick={() => navigate("/forgot-password")}
-            >
+            <span className="forgot-link" onClick={() => navigate("/forgot-password")}>
               Forgot Password?
             </span>
 
@@ -853,25 +827,11 @@ export default function Login({ onSwitchToRegister }) {
                 </>
               ) : (
                 <>
-                  <span>Sign In</span>
+                  <span>{showOtp ? "Verify OTP" : "Sign In"}</span>
                   <ArrowRight size={16} />
                 </>
               )}
             </button>
-
-            {/* Divider */}
-            <div className="divider">
-              <div className="divider-line" />
-              <span className="divider-text">OR</span>
-              <div className="divider-line" />
-            </div>
-
-            {/* Register */}
-            {/* <button className="btn-secondary" onClick={() => navigate("/register")}>
-              <Building2 size={15} color="#6A89A7" />
-              <span>Register New University</span>
-              <ChevronRight size={14} color="#6A89A7" />
-            </button> */}
           </div>
         </div>
       </div>
