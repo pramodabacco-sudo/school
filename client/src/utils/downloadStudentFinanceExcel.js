@@ -180,9 +180,9 @@ function _buildMainSheet(workbook, students, feeCategory, catLabel, schoolInfo, 
     row.getCell(2).value = s.name || "—";
     row.getCell(3).value = s.email || "—";
     row.getCell(4).value = s.course || "—";
-    row.getCell(5).value = displayFee;
-    row.getCell(6).value = displayPaid;
-    row.getCell(7).value = displayDue;
+    row.getCell(5).value = displayFee  > 0 ? displayFee  : "—";
+    row.getCell(6).value = displayPaid > 0 ? displayPaid : "—";
+    row.getCell(7).value = displayDue  > 0 ? displayDue  : "—";
     row.getCell(8).value = s.paymentMode || "—";
     row.getCell(9).value = s.paymentDate ? new Date(s.paymentDate).toLocaleDateString("en-IN") : "—";
     row.getCell(10).value = status;
@@ -300,20 +300,25 @@ function _buildSummarySheet(workbook, students, thinBorder) {
     { label: "Academic Tuition Fees Portion", getT: (s)=>fmt(parseBreakdown(s.feeBreakdown).tuitionFee), getP: (s)=>fmt(s.tuitionFeePaid) }
   ];
 
+  // Calculate streams — only render rows where there is actual data
+  let summaryRowNum = 3;
   streams.forEach((st, idx) => {
-    const rowNum = idx + 3;
-    const r = ws.getRow(rowNum); r.height = 22;
-    
     const t = students.reduce((acc, s) => acc + st.getT(s), 0);
     const p = students.reduce((acc, s) => acc + st.getP(s), 0);
     const d = Math.max(0, t - p);
+
+    // ── Skip entirely if this stream has no fee data ──
+    if (t === 0 && p === 0) return;
+
+    const rowNum = summaryRowNum++;
+    const r = ws.getRow(rowNum); r.height = 22;
 
     r.getCell(1).value = st.label;
     r.getCell(2).value = t;
     r.getCell(3).value = p;
     r.getCell(4).value = d;
 
-    const rowBg = idx % 2 === 1 ? DESIGN.colors.zebra : DESIGN.colors.white;
+    const rowBg = (rowNum % 2 === 1) ? DESIGN.colors.zebra : DESIGN.colors.white;
     for(let i = 1; i <= 4; i++) {
       const cell = r.getCell(i);
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: rowBg } };
@@ -325,11 +330,11 @@ function _buildSummarySheet(workbook, students, thinBorder) {
   });
 
   // Spacer
-  ws.getRow(6).height = 15;
+  ws.getRow(summaryRowNum).height = 15;
 
   // Metric KPIs Block
-  ws.mergeCells('A7:B7');
-  const r7 = ws.getRow(7); r7.height = 24;
+  ws.mergeCells(`A${summaryRowNum + 1}:B${summaryRowNum + 1}`);
+  const r7 = ws.getRow(summaryRowNum + 1); r7.height = 24;
   r7.getCell(1).value = "📊 KEY PERFORMANCE METRICS";
   r7.getCell(1).font = { name: DESIGN.fontName, size: 10, bold: true, color: { argb: DESIGN.colors.white } };
   r7.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: DESIGN.colors.secondary } };
@@ -352,7 +357,7 @@ function _buildSummarySheet(workbook, students, thinBorder) {
   ];
 
   metrics.forEach(([lbl, val], idx) => {
-    const rowNum = idx + 8;
+    const rowNum = idx + summaryRowNum + 2;
     const r = ws.getRow(rowNum); r.height = 22;
     ws.mergeCells(`B${rowNum}:D${rowNum}`);
     

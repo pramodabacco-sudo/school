@@ -715,6 +715,9 @@ export default function StudentFeesPage() {
             isPaid = schoolFee > 0 && schoolPaid >= schoolFee;
         } else if (feeCategory === "TUITION") {
             isPaid = tuitionFee > 0 && tuitionPaid >= tuitionFee;
+        } else if (feeCategory.startsWith("CUSTOM__")) {
+            // Custom categories don't have separate paid tracking, fall back to overall status
+            isPaid = Number(s.paidAmount || 0) >= Number(s.fees || 0);
         } else {
             isPaid =
                 Number(s.paidAmount || 0) >= Number(s.fees || 0);
@@ -1198,31 +1201,46 @@ export default function StudentFeesPage() {
                                 >
                                     <option value="ALL">All Fees</option>
                                     {[
-                                        { value: "SCHOOL", label: "School Fee" },
-                                        { value: "TUITION", label: "Tuition Fee" },
-                                        { value: "EXAM", label: "Exam Fee" },
+                                        { value: "SCHOOL",    label: "School Fee" },
+                                        { value: "TUITION",   label: "Tuition Fee" },
+                                        { value: "EXAM",      label: "Exam Fee" },
                                         { value: "TRANSPORT", label: "Transport Fee" },
-                                        { value: "BOOKS", label: "Books Fee" },
-                                        { value: "LAB", label: "Lab Fee" },
-                                        { value: "MISC", label: "Misc Fee" },
+                                        { value: "BOOKS",     label: "Books Fee" },
+                                        { value: "LAB",       label: "Lab Fee" },
+                                        { value: "MISC",      label: "Misc Fee" },
                                     ].filter(opt => {
-                                        // Only show categories that at least one student has
+                                        // Only show standard categories that at least one student has
+                                        const keyMap = {
+                                            SCHOOL: "collegeFee", TUITION: "tuitionFee", EXAM: "examFee",
+                                            TRANSPORT: "transportFee", BOOKS: "booksFee", LAB: "labFee", MISC: "miscFee",
+                                        };
                                         return students.some(s => {
                                             const bd = JSON.parse(s.feeBreakdown || "{}");
-                                            const keyMap = {
-                                                SCHOOL: "collegeFee",
-                                                TUITION: "tuitionFee",
-                                                EXAM: "examFee",
-                                                TRANSPORT: "transportFee",
-                                                BOOKS: "booksFee",
-                                                LAB: "labFee",
-                                                MISC: "miscFee",
-                                            };
                                             return Number(bd[keyMap[opt.value]] || 0) > 0;
                                         });
                                     }).map(opt => (
                                         <option key={opt.value} value={opt.value}>{opt.label}</option>
                                     ))}
+                                    {/* ── Dynamic Custom Categories ── */}
+                                    {(() => {
+                                        const seen = new Set();
+                                        const customOpts = [];
+                                        students.forEach(s => {
+                                            const bd = JSON.parse(s.feeBreakdown || "{}");
+                                            const customs = Array.isArray(bd.customFees) ? bd.customFees : [];
+                                            customs.forEach(c => {
+                                                const label = c.label || c.name || "";
+                                                const amount = Number(c.amount || c.total || 0);
+                                                if (label && amount > 0 && !seen.has(label)) {
+                                                    seen.add(label);
+                                                    customOpts.push({ value: `CUSTOM__${label}`, label });
+                                                }
+                                            });
+                                        });
+                                        return customOpts.map(opt => (
+                                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                        ));
+                                    })()}
                                 </select>
                                 <select
                                     value={paymentFilter}
@@ -1270,7 +1288,9 @@ export default function StudentFeesPage() {
                                                     ? "School Fee"
                                                     : feeCategory === "TUITION"
                                                         ? "Tuition Fee"
-                                                        : "Total Fees"}
+                                                        : feeCategory.startsWith("CUSTOM__")
+                                                            ? feeCategory.replace("CUSTOM__", "") + " Fee"
+                                                            : "Total Fees"}
                                             </th>
 
                                             <th>
@@ -1278,7 +1298,9 @@ export default function StudentFeesPage() {
                                                     ? "Paid School Fee"
                                                     : feeCategory === "TUITION"
                                                         ? "Paid Tuition Fee"
-                                                        : "Paid"}
+                                                        : feeCategory.startsWith("CUSTOM__")
+                                                            ? "Paid"
+                                                            : "Paid"}
                                             </th>
 
                                             <th>
@@ -1286,7 +1308,9 @@ export default function StudentFeesPage() {
                                                     ? "School Due"
                                                     : feeCategory === "TUITION"
                                                         ? "Tuition Due"
-                                                        : "Remaining"}
+                                                        : feeCategory.startsWith("CUSTOM__")
+                                                            ? feeCategory.replace("CUSTOM__", "") + " Due"
+                                                            : "Remaining"}
                                             </th>
 
                                             <th>Status</th>
@@ -1358,33 +1382,50 @@ export default function StudentFeesPage() {
                                                     tuitionFee - tuitionPaid
                                                 );
 
+                                                // Resolve custom category fee amount
+                                                const customFeeAmt = (() => {
+                                                    if (!feeCategory.startsWith("CUSTOM__")) return 0;
+                                                    const customLabel = feeCategory.replace("CUSTOM__", "");
+                                                    const customs = Array.isArray(breakdown.customFees) ? breakdown.customFees : [];
+                                                    const match = customs.find(c => (c.label || c.name || "") === customLabel);
+                                                    return Number(match?.amount || match?.total || 0);
+                                                })();
+
                                                 const displayFee =
                                                     feeCategory === "SCHOOL"
                                                         ? schoolFee
                                                         : feeCategory === "TUITION"
                                                             ? tuitionFee
-                                                            : totalFee;
+                                                            : feeCategory.startsWith("CUSTOM__")
+                                                                ? customFeeAmt
+                                                                : totalFee;
 
                                                 const displayPaid =
                                                     feeCategory === "SCHOOL"
                                                         ? schoolPaid
                                                         : feeCategory === "TUITION"
                                                             ? tuitionPaid
-                                                            : paidAmt;
+                                                            : feeCategory.startsWith("CUSTOM__")
+                                                                ? 0  // custom fees have no separate paid tracking
+                                                                : paidAmt;
 
                                                 const displayRemaining =
                                                     feeCategory === "SCHOOL"
                                                         ? schoolRemaining
                                                         : feeCategory === "TUITION"
                                                             ? tuitionRemaining
-                                                            : remaining;
+                                                            : feeCategory.startsWith("CUSTOM__")
+                                                                ? customFeeAmt
+                                                                : remaining;
 
                                                 const isPaid =
                                                     feeCategory === "SCHOOL"
                                                         ? schoolFee > 0 && schoolPaid >= schoolFee
                                                         : feeCategory === "TUITION"
                                                             ? tuitionFee > 0 && tuitionPaid >= tuitionFee
-                                                            : totalFee > 0 && paidAmt >= totalFee;
+                                                            : feeCategory.startsWith("CUSTOM__")
+                                                                ? false
+                                                                : totalFee > 0 && paidAmt >= totalFee;
                                                 return (
                                                     <tr key={student.id}>
                                                         <td
