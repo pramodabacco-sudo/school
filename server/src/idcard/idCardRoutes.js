@@ -17,14 +17,16 @@ import {
   getOrderStats,
     getOrders,           // ← add
   createCodedTemplate, // ← add
+  updateTemplateColors, // ← add: per-template color edit, never affects other templates
 } from "./idCardControlls.js";
 
 const router = express.Router();
 
 // ✅ CORRECT ORDER — specific routes BEFORE param routes
-router.get("/templates",          authMiddleware, getTemplates);
-router.post("/templates/coded",   authMiddleware, createCodedTemplate);  // ← BEFORE :id
-router.delete("/templates/:id",   authMiddleware, deleteTemplate);        // ← AFTER
+router.get("/templates",            authMiddleware, getTemplates);
+router.post("/templates/coded",     authMiddleware, createCodedTemplate);   // ← BEFORE :id
+router.patch("/templates/:id/colors", authMiddleware, updateTemplateColors); // ← BEFORE :id delete
+router.delete("/templates/:id",     authMiddleware, deleteTemplate);        // ← AFTER
 
 router.get("/orders",             authMiddleware, getOrders);
 router.post("/orders/place",      authMiddleware, placeOrder);

@@ -64,17 +64,40 @@ export const uploadTemplate = async (req, res) => {
       ContentType: file.mimetype,
     }));
 
+    // ── Validate schoolId if provided ──────────────────────────────────────
+    let resolvedSchoolId     = null;
+    let resolvedSuperAdminId = null;
+    let resolvedUniversityId = null;
+
+    if (schoolId) {
+      const school = await prisma.school.findUnique({
+        where:  { id: schoolId },
+        select: { id: true, superAdminId: true, universityId: true },
+      });
+      if (!school) {
+        return res.status(400).json({ error: "School not found. Please provide a valid schoolId." });
+      }
+      resolvedSchoolId     = school.id;
+      resolvedSuperAdminId = school.superAdminId || null;
+      resolvedUniversityId = school.universityId || null;
+    }
+
     // No schoolId = platform default (visible to all)
     // With schoolId = school's own template (visible only to them)
-    const isDefault = !schoolId;
+    const isDefault = !resolvedSchoolId;
 
     const template = await prisma.idCardTemplate.create({
       data: {
         title,
-        description: description || null,
+        description:  description || null,
+        templateType: "UPLOADED",
+        templateKey:  null,
         imageKey,
-        schoolId:   schoolId || null,
         isDefault,
+        isActive:     true,
+        schoolId:     resolvedSchoolId,
+        superAdminId: resolvedSuperAdminId,
+        universityId: resolvedUniversityId,
       },
     });
 

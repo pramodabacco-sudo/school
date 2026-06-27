@@ -225,6 +225,9 @@ model University {
   Payment      Payment[]
   Subscription Subscription[]
 
+  idCardOrders    IdCardOrder[]
+  idCardTemplates IdCardTemplate[]
+
   @@index([code])
   @@map("universities")
 }
@@ -250,6 +253,8 @@ model SuperAdmin {
   schools School[]
 
   voiceAnnouncements VoiceAnnouncement[]
+  idCardOrders       IdCardOrder[]
+  idCardTemplates    IdCardTemplate[]
 
   @@index([universityId])
   @@map("super_admins")
@@ -3739,7 +3744,6 @@ enum AttendanceAuditAction {
 //    Locked payrolls cannot be regenerated.
 // ─────────────────────────────────────────────────────────────────────────────
 
-
 model TeacherMonthlyPayroll {
   id        String         @id @default(cuid())
   schoolId  String
@@ -4024,12 +4028,28 @@ model VoiceAnnouncementListen {
   @@map("voice_announcement_listens")
 }
 
+enum IdCardOrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  DISPATCHED
+  DELIVERED
+  CANCELLED
+}
+
 model IdCardOrder {
   id String @id @default(uuid())
 
   schoolId   String
   school     School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   schoolName String
+
+  // ── ADD THESE TWO ──────────────────────────────
+  universityId String?
+  university   University? @relation(fields: [universityId], references: [id], onDelete: SetNull)
+  superAdminId String?
+  superAdmin   SuperAdmin? @relation(fields: [superAdminId], references: [id], onDelete: SetNull)
+  // ───────────────────────────────────────────────
 
   templateId String?
   template   IdCardTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
@@ -4048,18 +4068,11 @@ model IdCardOrder {
   updatedAt DateTime @updatedAt
 
   @@index([schoolId])
+  @@index([universityId]) // ← ADD
+  @@index([superAdminId]) // ← ADD
   @@index([status])
   @@index([orderedAt])
   @@map("id_card_orders")
-}
-
-enum IdCardOrderStatus {
-  PENDING
-  CONFIRMED
-  PROCESSING
-  DISPATCHED
-  DELIVERED
-  CANCELLED
 }
 
 model IdCardTemplate {
@@ -4079,11 +4092,20 @@ model IdCardTemplate {
   schoolId String?
   school   School? @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
+  // ── ADD THESE TWO ──────────────────────────────
+  universityId String?
+  university   University? @relation(fields: [universityId], references: [id], onDelete: SetNull)
+  superAdminId String?
+  superAdmin   SuperAdmin? @relation(fields: [superAdminId], references: [id], onDelete: SetNull)
+  // ───────────────────────────────────────────────
+
   uploadedAt DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
   orders IdCardOrder[]
 
   @@index([schoolId])
+  @@index([universityId]) // ← ADD
+  @@index([superAdminId]) // ← ADD
   @@map("id_card_templates")
 }
