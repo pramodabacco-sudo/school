@@ -615,11 +615,13 @@ function downloadTemplate() {
 /* ── Students table — inner logic unchanged, outer styling updated ── */
 function StudentsTable({ students, loading, onDelete, sectionName, total, isFiltered, selectedIds = new Set(), onToggleSelect, onToggleAll }) {
   const navigate = useNavigate();
-  const displayName = (s) =>
-    s.personalInfo
-      ? `${s.personalInfo.firstName} ${s.personalInfo.lastName}`
-      : s.name;
+  const displayName = (s) => {
+    if (!s.personalInfo) return s.name;
 
+    return [s.personalInfo.firstName, s.personalInfo.lastName]
+      .filter(Boolean)
+      .join(" ");
+  };
   if (loading)
     return (
       <div

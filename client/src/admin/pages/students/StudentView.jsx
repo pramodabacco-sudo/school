@@ -147,7 +147,9 @@ export default function StudentView() {
   }, [id]);
 
   const handleDelete = async () => {
-    const name = pi ? `${pi.firstName} ${pi.lastName}` : student?.name;
+    const name = pi
+    ? [pi.firstName, pi.lastName].filter(Boolean).join(" ")
+    : student?.name;
     if (!window.confirm(`Permanently delete "${name}"? This cannot be undone.`))
       return;
     try {
@@ -215,7 +217,9 @@ export default function StudentView() {
   const section = enrollment?.classSection;
   const acYear = enrollment?.academicYear;
   const rollNumber = enrollment?.rollNumber;
-  const fullName = pi ? `${pi.firstName} ${pi.lastName}` : student.name;
+  const fullName = pi
+  ? [pi.firstName, pi.lastName].filter(Boolean).join(" ")
+  : student.name;
   const initials =
     `${pi?.firstName?.[0] || ""}${pi?.lastName?.[0] || ""}`.toUpperCase() ||
     "?";

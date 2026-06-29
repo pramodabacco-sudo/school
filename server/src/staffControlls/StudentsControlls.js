@@ -282,12 +282,11 @@ export const savePersonalInfo = async (req, res) => {
     if (!admissionDate)
       return res.status(400).json({ message: "admissionDate is required" });
 
-    if (casteCategory) {
-      const castEnum = toEnum(casteCategory);
-      if (!VALID_CASTE_CATEGORIES.includes(castEnum))
-        return res.status(400).json({
-          message: `Invalid casteCategory. Must be one of: ${VALID_CASTE_CATEGORIES.join(", ")}`,
-        });
+    // Allow predefined categories OR any custom value
+    if (casteCategory && casteCategory.trim().length > 100) {
+      return res.status(400).json({
+        message: "Caste Category is too long",
+      });
     }
 
     if (previousSchoolBoard) {
@@ -337,7 +336,7 @@ export const savePersonalInfo = async (req, res) => {
       satsNumber: satsNumber?.trim() || undefined,
       nationality: nationality?.trim() || undefined,
       religion: religion?.trim() || undefined,
-      casteCategory: casteCategory ? toEnum(casteCategory) : undefined,
+      casteCategory: casteCategory?.trim() || undefined,
       motherTongue: motherTongue?.trim() || undefined,
       subcaste: subcaste?.trim() || undefined,
       domicileState: domicileState?.trim() || undefined,

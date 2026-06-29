@@ -856,7 +856,7 @@ export default function AddStudent({ onClose, closeModal, onSuccess }) {
         method: "POST",
         headers: { "Content-Type": "application/json", ...auth() },
         body: JSON.stringify({
-          name: [f.fn, f.ln].filter(boolean).join(" "),
+          name: [f.fn, f.ln].filter(Boolean).join(" "),
           email: f.lemail?.trim() || f.email?.trim() || normalizePhone(f.phone),
           password: f.pw,
         }),
@@ -1789,12 +1789,14 @@ export default function AddStudent({ onClose, closeModal, onSuccess }) {
                   value={f.fn}
                   onChange={set("fn")}
                   error={err.fn}
+                  placeholder="First name or Full name"
                 />
                 <InputField
                   label="Last Name"
                   value={f.ln}
                   onChange={set("ln")}
                   error={err.ln}
+                  placeholder="Last name (optional)"
                 />
                 <InputField
                   label="Date of Birth"
@@ -1861,18 +1863,54 @@ export default function AddStudent({ onClose, closeModal, onSuccess }) {
                     onChange={set("religion")}
                     placeholder="Optional"
                   />
-                  <StyledSelect
-                    label="Caste Category"
-                    value={f.casteCategory}
-                    onChange={set("casteCategory")}
-                  >
-                    <option value="">Select category</option>
-                    <option value="SC">SC</option>
-                    <option value="ST">ST</option>
-                    <option value="OBC">OBC</option>
-                    <option value="GM">GM (General)</option>
-                    <option value="OTHER">Other</option>
-                  </StyledSelect>
+                 <StyledSelect
+  label="Caste Category"
+  value={
+    ["SC", "ST", "OBC", "GM", "OTHER"].includes(f.casteCategory)
+      ? f.casteCategory
+      : f.casteCategory
+        ? "CUSTOM"
+        : ""
+  }
+  onChange={(e) => {
+    const value = e.target.value;
+
+    if (value === "CUSTOM") {
+      setF((p) => ({
+        ...p,
+        casteCategory: "",
+      }));
+    } else {
+      setF((p) => ({
+        ...p,
+        casteCategory: value,
+      }));
+    }
+  }}
+>
+  <option value="">Select category</option>
+  <option value="SC">SC</option>
+  <option value="ST">ST</option>
+  <option value="OBC">OBC</option>
+  <option value="GM">GM (General)</option>
+  <option value="OTHER">Other</option>
+  <option value="CUSTOM">Custom</option>
+</StyledSelect>
+
+{(
+  !["", "SC", "ST", "OBC", "GM", "OTHER"].includes(f.casteCategory) ||
+  (
+    ["SC", "ST", "OBC", "GM", "OTHER"].includes(f.casteCategory) === false &&
+    f.casteCategory === ""
+  )
+) && (
+  <InputField
+    label="Custom Caste Category"
+    value={f.casteCategory}
+    onChange={set("casteCategory")}
+    placeholder="Enter caste category"
+  />
+)}
                   <InputField
                     label="Sub-Caste"
                     value={f.subcaste}

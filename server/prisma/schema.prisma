@@ -709,12 +709,12 @@ model StudentPersonalInfo {
   city          String?
   state         String?
   zipCode       String?
-  aadhaarNumber String?        @db.VarChar(12)
-  panNumber     String?        @db.VarChar(10)
+  aadhaarNumber String? @db.VarChar(12)
+  panNumber     String? @db.VarChar(10)
   satsNumber    String?
-  nationality   String?        @default("Indian")
+  nationality   String? @default("Indian")
   religion      String?
-  casteCategory CasteCategory?
+  casteCategory String?
 
   motherTongue         String? // Kannada, Telugu, Tamil, Hindi, English, Urdu, Other
   subcaste             String? // Sub-caste (needed for SC/ST/OBC certificates)

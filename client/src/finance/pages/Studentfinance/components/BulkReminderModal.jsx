@@ -367,7 +367,7 @@ export default function BulkReminderModal({ students, onClose }) {
               <label style={S.label}>Channel</label>
               <select value={channel} onChange={e => setChannel(e.target.value)} style={S.select}>
                 <option value="whatsapp">📲 WhatsApp</option>
-                <option value="voice">📞 Voice Call</option>
+                {/* <option value="voice">📞 Voice Call</option> */}
               </select>
             </div>
 
