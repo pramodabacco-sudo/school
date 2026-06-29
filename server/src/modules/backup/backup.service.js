@@ -246,84 +246,39 @@ const data = await prisma[model].findMany({
    RESTORE SINGLE RECORD
 ========================================================= */
 
-export const restoreSingleRecord = async ({
-  schoolId,
-  model,
-  recordId,
-}) => {
-
+export const restoreSingleRecord = async ({ schoolId, model, recordId }) => {
   try {
+    if (!prisma[model]) throw new Error(`Invalid model: ${model}`);
 
-    if (!prisma[model]) {
-      throw new Error(`Invalid model: ${model}`);
-    }
-
-    console.log("RESTORE REQUEST:", {
-      model,
-      recordId,
-      type: typeof recordId,
-    });
-
-    // =========================
-    // STAFF RESTORE
-    // =========================
+    // ✅ Same Int ID coercion
+    const INT_ID_MODELS = ["studentList"];
+    const parsedId = INT_ID_MODELS.includes(model)
+      ? parseInt(recordId, 10)
+      : recordId;
 
     if (model === "staffProfile") {
-
-      const restoredStaff =
-        await prisma.staffProfile.update({
-
-          where: {
-            id: recordId,
-          },
-
-          data: {
-            deletedAt: null,
-            status: "ACTIVE",
-          },
-        });
-
+      const restoredStaff = await prisma.staffProfile.update({
+        where: { id: parsedId },
+        data:  { deletedAt: null, status: "ACTIVE" },
+      });
       if (restoredStaff.userId) {
-
         await prisma.user.update({
-
-          where: {
-            id: restoredStaff.userId,
-          },
-
-          data: {
-            deletedAt: null,
-            isActive: true,
-          },
+          where: { id: restoredStaff.userId },
+          data:  { deletedAt: null, isActive: true },
         });
-
       }
-
       return restoredStaff;
     }
 
-    // =========================
-    // NORMAL RESTORE
-    // =========================
-
-    const restoredRecord =
-      await prisma[model].update({
-
-        where: {
-          id: recordId,
-        },
-
-        data: {
-          deletedAt: null,
-        },
-      });
+    const restoredRecord = await prisma[model].update({
+      where: { id: parsedId },
+      data:  { deletedAt: null },
+    });
 
     return restoredRecord;
 
   } catch (error) {
-
     console.log("❌ RESTORE ERROR:", error);
-
     throw error;
   }
 };
@@ -344,86 +299,61 @@ export const permanentlyDeleteRecord = async ({
       throw new Error(`Invalid model: ${model}`);
     }
 
-    console.log("PERMANENT DELETE REQUEST:", {
-      model,
-      recordId,
-      type: typeof recordId,
-    });
+    // ✅ FIX: Some models (e.g. StudentList) use Int IDs, not String UUIDs.
+    // Route params always arrive as strings — coerce to Int when needed.
+    const INT_ID_MODELS = ["studentList"];
+    const parsedId = INT_ID_MODELS.includes(model)
+      ? parseInt(recordId, 10)
+      : recordId;
 
-    // =========================
-    // STAFF PERMANENT DELETE
-    // (also removes the linked user account)
-    // =========================
+    if (INT_ID_MODELS.includes(model) && isNaN(parsedId)) {
+      throw new Error(`Invalid id "${recordId}" for model ${model}`);
+    }
 
+    console.log("PERMANENT DELETE REQUEST:", { model, recordId: parsedId });
+
+    // Special case: staff permanent delete also removes linked user
     if (model === "staffProfile") {
 
-      const staff =
-        await prisma.staffProfile.findUnique({
-          where: {
-            id: recordId,
-          },
-        });
+      const staff = await prisma.staffProfile.findUnique({
+        where: { id: parsedId },
+      });
 
-      if (!staff) {
-        throw new Error("Record not found");
-      }
+      if (!staff) throw new Error("Record not found");
 
-      const deletedStaff =
-        await prisma.staffProfile.delete({
-          where: {
-            id: recordId,
-          },
-        });
+      const deletedStaff = await prisma.staffProfile.delete({
+        where: { id: parsedId },
+      });
 
       if (staff.userId) {
-
         await prisma.user
-          .delete({
-            where: {
-              id: staff.userId,
-            },
-          })
-          .catch((err) => {
-            console.log(
-              "⚠️ Could not delete linked user:",
-              err.message
-            );
-          });
-
+          .delete({ where: { id: staff.userId } })
+          .catch((err) =>
+            console.log("⚠️ Could not delete linked user:", err.message)
+          );
       }
 
       return deletedStaff;
     }
 
-    // =========================
-    // NORMAL PERMANENT DELETE
-    // =========================
+    // Normal permanent delete
+    const existing = await prisma[model].findUnique({
+      where: { id: parsedId },
+    });
 
-    const existing =
-      await prisma[model].findUnique({
-        where: {
-          id: recordId,
-        },
-      });
+    if (!existing) throw new Error("Record not found");
 
-    if (!existing) {
-      throw new Error("Record not found");
-    }
-
-    const deletedRecord =
-      await prisma[model].delete({
-        where: {
-          id: recordId,
-        },
-      });
+    const deletedRecord = await prisma[model].delete({
+      where: { id: parsedId },
+    });
 
     return deletedRecord;
 
   } catch (error) {
 
     console.log("❌ PERMANENT DELETE ERROR:", error);
-
     throw error;
+
   }
 };
 
