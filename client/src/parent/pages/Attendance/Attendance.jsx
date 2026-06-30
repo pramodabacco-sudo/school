@@ -13,7 +13,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
     Calendar, CheckCircle, XCircle, TrendingUp,
-    Award, AlertCircle, Loader2,
+    Award, AlertCircle, Loader2, Fingerprint, UserCheck, Clock,
 } from "lucide-react";
 import { getToken } from "../../../auth/storage.js";
 
@@ -151,6 +151,43 @@ function statusStyle(status) {
 const Sk = ({ h = 14, w = "100%", r = 8 }) => (
     <div className="att-sk" style={{ height: h, width: w, borderRadius: r }} />
 );
+
+// ─── Source badge: who/what marked attendance + punch evidence ──
+function SourceBadge({ source, markedByName }) {
+    if (!source) return null;
+    const isManual = source === "manual";
+    const Icon = isManual ? UserCheck : Fingerprint;
+    const label = isManual ? (markedByName ? `Marked by ${markedByName}` : "Marked by Teacher") : "Biometric";
+    const color = isManual ? "#6A89A7" : "#384959";
+    return (
+        <span style={{
+            display: "inline-flex", alignItems: "center", gap: 4,
+            padding: "2px 8px", borderRadius: 20,
+            fontSize: 10, fontWeight: 700,
+            background: `${color}14`, color,
+            border: `1px solid ${color}24`,
+            whiteSpace: "nowrap",
+        }}>
+            <Icon size={10} />
+            {label}
+        </span>
+    );
+}
+
+// ─── Punch time chip: shown whenever a biometric punch exists, ──
+// ─── even if the day's status was later confirmed/overridden by  ──
+// ─── a teacher (source === "manual").                            ──
+function PunchTimes({ hasPunch, firstPunchFmt, lastPunchFmt, workedFmt }) {
+    if (!hasPunch) return null;
+    return (
+        <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10, color: C.mid, fontWeight: 600, marginTop: 2 }}>
+            <Clock size={10} />
+            <span>In {firstPunchFmt}</span>
+            {lastPunchFmt && <span>· Out {lastPunchFmt}</span>}
+            {workedFmt && <span style={{ color: C.light }}>· {workedFmt}</span>}
+        </div>
+    );
+}
 
 // ─── Stat card (identical to student) ────────────────────────
 function StatCard({ label, value, Icon, accent, loading, delay = "0s" }) {
@@ -567,7 +604,19 @@ export default function ParentAttendance() {
                                                                 const dayNum = new Date(year, month - 1, parseInt(item.date, 10)).getDay();
                                                                 const isWeekend = dayNum === 0 || dayNum === 6;
                                                                 const weekendLabel = dayNum === 0 ? "Sunday" : "Saturday";
-                                                                const tooltipText = isHoliday ? (declaredName || (isWeekend ? weekendLabel : null)) : null;
+                                                                const attendanceDetail = (item.status === "present" || item.status === "absent")
+                                                                    ? [
+                                                                        item.source === "manual"
+                                                                            ? `Marked by ${item.markedByName || "Teacher"}`
+                                                                            : item.source === "biometric" ? "Biometric punch" : null,
+                                                                        item.hasPunch
+                                                                            ? `In ${item.firstPunchFmt}${item.lastPunchFmt ? ` · Out ${item.lastPunchFmt}` : ""}`
+                                                                            : null,
+                                                                    ].filter(Boolean).join(" — ")
+                                                                    : null;
+                                                                const tooltipText = isHoliday
+                                                                    ? (declaredName || (isWeekend ? weekendLabel : null))
+                                                                    : attendanceDetail;
                                                                 const cellLabel = declaredName || (isWeekend && isHoliday ? weekendLabel : null);
                                                                 const isOpen = activeTooltip === idx;
 
@@ -605,7 +654,7 @@ export default function ParentAttendance() {
                                                                                     textAlign: "center",
                                                                                     boxShadow: "0 6px 20px rgba(56,73,89,0.26)",
                                                                                 }}>
-                                                                                    {declaredName ? `🎉 ${tooltipText}` : `📅 ${tooltipText}`}
+                                                                                    {isHoliday ? (declaredName ? `🎉 ${tooltipText}` : `📅 ${tooltipText}`) : `${item.source === "manual" ? "👤" : "🔒"} ${tooltipText}`}
                                                                                 </div>
                                                                                 <div style={{
                                                                                     width: 8, height: 8, background: C.dark,
@@ -737,7 +786,7 @@ export default function ParentAttendance() {
                                             <table style={{ width: "100%", borderCollapse: "collapse" }}>
                                                 <thead>
                                                     <tr style={{ background: C.bg }}>
-                                                        {["Date", "Day", "Status"].map(h => (
+                                                        {["Date", "Day", "Status", "Source"].map(h => (
                                                             <th key={h} style={{
                                                                 padding: "10px 18px", textAlign: "left",
                                                                 fontSize: 9, fontWeight: 800, color: C.mid,
@@ -774,6 +823,15 @@ export default function ParentAttendance() {
                                                                         <StatusIcon size={11} />
                                                                         {rec.status.charAt(0).toUpperCase() + rec.status.slice(1)}
                                                                     </span>
+                                                                    <PunchTimes
+                                                                        hasPunch={rec.hasPunch}
+                                                                        firstPunchFmt={rec.firstPunchFmt}
+                                                                        lastPunchFmt={rec.lastPunchFmt}
+                                                                        workedFmt={rec.workedFmt}
+                                                                    />
+                                                                </td>
+                                                                <td style={{ padding: "11px 18px" }}>
+                                                                    <SourceBadge source={rec.source} markedByName={rec.markedByName} />
                                                                 </td>
                                                             </tr>
                                                         );

@@ -1,7 +1,13 @@
 // server/src/parent/controllers/attendance_controller.js
 // ═══════════════════════════════════════════════════════════════
 //  Parent — Attendance Controller + Redis caching
-//  Also fixes: uses shared prisma import instead of new PrismaClient()
+//  UPDATED: now returns BOTH manual and biometric attendance info
+//    - source: "manual" | "biometric"  (derived from markedById)
+//    - markedByName: teacher name, when source === "manual"
+//    - firstPunchFmt / lastPunchFmt / workedFmt: from BiometricLog,
+//      shown whenever a punch exists for that day — REGARDLESS of
+//      who/what set the final status (teacher override still shows
+//      the underlying punch as supporting evidence).
 // ═══════════════════════════════════════════════════════════════
 
 import { prisma } from "../../config/db.js";
@@ -12,6 +18,20 @@ const mapStatus = (status) => {
   if (status === "ABSENT")  return "absent";
   return "holiday";
 };
+
+const fmtTime = (dt) =>
+  dt
+    ? new Date(dt).toLocaleTimeString("en-IN", {
+        timeZone: "Asia/Kolkata",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      })
+    : null;
+
+// Key by local YYYY-MM-DD (date-only) so a record's `date` column,
+// which is stored at local midnight, lines up with grouped punch logs.
+const dayKey = (d) => new Date(d).toISOString().slice(0, 10);
 
 export const getStudentAttendance = async (req, res) => {
   try {
@@ -38,16 +58,60 @@ export const getStudentAttendance = async (req, res) => {
 
     // ── Date range ────────────────────────────────────────────
     const startDate = new Date(year, month - 1, 1);
-    const endDate   = new Date(year, month, 0);
+    const endDate   = new Date(year, month, 0, 23, 59, 59, 999);
 
-    // ── Attendance records ────────────────────────────────────
+    // ── Attendance records (now also pulling who marked it) ───
     const records = await prisma.attendanceRecord.findMany({
       where: {
         studentId,
         date: { gte: startDate, lte: endDate },
       },
       orderBy: { date: "asc" },
+      select: {
+        date: true,
+        status: true,
+        markedById: true,
+        markedBy: { select: { name: true } },
+      },
     });
+
+    // ── Biometric punches for the same month (independent of status) ──
+    const biometricLogs = await prisma.biometricLog.findMany({
+      where: {
+        studentId,
+        personType: "STUDENT",
+        punchDateTime: { gte: startDate, lte: endDate },
+      },
+      select: { punchDateTime: true },
+      orderBy: { punchDateTime: "asc" },
+    });
+
+    // Group punches by day → first/last punch (in/out) + worked time
+    const punchByDay = new Map();
+    biometricLogs.forEach((log) => {
+      if (!log.punchDateTime) return;
+      const key = dayKey(log.punchDateTime);
+      if (!punchByDay.has(key)) {
+        punchByDay.set(key, { first: log.punchDateTime, last: log.punchDateTime, count: 0 });
+      }
+      const g = punchByDay.get(key);
+      g.count++;
+      if (log.punchDateTime < g.first) g.first = log.punchDateTime;
+      if (log.punchDateTime > g.last)  g.last  = log.punchDateTime;
+    });
+
+    const punchInfoFor = (date) => {
+      const g = punchByDay.get(dayKey(date));
+      if (!g) return { hasPunch: false, firstPunchFmt: null, lastPunchFmt: null, workedFmt: null };
+      const sameTime = g.first.getTime() === g.last.getTime();
+      const workedMinutes = !sameTime ? Math.floor((g.last - g.first) / 60000) : null;
+      return {
+        hasPunch: true,
+        firstPunchFmt: fmtTime(g.first),
+        lastPunchFmt:  !sameTime ? fmtTime(g.last) : null,
+        workedFmt:     workedMinutes != null ? `${Math.floor(workedMinutes / 60)}h ${workedMinutes % 60}m` : null,
+      };
+    };
 
     // ── Stats ─────────────────────────────────────────────────
     let present = 0;
@@ -75,13 +139,26 @@ export const getStudentAttendance = async (req, res) => {
     for (let day = 1; day <= daysInMonth; day++) {
       if (recordMap.has(day)) {
         const r = recordMap.get(day);
-        calendarDays.push({ date: day.toString(), status: mapStatus(r.status) });
+        const punch = punchInfoFor(r.date);
+        calendarDays.push({
+          date:   day.toString(),
+          status: mapStatus(r.status),
+          source: r.markedById ? "manual" : "biometric",
+          markedByName: r.markedById ? (r.markedBy?.name ?? "Teacher") : null,
+          ...punch,
+        });
       } else {
         const currentDate = new Date(year, month - 1, day);
         const today = new Date();
         calendarDays.push({
           date:   day.toString(),
           status: currentDate > today ? "upcoming" : "holiday",
+          source: null,
+          markedByName: null,
+          hasPunch: false,
+          firstPunchFmt: null,
+          lastPunchFmt: null,
+          workedFmt: null,
         });
       }
     }
@@ -90,11 +167,17 @@ export const getStudentAttendance = async (req, res) => {
     const recentRecords = records
       .slice(-7)
       .reverse()
-      .map((r) => ({
-        date:   new Date(r.date).toLocaleDateString(),
-        day:    new Date(r.date).toLocaleDateString("en-US", { weekday: "short" }),
-        status: mapStatus(r.status),
-      }));
+      .map((r) => {
+        const punch = punchInfoFor(r.date);
+        return {
+          date:   new Date(r.date).toLocaleDateString(),
+          day:    new Date(r.date).toLocaleDateString("en-US", { weekday: "short" }),
+          status: mapStatus(r.status),
+          source: r.markedById ? "manual" : "biometric",
+          markedByName: r.markedById ? (r.markedBy?.name ?? "Teacher") : null,
+          ...punch,
+        };
+      });
 
     // ── Available months ──────────────────────────────────────
     const allRecords = await prisma.attendanceRecord.findMany({
