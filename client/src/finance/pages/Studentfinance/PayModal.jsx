@@ -1,5 +1,5 @@
 // PayModal.jsx — Category-aware Fee Payment Modal (FULLY RESPONSIVE)
-import { CreditCard, X, CheckCircle, Clock, ChevronDown } from "lucide-react";
+import { CreditCard, X, CheckCircle, Clock, ChevronDown, Calendar } from "lucide-react";
 import React, { useState, useEffect } from "react";
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -7,6 +7,9 @@ const API_URL = import.meta.env.VITE_API_URL;
 const parseBreakdown = (raw) => {
   try { return raw ? JSON.parse(raw) : {}; } catch { return {}; }
 };
+
+// Today's date in yyyy-mm-dd, for the native <input type="date"> default value.
+const todayISO = () => new Date().toISOString().split("T")[0];
 
 const MODES = ["UPI", "Net Banking", "Cash", "Card", "Cheque"];
 
@@ -88,6 +91,15 @@ const STYLES = `
 @media(min-width:600px){.pm-cat-select{padding:10px 36px 10px 14px;font-size:13.5px;}}
 .pm-cat-select:focus{border-color:#27435B;box-shadow:0 0 0 3px rgba(39,67,91,.12);}
 .pm-cat-chevron{position:absolute;right:11px;top:50%;transform:translateY(-50%);pointer-events:none;color:#4A6B80;}
+
+/* Payment date row */
+.pm-date-row{display:flex;align-items:center;gap:10px;background:#fef6e7;border:1px solid #fde68a;border-radius:11px;padding:10px 12px;}
+@media(min-width:600px){.pm-date-row{border-radius:12px;padding:12px 14px;}}
+.pm-date-icon{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#d97706,#b45309);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.pm-date-label{font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:.6px;}
+.pm-date-hint{font-size:10px;color:#a1670e;margin-top:1px;}
+.pm-date-inp{border:1.5px solid #fde68a;background:#fff;border-radius:8px;padding:8px 10px;font-size:13px;font-weight:600;color:#1C3044;font-family:'DM Sans',sans-serif;outline:none;margin-left:auto;cursor:pointer;}
+.pm-date-inp:focus{border-color:#d97706;box-shadow:0 0 0 3px rgba(217,119,6,.15);}
 
 /* Summary cards */
 .pm-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
@@ -284,6 +296,9 @@ export function PayModal({ student, onClose, onPaymentDone }) {
   const [fullMode,  setFullMode]  = useState("UPI");
   const [fullDone,  setFullDone]  = useState(false);
   const [customAmt, setCustomAmt] = useState("");
+  // Custom payment date — defaults to today, editable, applies to whichever
+  // payment path (full/custom/EMI instalment) is confirmed.
+  const [paymentDate, setPaymentDate] = useState(todayISO());
   const [emiCount,  setEmiCount]  = useState(3);
   const [emiList,   setEmiList]   = useState([]);
   const [confirmId, setConfirmId] = useState(null);
@@ -316,7 +331,7 @@ export function PayModal({ student, onClose, onPaymentDone }) {
     const res = await fetch(`${API_URL}/api/finance/recordCategoryPayment`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
-      body: JSON.stringify({ studentListId: student.id, categoryId, amount, paymentMode: mode }),
+      body: JSON.stringify({ studentListId: student.id, categoryId, amount, paymentMode: mode, paymentDate: new Date(paymentDate + "T00:00:00").toISOString() }),
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
@@ -325,7 +340,7 @@ export function PayModal({ student, onClose, onPaymentDone }) {
   const buildPayload = (addedAmt) => {
     const newTotalPaid = Math.min(totalFees, paidMap.paidAmount + addedAmt);
     const isFullyPaid  = newTotalPaid >= totalFees;
-    const patch = { paymentMode: fullMode, paymentDate: new Date().toISOString(), paidAmount: newTotalPaid, paymentStatus: isFullyPaid ? "PAID" : "PARTIAL" };
+    const patch = { paymentMode: fullMode, paymentDate: new Date(paymentDate + "T00:00:00").toISOString(), paidAmount: newTotalPaid, paymentStatus: isFullyPaid ? "PAID" : "PARTIAL" };
 
     if (activeCat.id === "FULL") {
       let remaining = newTotalPaid;
@@ -417,6 +432,7 @@ export function PayModal({ student, onClose, onPaymentDone }) {
         studentListId: student.id,
         amount:        updated.amount,
         paymentMode:   mode,
+        paymentDate:   new Date(paymentDate + "T00:00:00").toISOString(),
         ...updated,
         // Pass sessionLogId so backend can UPDATE instead of INSERT
         sessionLogId:  sessionLogId || null,
@@ -485,10 +501,10 @@ export function PayModal({ student, onClose, onPaymentDone }) {
 
   const handleConfirmEmi = async (emi) => {
     setLoading(true); setError("");
-    const today = new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+    const paidLabel = new Date(paymentDate + "T00:00:00").toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
     try {
       await doPayment(emi.amount, modeInput);
-      const updatedList = emiList.map(e => e.id === emi.id ? { ...e, status: "paid", date: today, mode: modeInput } : e);
+      const updatedList = emiList.map(e => e.id === emi.id ? { ...e, status: "paid", date: paidLabel, mode: modeInput } : e);
       setEmiList(updatedList); setConfirmId(null);
     } catch (e) { setError(e.message || "Payment failed. Try again."); }
     finally { setLoading(false); }
@@ -530,6 +546,22 @@ export function PayModal({ student, onClose, onPaymentDone }) {
               </select>
               <ChevronDown size={14} className="pm-cat-chevron" />
             </div>
+          </div>
+
+          {/* Payment date — defaults to today, editable */}
+          <div className="pm-date-row">
+            <div className="pm-date-icon"><Calendar size={16} color="#fff" /></div>
+            <div>
+              <div className="pm-date-label">Payment Date</div>
+              <div className="pm-date-hint">Select the date this payment was received</div>
+            </div>
+            <input
+              type="date"
+              className="pm-date-inp"
+              value={paymentDate}
+              max={todayISO()}
+              onChange={e => setPaymentDate(e.target.value)}
+            />
           </div>
 
           {/* Summary cards */}
@@ -638,7 +670,7 @@ export function PayModal({ student, onClose, onPaymentDone }) {
               <div>
                 <div className="pm-success-text">Payment Confirmed!</div>
                 <div className="pm-success-sub">
-                  {customAmt ? `₹${Number(customAmt).toLocaleString("en-IN")} paid` : `₹${catRemaining.toLocaleString("en-IN")} paid`} via {fullMode} · {activeCat.label}
+                  {customAmt ? `₹${Number(customAmt).toLocaleString("en-IN")} paid` : `₹${catRemaining.toLocaleString("en-IN")} paid`} via {fullMode} · {activeCat.label} · {new Date(paymentDate + "T00:00:00").toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
                 </div>
               </div>
             </div>

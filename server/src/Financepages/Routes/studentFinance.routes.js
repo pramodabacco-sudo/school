@@ -213,11 +213,14 @@ router.post("/recordCategoryPayment", authMiddleware, async (req, res) => {
     }
 
     const schoolId = req.user?.schoolId;
-    const { studentListId, categoryId, amount, paymentMode } = req.body;
+    const { studentListId, categoryId, amount, paymentMode, paymentDate } = req.body;
 
     if (!studentListId || !categoryId || !amount || amount <= 0) {
       return res.status(400).json({ message: "studentListId, categoryId and amount are required" });
     }
+
+    // Use the custom date picked in the UI if provided, else fall back to now.
+    const payDate = paymentDate ? new Date(paymentDate) : new Date();
 
     const sfc = await prisma.studentFeeCategory.findUnique({
       where: { studentListId_categoryId: { studentListId: parseInt(studentListId), categoryId } },
@@ -259,7 +262,7 @@ router.post("/recordCategoryPayment", authMiddleware, async (req, res) => {
       data: {
         paidAmount:    newTotalPaid,
         paymentMode:   paymentMode || "Cash",
-        paymentDate:   new Date(),
+        paymentDate:   payDate,
         paymentStatus: newTotalPaid >= totalFees ? "PAID" : "PARTIAL",
       },
     });
@@ -723,6 +726,7 @@ router.post("/recordSimplePayment", authMiddleware, async (req, res) => {
       studentListId,
       amount,
       paymentMode,
+      paymentDate,             // custom date picked in the UI (yyyy-mm-dd or ISO)
       sessionLogId,           // if set → UPDATE existing row (same session)
       schoolFeePaid    = 0,
       tuitionFeePaid   = 0,
@@ -736,6 +740,9 @@ router.post("/recordSimplePayment", authMiddleware, async (req, res) => {
     if (!studentListId || !amount || Number(amount) <= 0) {
       return res.status(400).json({ message: "studentListId and amount are required" });
     }
+
+    // Use the custom date picked in the UI if provided, else fall back to now.
+    const payDate = paymentDate ? new Date(paymentDate) : new Date();
 
     const hasTable = await checkPaymentLogMigrated();
     if (!hasTable) {
@@ -756,6 +763,7 @@ router.post("/recordSimplePayment", authMiddleware, async (req, res) => {
           data: {
             amount:           Number(amount),           // frontend sends running total
             paymentMode:      paymentMode || "Cash",
+            paidAt:           payDate,
             schoolFeePaid:    Number(schoolFeePaid),
             tuitionFeePaid:   Number(tuitionFeePaid),
             examFeePaid:      Number(examFeePaid),
@@ -776,6 +784,7 @@ router.post("/recordSimplePayment", authMiddleware, async (req, res) => {
         studentListId:    parseInt(studentListId),
         amount:           Number(amount),
         paymentMode:      paymentMode || "Cash",
+        paidAt:           payDate,
         schoolFeePaid:    Number(schoolFeePaid),
         tuitionFeePaid:   Number(tuitionFeePaid),
         examFeePaid:      Number(examFeePaid),
